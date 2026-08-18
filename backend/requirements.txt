@@ -13,6 +13,9 @@ httpx==0.27.2
 # AWS (Bedrock LLM)
 boto3==1.35.0
 
+# Google Gemini (free tier LLM)
+google-generativeai==0.8.3
+
 # Vector Database (Local)
 faiss-cpu==1.15.0
 
