@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, health, agents
+from app.routers import chat, health, agents, vector_store
 
 
 @asynccontextmanager
@@ -21,10 +21,10 @@ async def lifespan(app: FastAPI):
     print(f"   Debug: {settings.debug}")
 
     # Initialize services on startup
-    from app.services.bedrock_service import bedrock_service
+    from app.services.llm_service import llm_service
     from app.services.vector_store_service import vector_store_service
 
-    await bedrock_service.initialize()
+    await llm_service.initialize()
     await vector_store_service.initialize()
 
     print("   Services initialized successfully")
@@ -55,6 +55,7 @@ app.add_middleware(
 app.include_router(health.router, tags=["Health"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
+app.include_router(vector_store.router, prefix="/api/v1/vectors", tags=["Vector Store"])
 
 
 @app.get("/")
