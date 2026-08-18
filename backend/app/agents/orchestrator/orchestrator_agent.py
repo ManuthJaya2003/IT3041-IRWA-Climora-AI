@@ -30,7 +30,7 @@ from app.models.schemas import (
     RiskLevel,
 )
 from app.agents.orchestrator.mcp_client import MCPClientManager
-from app.services.bedrock_service import bedrock_service
+from app.services.llm_service import llm_service
 
 
 class OrchestratorAgent:
@@ -378,7 +378,7 @@ and what is uncertain. Do not make claims beyond what the evidence supports."""
             "Never present uncertain information as fact."
         )
 
-        response = await bedrock_service.invoke_model(
+        response = await llm_service.invoke_model(
             prompt=prompt,
             system_prompt=system_prompt,
             max_tokens=500,
@@ -403,7 +403,7 @@ Location provided: {request.location or 'Not specified'}
 
 Respond in JSON format with keys: intent, entities, structured_query, expanded_terms"""
 
-        response = await bedrock_service.invoke_model(
+        response = await llm_service.invoke_model(
             prompt=prompt,
             system_prompt="You are an NLP processing module. Return only valid JSON.",
             max_tokens=500,
@@ -437,7 +437,7 @@ Provide:
 
 Respond in JSON format with keys: summary, risk_level, risk_factors, detailed_analysis, claims"""
 
-        response = await bedrock_service.invoke_model(
+        response = await llm_service.invoke_model(
             prompt=prompt,
             system_prompt="You are a climate analysis module. Return only valid JSON.",
             max_tokens=800,

@@ -14,6 +14,7 @@ How it works:
 
 import os
 import json
+import faiss
 import numpy as np
 from typing import Optional
 from datetime import datetime
@@ -34,8 +35,6 @@ class VectorStoreService:
     async def initialize(self):
         """Initialize FAISS index — load from disk or create new."""
         try:
-            import faiss
-
             # Data directory for persisting index
             self._data_dir = os.path.join(
                 os.path.dirname(os.path.dirname(os.path.dirname(__file__))),
@@ -53,15 +52,12 @@ class VectorStoreService:
                     self._documents = json.load(f)
                 self._dimension = self._index.d
             else:
-                # Create a new empty index (L2 distance, can normalize for cosine)
-                self._index = faiss.IndexFlatIP(self._dimension)  # Inner product (cosine after normalization)
+                # Create a new empty index (Inner Product for cosine after normalization)
+                self._index = faiss.IndexFlatIP(self._dimension)
 
             self._available = True
             print(f"   ✓ FAISS vector store initialized (documents: {self._index.ntotal}, dim: {self._dimension})")
 
-        except ImportError:
-            self._available = False
-            print("   ⚠ FAISS: faiss-cpu package not installed - run: pip install faiss-cpu")
         except Exception as e:
             self._available = False
             print(f"   ⚠ FAISS: Init failed ({e})")
@@ -195,8 +191,6 @@ class VectorStoreService:
                 return {"deleted": 0, "message": "No matching documents found"}
 
             # Rebuild index with remaining documents
-            import faiss
-
             remaining_docs = [self._documents[i] for i in keep_indices]
 
             # Get vectors for remaining docs (re-embed)
@@ -239,8 +233,6 @@ class VectorStoreService:
         if not self._available:
             return {"error": "Vector store not available"}
 
-        import faiss
-
         self._index = faiss.IndexFlatIP(self._dimension)
         self._documents = []
         await self._save_to_disk()
@@ -274,8 +266,6 @@ class VectorStoreService:
 
     async def _save_to_disk(self):
         """Persist index and metadata to disk."""
-        import faiss
-
         index_path = os.path.join(self._data_dir, "climate_index.faiss")
         metadata_path = os.path.join(self._data_dir, "documents.json")
 
