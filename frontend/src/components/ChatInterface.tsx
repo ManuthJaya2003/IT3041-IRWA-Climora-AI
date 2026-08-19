@@ -3,7 +3,7 @@ import { Send, MapPin, Loader2 } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import { sendQuery, ChatResponse } from '../api/climoraApi'
 
-interface Message {
+export interface Message {
   id: string
   role: 'user' | 'assistant'
   content: string
@@ -11,12 +11,24 @@ interface Message {
   timestamp: Date
 }
 
-export default function ChatInterface({ onNewConversation }: { onNewConversation?: (id: string, query: string) => void }) {
-  const [messages, setMessages] = useState<Message[]>([])
+interface ChatInterfaceProps {
+  initialMessages?: Message[]
+  initialSessionId?: string | null
+  onNewConversation?: (id: string, query: string, messages: Message[]) => void
+  onUpdateConversation?: (id: string, messages: Message[]) => void
+}
+
+export default function ChatInterface({
+  initialMessages = [],
+  initialSessionId = null,
+  onNewConversation,
+  onUpdateConversation,
+}: ChatInterfaceProps) {
+  const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
   const [location, setLocation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
-  const [sessionId, setSessionId] = useState<string | null>(null)
+  const [sessionId, setSessionId] = useState<string | null>(initialSessionId)
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   const scrollToBottom = () => {
@@ -50,11 +62,6 @@ export default function ChatInterface({ onNewConversation }: { onNewConversation
 
       setSessionId(response.session_id)
 
-      // Notify parent about new conversation (first message only)
-      if (!sessionId && onNewConversation) {
-        onNewConversation(response.session_id, query)
-      }
-
       const assistantMessage: Message = {
         id: crypto.randomUUID(),
         role: 'assistant',
@@ -63,7 +70,15 @@ export default function ChatInterface({ onNewConversation }: { onNewConversation
         timestamp: new Date(),
       }
 
+      const updatedMessages = [...messages, userMessage, assistantMessage]
       setMessages(prev => [...prev, assistantMessage])
+
+      // Notify parent about new/updated conversation
+      if (!sessionId && onNewConversation) {
+        onNewConversation(response.session_id, query, updatedMessages)
+      } else if (sessionId && onUpdateConversation) {
+        onUpdateConversation(sessionId, updatedMessages)
+      }
     } catch (error) {
       const errorMessage: Message = {
         id: crypto.randomUUID(),

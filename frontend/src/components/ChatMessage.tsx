@@ -1,13 +1,6 @@
 import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock } from 'lucide-react'
 import { ChatResponse } from '../api/climoraApi'
-
-interface Message {
-  id: string
-  role: 'user' | 'assistant'
-  content: string
-  response?: ChatResponse
-  timestamp: Date
-}
+import { Message } from './ChatInterface'
 
 interface ChatMessageProps {
   message: Message
