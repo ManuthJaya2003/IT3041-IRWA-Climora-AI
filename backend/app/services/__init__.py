@@ -1,1 +1,1 @@
-"""Shared services package (Bedrock, Pinecone, etc.)."""
+"""Shared services package (LLM, Vector Store, etc.)."""

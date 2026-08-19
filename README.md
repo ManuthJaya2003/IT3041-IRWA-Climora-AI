@@ -59,8 +59,8 @@ User Query
 |-------|-----------|
 | Frontend | React, TypeScript, Vite, Tailwind CSS |
 | Backend | Python, FastAPI, Pydantic |
-| LLM | AWS Bedrock (Claude) |
-| Vector DB | Pinecone |
+| LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) |
+| Vector DB | FAISS (local) |
 | Database | PostgreSQL |
 | Agent Communication | MCP (Model Context Protocol) |
 | Containerization | Docker, Docker Compose |
@@ -92,10 +92,12 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── routers/
 │   │   │   ├── chat.py                # Chat API endpoints
 │   │   │   ├── agents.py              # Agent status endpoints
-│   │   │   └── health.py              # Health check endpoints
+│   │   │   ├── health.py              # Health check endpoints
+│   │   │   └── vector_store.py        # Vector store management API
 │   │   └── services/
+│   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
-│   │       └── pinecone_service.py    # Pinecone vector DB integration
+│   │       └── vector_store_service.py # FAISS local vector store
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
@@ -123,8 +125,7 @@ IT3041-IRWA-Climora-AI/
 
 - Python 3.12+ 
 - Node.js 20+
-- AWS account with Bedrock access (or use mock mode)
-- Pinecone account (free tier works)
+- Google Gemini API key (free) OR AWS Bedrock access
 - Docker & Docker Compose (optional, for containerized setup)
 
 ### Option 1: Local Development (Recommended for now)
@@ -201,12 +202,11 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `AWS_ACCESS_KEY_ID` | AWS access key | For Bedrock |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key | For Bedrock |
+| `GEMINI_API_KEY` | Google Gemini API key (free) | For LLM (recommended) |
+| `AWS_ACCESS_KEY_ID` | AWS access key | For Bedrock (alternative) |
+| `AWS_SECRET_ACCESS_KEY` | AWS secret key | For Bedrock (alternative) |
 | `AWS_REGION` | AWS region (default: us-east-1) | For Bedrock |
 | `BEDROCK_MODEL_ID` | Bedrock model ID | For Bedrock |
-| `PINECONE_API_KEY` | Pinecone API key | For IR Agent |
-| `PINECONE_ENVIRONMENT` | Pinecone environment | For IR Agent |
 | `DATABASE_URL` | PostgreSQL connection string | For persistence |
 | `SECRET_KEY` | App secret key | For security |
 
