@@ -209,8 +209,8 @@ class OrchestratorAgent:
         if result:
             return result
 
-        # Fallback: return empty evidence
-        return {"documents": [], "message": "IR agent unavailable"}
+        # Fallback: query FAISS directly when IR agent isn't running
+        return await self._fallback_ir(structured_query, entities)
 
     async def _invoke_analysis_agent(
         self, query: str, intent: str, entities: dict, evidence: list
@@ -336,7 +336,7 @@ class OrchestratorAgent:
                 source_name=doc.get("source_name", "Unknown Source"),
                 source_url=doc.get("url"),
                 content_snippet=doc.get("snippet", doc.get("content", "")[:200]),
-                reliability_score=doc.get("reliability_score"),
+                reliability_score=max(0.0, doc.get("reliability_score") or 0.0),
             )
             for doc in ir_result.get("documents", [])
         ]
@@ -365,11 +365,14 @@ class OrchestratorAgent:
 for the user who asked: "{query}"
 
 Analysis findings: {analysis.get('summary', 'No analysis available')}
+Risk level: {analysis.get('risk_level', 'unknown')}
+Risk factors: {', '.join(analysis.get('risk_factors', [])) or 'None identified'}
 Verification status: {'Verified' if verification.get('verified') else 'Partially verified'}
 Confidence: {verification.get('confidence', 'Unknown')}
 
-Provide a helpful, evidence-based summary in 2-3 sentences. Be clear about what is known 
-and what is uncertain. Do not make claims beyond what the evidence supports."""
+Provide a helpful, evidence-based summary in 2-4 sentences. Be specific about the risks 
+and what the user should know. Be clear about what is known and what is uncertain. 
+Do not make claims beyond what the evidence supports."""
 
         system_prompt = (
             "You are Climora AI, a climate intelligence assistant. "
@@ -422,25 +425,106 @@ Respond in JSON format with keys: intent, entities, structured_query, expanded_t
                 "expanded_terms": [],
             }
 
+    async def _fallback_ir(self, structured_query: dict, entities: dict) -> dict:
+        """
+        Fallback IR: query FAISS vector store directly when IR agent isn't running.
+        This allows the system to provide evidence-grounded responses even without
+        the full IR agent MCP server.
+        """
+        from app.services.vector_store_service import vector_store_service
+
+        if not vector_store_service.is_available() or vector_store_service._index.ntotal == 0:
+            return {"documents": [], "message": "No documents in vector store"}
+
+        # Build a search query from available information
+        query_parts = []
+
+        # Use original query if available
+        if structured_query.get("original_query"):
+            query_parts.append(structured_query["original_query"])
+
+        # Add entity-based terms
+        if entities.get("location"):
+            query_parts.append(str(entities["location"]))
+        if entities.get("climate_topic"):
+            query_parts.append(str(entities["climate_topic"]))
+        if entities.get("hazard_type"):
+            query_parts.append(str(entities["hazard_type"]))
+
+        # If we have expanded terms from NLP, include them
+        if structured_query.get("expanded_terms"):
+            query_parts.extend(structured_query["expanded_terms"][:3])
+
+        search_query = " ".join(query_parts) if query_parts else str(structured_query)
+
+        # Query FAISS
+        results = await vector_store_service.query_similar(
+            query_text=search_query,
+            top_k=5,
+        )
+
+        # Format results to match expected document structure
+        documents = []
+        for result in results:
+            doc = {
+                "source_name": result.get("source_name", result.get("metadata", {}).get("source", "Unknown")),
+                "url": result.get("url"),
+                "content": result.get("content", ""),
+                "snippet": result.get("snippet", result.get("content", "")[:300]),
+                "reliability_score": min(result.get("score", 0.5), 1.0),
+                "topic": result.get("metadata", {}).get("topic", ""),
+                "location": result.get("metadata", {}).get("location", ""),
+                "date": result.get("metadata", {}).get("date", ""),
+            }
+            documents.append(doc)
+
+        return {
+            "documents": documents,
+            "source": "faiss_fallback",
+            "query_used": search_query,
+        }
+
     async def _fallback_analysis(self, query: str, evidence: list) -> dict:
-        """Fallback analysis using LLM directly."""
-        prompt = f"""Analyze the following climate query and any available evidence:
+        """Fallback analysis using LLM directly with retrieved evidence."""
+        # Format evidence for the LLM
+        evidence_text = ""
+        if evidence:
+            for i, doc in enumerate(evidence[:5], 1):
+                source = doc.get("source_name", "Unknown")
+                content = doc.get("content", doc.get("snippet", ""))[:500]
+                location = doc.get("location", "")
+                date = doc.get("date", "")
+                evidence_text += f"\n[Source {i}: {source}]"
+                if location:
+                    evidence_text += f" (Location: {location})"
+                if date:
+                    evidence_text += f" (Date: {date})"
+                evidence_text += f"\n{content}\n"
+        else:
+            evidence_text = "No evidence available."
 
-Query: "{query}"
-Evidence: {evidence[:3] if evidence else 'No evidence available'}
+        prompt = f"""You are a climate analysis agent. Analyze the following climate query using the retrieved evidence.
 
-Provide:
-1. A brief analysis summary
-2. Risk level (low, moderate, high, critical, or unknown)
-3. Key risk factors
-4. Detailed analysis
+USER QUERY: "{query}"
 
-Respond in JSON format with keys: summary, risk_level, risk_factors, detailed_analysis, claims"""
+RETRIEVED EVIDENCE:
+{evidence_text}
+
+Based on the evidence above, provide:
+1. A brief analysis summary (2-3 sentences)
+2. Risk level: low, moderate, high, critical, or unknown
+3. Key risk factors identified from the evidence
+4. A detailed analysis paragraph
+5. Key claims you are making (so they can be verified)
+
+IMPORTANT: Base your analysis ONLY on the provided evidence. If evidence is insufficient, say so.
+
+Respond in JSON format with keys: summary, risk_level, risk_factors, detailed_analysis, claims, risk_explanation"""
 
         response = await llm_service.invoke_model(
             prompt=prompt,
-            system_prompt="You are a climate analysis module. Return only valid JSON.",
-            max_tokens=800,
+            system_prompt="You are a climate risk analysis module. Return only valid JSON. Base all claims on provided evidence.",
+            max_tokens=1000,
             temperature=0.3,
         )
 
