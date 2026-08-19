@@ -22,9 +22,11 @@ async def lifespan(app: FastAPI):
 
     # Initialize services on startup
     from app.services.llm_service import llm_service
+    from app.services.embedding_service import embedding_service
     from app.services.vector_store_service import vector_store_service
 
     await llm_service.initialize()
+    await embedding_service.initialize()
     await vector_store_service.initialize()
 
     print("   Services initialized successfully")

@@ -244,25 +244,11 @@ class VectorStoreService:
 
     def _simple_embed(self, text: str) -> list[float]:
         """
-        Simple fallback embedding using character/word hashing.
-        
-        This is a DEVELOPMENT PLACEHOLDER. In production, the IR agent should
-        provide proper embeddings from:
-        - sentence-transformers (e.g., all-MiniLM-L6-v2 → 384 dims)
-        - AWS Bedrock Titan Embeddings (amazon.titan-embed-text-v1 → 1536 dims)
-        
-        This simple version uses random projection of word hashes to create
-        a fixed-size vector. It provides basic functionality for testing the
-        pipeline but won't give meaningful semantic results.
+        Generate embedding for text.
+        Uses sentence-transformers if available, falls back to hash-based.
         """
-        # Deterministic hash-based embedding for development
-        np.random.seed(hash(text.lower().strip()) % (2**32))
-        embedding = np.random.randn(self._dimension).astype(np.float32)
-        # Normalize
-        norm = np.linalg.norm(embedding)
-        if norm > 0:
-            embedding = embedding / norm
-        return embedding.tolist()
+        from app.services.embedding_service import embedding_service
+        return embedding_service.embed_text(text)
 
     async def _save_to_disk(self):
         """Persist index and metadata to disk."""
