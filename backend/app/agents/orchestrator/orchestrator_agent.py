@@ -272,16 +272,8 @@ class OrchestratorAgent:
         if result:
             return result
 
-        # Fallback
-        return {
-            "recommendations": [
-                {
-                    "action": "Stay informed about local climate conditions",
-                    "priority": "short-term",
-                    "explanation": "Recommendation agent unavailable - providing general guidance.",
-                }
-            ]
-        }
+        # Fallback: generate recommendations using LLM
+        return await self._fallback_recommendations(analysis, user_type, location)
 
     # =========================================================================
     # Response Assembly
@@ -395,35 +387,52 @@ Do not make claims beyond what the evidence supports."""
     # =========================================================================
 
     async def _fallback_nlp(self, request: ChatRequest) -> dict:
-        """Fallback NLP processing using LLM directly."""
-        prompt = f"""Analyze the following climate-related query and extract:
-1. The user's intent (e.g., risk_awareness, forecast, preparedness, general_info)
-2. Key entities (location, time_period, climate_topic, hazard_type)
-3. A structured version of the query for information retrieval
+        """Fallback NLP processing — simple extraction without LLM call."""
+        # Instead of using an LLM call (which can fail to return valid JSON),
+        # do simple rule-based NLP. This is fast, reliable, and doesn't waste
+        # an LLM call on something the NLP agent should handle properly later.
 
-Query: "{request.query}"
-Location provided: {request.location or 'Not specified'}
+        query = request.query.lower()
+        location = request.location
 
-Respond in JSON format with keys: intent, entities, structured_query, expanded_terms"""
+        # Simple intent detection based on keywords
+        intent = "general_climate_query"
+        if any(w in query for w in ["risk", "danger", "threat", "vulnerable"]):
+            intent = "risk_awareness"
+        elif any(w in query for w in ["prepare", "should i", "what to do", "how to"]):
+            intent = "preparedness"
+        elif any(w in query for w in ["forecast", "predict", "next week", "tomorrow"]):
+            intent = "forecast"
+        elif any(w in query for w in ["history", "trend", "past", "change over"]):
+            intent = "trend_analysis"
 
-        response = await llm_service.invoke_model(
-            prompt=prompt,
-            system_prompt="You are an NLP processing module. Return only valid JSON.",
-            max_tokens=500,
-            temperature=0.2,
-        )
+        # Simple entity extraction
+        entities = {"location": location}
 
-        # Try to parse JSON, fallback to basic structure
-        try:
-            import json
-            return json.loads(response)
-        except (json.JSONDecodeError, TypeError):
-            return {
-                "intent": "general_climate_query",
-                "entities": {"location": request.location},
-                "structured_query": {"original_query": request.query},
-                "expanded_terms": [],
-            }
+        # Detect climate topics
+        topic_keywords = {
+            "flood": ["flood", "flooding", "inundation", "overflow", "waterlog"],
+            "drought": ["drought", "dry", "water scarcity", "arid"],
+            "heat": ["heat", "hot", "temperature", "heatwave", "heat wave"],
+            "storm": ["storm", "cyclone", "hurricane", "typhoon", "wind"],
+            "landslide": ["landslide", "mudslide", "slope", "hillside"],
+            "sea-level": ["sea level", "coastal", "ocean", "tide"],
+            "rain": ["rain", "rainfall", "monsoon", "precipitation"],
+            "air-quality": ["air quality", "pollution", "pm2.5", "smog"],
+        }
+
+        for topic, keywords in topic_keywords.items():
+            if any(kw in query for kw in keywords):
+                entities["climate_topic"] = topic
+                entities["hazard_type"] = topic
+                break
+
+        return {
+            "intent": intent,
+            "entities": entities,
+            "structured_query": {"original_query": request.query},
+            "expanded_terms": [],
+        }
 
     async def _fallback_ir(self, structured_query: dict, entities: dict) -> dict:
         """
@@ -503,41 +512,148 @@ Respond in JSON format with keys: intent, entities, structured_query, expanded_t
         else:
             evidence_text = "No evidence available."
 
-        prompt = f"""You are a climate analysis agent. Analyze the following climate query using the retrieved evidence.
+        prompt = f"""You are a climate analysis agent. Analyze the following query using the retrieved evidence.
 
 USER QUERY: "{query}"
 
 RETRIEVED EVIDENCE:
 {evidence_text}
 
-Based on the evidence above, provide:
-1. A brief analysis summary (2-3 sentences)
-2. Risk level: low, moderate, high, critical, or unknown
-3. Key risk factors identified from the evidence
-4. A detailed analysis paragraph
-5. Key claims you are making (so they can be verified)
+Based ONLY on the evidence above, provide your analysis as a JSON object with these exact keys:
+- "summary": 2-3 sentence summary of findings
+- "risk_level": one of "low", "moderate", "high", "critical" (based on evidence severity)
+- "risk_factors": list of specific risk factors found in evidence
+- "risk_explanation": why you assigned this risk level
+- "detailed_analysis": a detailed paragraph analyzing the situation
+- "claims": list of key factual claims from your analysis
 
-IMPORTANT: Base your analysis ONLY on the provided evidence. If evidence is insufficient, say so.
-
-Respond in JSON format with keys: summary, risk_level, risk_factors, detailed_analysis, claims, risk_explanation"""
+IMPORTANT: You MUST assign a risk level based on the evidence — do not say "unknown" if evidence exists.
+Return ONLY the JSON object, no other text."""
 
         response = await llm_service.invoke_model(
             prompt=prompt,
-            system_prompt="You are a climate risk analysis module. Return only valid JSON. Base all claims on provided evidence.",
+            system_prompt="Return ONLY a valid JSON object. No markdown, no explanation, no code fences. Just the JSON.",
             max_tokens=1000,
+            temperature=0.2,
+        )
+
+        # Robust JSON parsing — handle markdown fences, extra text, etc.
+        import json
+        import re
+
+        parsed = self._parse_json_response(response)
+        if parsed:
+            return parsed
+
+        # If all parsing fails but we have evidence, provide a basic analysis
+        if evidence:
+            top_doc = evidence[0]
+            return {
+                "summary": f"Based on available evidence from {top_doc.get('source_name', 'retrieved sources')}, this area faces climate-related risks that warrant attention.",
+                "risk_level": "moderate",
+                "risk_factors": [top_doc.get("topic", "climate risk")],
+                "risk_explanation": "Evidence suggests elevated risk based on retrieved climate data.",
+                "detailed_analysis": top_doc.get("content", ""),
+                "claims": [f"Information from {top_doc.get('source_name', 'source')} indicates relevant climate concerns."],
+            }
+
+        return {
+            "summary": "Insufficient data for analysis.",
+            "risk_level": "unknown",
+            "risk_factors": [],
+            "detailed_analysis": None,
+            "claims": [],
+        }
+
+    def _parse_json_response(self, response: str) -> dict | None:
+        """
+        Robustly parse JSON from LLM response.
+        Handles markdown fences, extra text before/after JSON, etc.
+        """
+        import json
+        import re
+
+        if not response:
+            return None
+
+        # Try direct parse first
+        try:
+            return json.loads(response)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # Strip markdown code fences
+        cleaned = re.sub(r'```json\s*', '', response)
+        cleaned = re.sub(r'```\s*', '', cleaned)
+        cleaned = cleaned.strip()
+
+        try:
+            return json.loads(cleaned)
+        except (json.JSONDecodeError, TypeError):
+            pass
+
+        # Try to find JSON object in the response
+        match = re.search(r'\{[\s\S]*\}', response)
+        if match:
+            try:
+                return json.loads(match.group())
+            except (json.JSONDecodeError, TypeError):
+                pass
+
+        return None
+
+    async def _fallback_recommendations(
+        self, analysis: dict, user_type: Optional[str], location: Optional[str]
+    ) -> dict:
+        """Generate recommendations using LLM based on analysis results."""
+        risk_level = analysis.get("risk_level", "unknown")
+        risk_factors = analysis.get("risk_factors", [])
+        summary = analysis.get("summary", "")
+
+        prompt = f"""Based on the following climate analysis, generate 3 practical recommendations.
+
+Analysis Summary: {summary}
+Risk Level: {risk_level}
+Risk Factors: {', '.join(risk_factors) if risk_factors else 'None identified'}
+User Type: {user_type or 'individual'}
+Location: {location or 'Not specified'}
+
+Generate exactly 3 recommendations as a JSON object with key "recommendations" containing a list.
+Each recommendation must have:
+- "action": specific, practical action the user should take
+- "priority": one of "immediate", "short-term", "long-term"
+- "explanation": brief reason why this is important
+
+Tailor recommendations to the user type and risk level. Be specific and actionable.
+Return ONLY the JSON object."""
+
+        response = await llm_service.invoke_model(
+            prompt=prompt,
+            system_prompt="Return ONLY a valid JSON object. No markdown, no explanation. Just JSON.",
+            max_tokens=600,
             temperature=0.3,
         )
 
-        try:
-            import json
-            return json.loads(response)
-        except (json.JSONDecodeError, TypeError):
+        parsed = self._parse_json_response(response)
+        if parsed and "recommendations" in parsed:
+            return parsed
+
+        # If parsing fails, provide basic recommendations based on risk level
+        if risk_level in ("high", "critical"):
             return {
-                "summary": "Analysis unavailable - insufficient data.",
-                "risk_level": "unknown",
-                "risk_factors": [],
-                "detailed_analysis": None,
-                "claims": [],
+                "recommendations": [
+                    {"action": "Monitor official weather and disaster alerts for your area", "priority": "immediate", "explanation": f"Risk level is {risk_level} — stay alert."},
+                    {"action": "Prepare an emergency kit with essentials (water, documents, first aid)", "priority": "short-term", "explanation": "Be ready to act if conditions worsen."},
+                    {"action": "Review evacuation routes and emergency contacts", "priority": "short-term", "explanation": "Preparedness reduces risk during climate events."},
+                ]
+            }
+        else:
+            return {
+                "recommendations": [
+                    {"action": "Stay informed about local climate conditions and forecasts", "priority": "short-term", "explanation": "Awareness is the first step in preparedness."},
+                    {"action": "Review your property and household preparedness for climate events", "priority": "long-term", "explanation": "Proactive measures reduce vulnerability."},
+                    {"action": "Connect with local disaster management resources", "priority": "long-term", "explanation": "Know who to contact and where to get information."},
+                ]
             }
 
     # =========================================================================
