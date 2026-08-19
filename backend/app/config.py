@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     # AWS Bedrock
     aws_access_key_id: Optional[str] = None
     aws_secret_access_key: Optional[str] = None
+    aws_session_token: Optional[str] = None
     aws_region: str = "us-east-1"
     bedrock_model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
 
