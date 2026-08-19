@@ -28,6 +28,7 @@ build/
 node_modules/
 frontend/dist/
 frontend/build/
+frontend/.vite/
 .npm
 
 # OS

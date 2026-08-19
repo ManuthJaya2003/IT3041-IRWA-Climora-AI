@@ -13,14 +13,14 @@ Tools exposed via MCP:
 - index_document: Index a new document into the vector store
 
 Data Sources to integrate:
-- Pinecone vector store (for indexed climate documents)
+- FAISS local vector store (for indexed climate documents)
 - Weather APIs (OpenWeatherMap, etc.)
 - Government climate data (NOAA, NASA, etc.)
 - News and research sources
 
 Tech:
-- Pinecone for vector similarity search
-- Embeddings via Bedrock or sentence-transformers
+- FAISS for vector similarity search
+- Embeddings via sentence-transformers or LLM
 - httpx for API calls to external sources
 
 Port: 8102
@@ -55,7 +55,7 @@ class IRAgent(BaseAgentServer):
         self.register_tool(
             "index_document",
             self.index_document,
-            "Index a new document into the Pinecone vector store",
+            "Index a new document into the FAISS vector store",
         )
 
     async def retrieve_documents(self, arguments: dict) -> dict:
@@ -73,8 +73,8 @@ class IRAgent(BaseAgentServer):
         """
         # TODO: Implement retrieval pipeline
         # Steps:
-        # 1. Generate embedding from structured_query using Bedrock/sentence-transformers
-        # 2. Query Pinecone for similar documents
+        # 1. Generate embedding from structured_query using sentence-transformers
+        # 2. Query FAISS for similar documents
         # 3. Optionally query external APIs (weather, NOAA, etc.)
         # 4. Rank and combine results
         # 5. Return top_k documents with metadata
@@ -109,7 +109,7 @@ class IRAgent(BaseAgentServer):
         # TODO: Implement document indexing
         # Steps:
         # 1. Generate embedding for the content
-        # 2. Upsert into Pinecone with metadata
+        # 2. Upsert into FAISS with metadata
         raise NotImplementedError("Document indexing not yet implemented")
 
 
