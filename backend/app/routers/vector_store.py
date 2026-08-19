@@ -261,6 +261,141 @@ async def seed_sample_data():
                 "date": "2024-01-15",
             },
         },
+        {
+            "content": "Tropical cyclone Michaung in December 2023 caused severe flooding in southern India and Sri Lanka's northern coast. Over 200mm of rainfall was recorded in 24 hours, displacing thousands. Climate models project increasing intensity of Indian Ocean cyclones due to warmer sea surface temperatures, with a 10-15% increase in peak wind speeds expected by 2050.",
+            "metadata": {
+                "source": "India Meteorological Department",
+                "topic": "cyclone",
+                "location": "Northern Sri Lanka, Southern India",
+                "date": "2024-01-20",
+            },
+        },
+        {
+            "content": "Groundwater levels in Sri Lanka's Jaffna Peninsula have declined by 2-3 meters over the past decade due to over-extraction and reduced recharge from irregular rainfall. Saltwater intrusion threatens freshwater aquifers in coastal areas. The Water Supply and Drainage Board recommends rainwater harvesting and managed aquifer recharge as adaptation strategies.",
+            "metadata": {
+                "source": "Water Supply and Drainage Board Sri Lanka",
+                "topic": "water-scarcity",
+                "location": "Jaffna Peninsula, Sri Lanka",
+                "date": "2024-04-22",
+            },
+        },
+        {
+            "content": "Dengue fever outbreaks in Sri Lanka correlate strongly with monsoon rainfall patterns and temperature. Colombo, Gampaha, and Kalutara districts report the highest case counts. Standing water from flooding creates breeding grounds for Aedes mosquitoes. Climate change is expanding the geographic range and seasonal duration of dengue transmission.",
+            "metadata": {
+                "source": "Epidemiology Unit, Ministry of Health",
+                "topic": "climate-health",
+                "location": "Western Province, Sri Lanka",
+                "date": "2024-06-30",
+            },
+        },
+        {
+            "content": "Sri Lanka's tea plantation sector faces declining yields due to shifting rainfall patterns and rising temperatures in hill country. Nuwara Eliya and Badulla districts report 15-20% yield reduction in drought years. Tea requires consistent rainfall of 1200-1400mm annually and temperatures between 18-25 degrees Celsius. Prolonged dry spells and extreme rainfall events both damage crops.",
+            "metadata": {
+                "source": "Tea Research Institute of Sri Lanka",
+                "topic": "agriculture",
+                "location": "Hill Country, Sri Lanka",
+                "date": "2024-03-18",
+            },
+        },
+        {
+            "content": "Mangrove ecosystems along Sri Lanka's western and northwestern coasts provide critical natural protection against storm surges and coastal erosion. An estimated 60% of original mangrove cover has been lost to shrimp farming, urban development, and pollution. Restoration programs in Puttalam and Negombo lagoons aim to rebuild this natural coastal defense.",
+            "metadata": {
+                "source": "IUCN Sri Lanka",
+                "topic": "coastal-protection",
+                "location": "Western Coast, Sri Lanka",
+                "date": "2024-05-10",
+            },
+        },
+        {
+            "content": "The Northeast monsoon from December to February brings heavy rainfall to Sri Lanka's eastern and northern provinces. Batticaloa and Trincomalee districts are prone to flooding during this season. Flash floods in river basins like the Kalu Ganga and Nilwala Ganga can develop within hours of heavy rainfall onset, leaving limited evacuation time for downstream communities.",
+            "metadata": {
+                "source": "Irrigation Department Sri Lanka",
+                "topic": "flood",
+                "location": "Eastern Province, Sri Lanka",
+                "date": "2024-12-05",
+            },
+        },
+        {
+            "content": "Solar radiation levels in Sri Lanka's dry zone are among the highest in South Asia, with annual averages exceeding 5.5 kWh/m2/day. While this presents opportunities for renewable energy, it also intensifies evapotranspiration rates, accelerating soil moisture loss during drought periods. Farmers in Anuradhapura and Polonnaruwa face compounding water stress from both reduced rainfall and increased evaporation.",
+            "metadata": {
+                "source": "Sustainable Energy Authority Sri Lanka",
+                "topic": "drought",
+                "location": "North Central Province, Sri Lanka",
+                "date": "2024-08-15",
+            },
+        },
+        {
+            "content": "Sea level around Sri Lanka has risen approximately 3.5mm per year over the past three decades, higher than the global average. Coastal erosion affects over 65% of the western and southern coastlines. Low-lying areas in Galle, Matara, and Hambantota face increasing inundation risk during storm surges combined with high tides. Coastal communities are being relocated in the most severely affected areas.",
+            "metadata": {
+                "source": "Coast Conservation Department",
+                "topic": "sea-level-rise",
+                "location": "Southern Coast, Sri Lanka",
+                "date": "2024-07-20",
+            },
+        },
+        {
+            "content": "Climate change threatens Sri Lanka's biodiversity hotspots including the Sinharaja rainforest and Knuckles mountain range. Rising temperatures are shifting species distribution upward in elevation, compressing habitat for endemic species. The country has over 900 endemic plant species and 240 endemic vertebrate species at risk from habitat loss and changing climate conditions.",
+            "metadata": {
+                "source": "Department of Wildlife Conservation",
+                "topic": "biodiversity",
+                "location": "Sinharaja, Knuckles Range, Sri Lanka",
+                "date": "2024-09-01",
+            },
+        },
+        {
+            "content": "Colombo's urban drainage system was designed for rainfall intensities of 50mm/hour but extreme events now regularly exceed 75-100mm/hour due to climate change. The city's rapid development has reduced permeable surfaces by 40% since 2000, increasing surface runoff. The Metro Colombo Urban Development Project is investing in improved storm water drainage and retention ponds to mitigate urban flooding.",
+            "metadata": {
+                "source": "Urban Development Authority",
+                "topic": "flood",
+                "location": "Colombo, Sri Lanka",
+                "date": "2024-10-12",
+            },
+        },
+        {
+            "content": "Sri Lanka's fisheries sector is heavily impacted by climate variability. Shifting ocean currents and warmer waters are altering fish migration patterns. Small-scale fishers report declining catches of traditional species like tuna and sardines. Extreme weather events also reduce the number of safe fishing days, with an estimated 30% reduction during monsoon months.",
+            "metadata": {
+                "source": "Department of Fisheries and Aquatic Resources",
+                "topic": "fisheries",
+                "location": "Coastal Sri Lanka",
+                "date": "2024-02-14",
+            },
+        },
+        {
+            "content": "The Mahaweli River basin, Sri Lanka's largest watershed, supplies water to over 30% of the island's irrigated agriculture. Climate models project a 10-20% reduction in average annual flow by 2050 under moderate emission scenarios. Reservoir storage optimization and demand management are critical to maintaining water security for both agriculture and hydropower generation.",
+            "metadata": {
+                "source": "Mahaweli Authority of Sri Lanka",
+                "topic": "water-resources",
+                "location": "Mahaweli Basin, Sri Lanka",
+                "date": "2024-05-25",
+            },
+        },
+        {
+            "content": "Microplastic pollution in Sri Lanka's waterways increases during monsoon flooding as runoff carries urban waste into rivers and coastal waters. Studies detected microplastic concentrations of 500-2000 particles per liter in the Kelani River during flood events. This contamination affects water treatment plants and enters the food chain through freshwater fisheries.",
+            "metadata": {
+                "source": "University of Moratuwa Environmental Research",
+                "topic": "pollution",
+                "location": "Kelani River, Sri Lanka",
+                "date": "2024-08-30",
+            },
+        },
+        {
+            "content": "Sri Lanka's National Adaptation Plan identifies five priority sectors for climate resilience: food security, water resources, coastal and marine ecosystems, health, and human settlements and infrastructure. The government has committed to reducing climate vulnerability through ecosystem-based adaptation, early warning systems, climate-smart agriculture, and resilient infrastructure development.",
+            "metadata": {
+                "source": "Ministry of Environment, Sri Lanka",
+                "topic": "climate-policy",
+                "location": "Sri Lanka",
+                "date": "2024-11-01",
+            },
+        },
+        {
+            "content": "Lightning strikes during pre-monsoon thunderstorms (March-April) kill an average of 50-70 people annually in Sri Lanka, one of the highest per-capita lightning fatality rates globally. Agricultural workers and those in open areas are most vulnerable. The Department of Meteorology issues thunderstorm warnings but rural communities often lack access to timely alerts.",
+            "metadata": {
+                "source": "Department of Meteorology Sri Lanka",
+                "topic": "thunderstorm",
+                "location": "Sri Lanka",
+                "date": "2024-03-25",
+            },
+        },
     ]
 
     documents = [doc["content"] for doc in sample_documents]

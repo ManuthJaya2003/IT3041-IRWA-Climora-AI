@@ -437,34 +437,19 @@ Do not make claims beyond what the evidence supports."""
     async def _fallback_ir(self, structured_query: dict, entities: dict) -> dict:
         """
         Fallback IR: query FAISS vector store directly when IR agent isn't running.
-        This allows the system to provide evidence-grounded responses even without
-        the full IR agent MCP server.
         """
         from app.services.vector_store_service import vector_store_service
 
         if not vector_store_service.is_available() or vector_store_service._index.ntotal == 0:
             return {"documents": [], "message": "No documents in vector store"}
 
-        # Build a search query from available information
-        query_parts = []
+        # Use the original query as the primary search — it works best with embeddings
+        search_query = structured_query.get("original_query", "")
 
-        # Use original query if available
-        if structured_query.get("original_query"):
-            query_parts.append(structured_query["original_query"])
-
-        # Add entity-based terms
-        if entities.get("location"):
-            query_parts.append(str(entities["location"]))
-        if entities.get("climate_topic"):
-            query_parts.append(str(entities["climate_topic"]))
-        if entities.get("hazard_type"):
-            query_parts.append(str(entities["hazard_type"]))
-
-        # If we have expanded terms from NLP, include them
-        if structured_query.get("expanded_terms"):
-            query_parts.extend(structured_query["expanded_terms"][:3])
-
-        search_query = " ".join(query_parts) if query_parts else str(structured_query)
+        # Only append location if it's not already in the query
+        location = entities.get("location", "")
+        if location and location.lower() not in search_query.lower():
+            search_query = f"{search_query} {location}"
 
         # Query FAISS
         results = await vector_store_service.query_similar(

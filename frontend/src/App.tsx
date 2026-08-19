@@ -1,44 +1,70 @@
 import { useState, useCallback } from 'react'
-import ChatInterface from './components/ChatInterface'
+import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
 
+interface ConversationData {
+  conversation: Conversation
+  messages: Message[]
+  sessionId: string | null
+}
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [conversations, setConversations] = useState<Conversation[]>([])
+  const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(new Map())
   const [activeConversationId, setActiveConversationId] = useState<string | null>(null)
-  const [resetKey, setResetKey] = useState(0) // Forces ChatInterface to reset
+
+  const conversations = Array.from(conversationsData.values()).map(d => d.conversation)
 
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null)
-    setResetKey(prev => prev + 1)
   }, [])
 
-  const handleNewConversation = useCallback((id: string, firstQuery: string) => {
-    // Truncate query for sidebar title
+  const handleNewConversation = useCallback((id: string, firstQuery: string, messages: Message[]) => {
     const title = firstQuery.length > 35 ? firstQuery.slice(0, 35) + '...' : firstQuery
-    const newConv: Conversation = {
-      id,
-      title,
-      timestamp: new Date(),
+    const newData: ConversationData = {
+      conversation: { id, title, timestamp: new Date() },
+      messages,
+      sessionId: id,
     }
-    setConversations(prev => [newConv, ...prev])
+    setConversationsData(prev => {
+      const updated = new Map(prev)
+      updated.set(id, newData)
+      return updated
+    })
     setActiveConversationId(id)
+  }, [])
+
+  const handleUpdateConversation = useCallback((id: string, messages: Message[]) => {
+    setConversationsData(prev => {
+      const updated = new Map(prev)
+      const existing = updated.get(id)
+      if (existing) {
+        updated.set(id, { ...existing, messages })
+      }
+      return updated
+    })
   }, [])
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id)
-    // Note: Full conversation loading would require backend persistence
-    // For now, selecting just highlights it in the sidebar
   }, [])
 
   const handleDeleteConversation = useCallback((id: string) => {
-    setConversations(prev => prev.filter(c => c.id !== id))
+    setConversationsData(prev => {
+      const updated = new Map(prev)
+      updated.delete(id)
+      return updated
+    })
     if (activeConversationId === id) {
       setActiveConversationId(null)
-      setResetKey(prev => prev + 1)
     }
   }, [activeConversationId])
+
+  // Get messages for active conversation
+  const activeData = activeConversationId ? conversationsData.get(activeConversationId) : null
+  const activeMessages = activeData?.messages || []
+  const activeSessionId = activeData?.sessionId || null
 
   return (
     <div className="flex h-screen bg-slate-50">
@@ -61,8 +87,11 @@ function App() {
         />
         <main className="flex-1 overflow-hidden">
           <ChatInterface
-            key={resetKey}
+            key={activeConversationId || 'new'}
+            initialMessages={activeMessages}
+            initialSessionId={activeSessionId}
             onNewConversation={handleNewConversation}
+            onUpdateConversation={handleUpdateConversation}
           />
         </main>
       </div>
