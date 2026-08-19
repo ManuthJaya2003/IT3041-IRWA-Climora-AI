@@ -19,6 +19,9 @@ google-generativeai==0.8.3
 # Vector Database (Local)
 faiss-cpu==1.15.0
 
+# Embeddings: Uses Bedrock Titan (no extra packages needed)
+# Falls back to TF-IDF if Bedrock unavailable
+
 # Database
 sqlalchemy==2.0.35
 psycopg[binary]==3.2.1
