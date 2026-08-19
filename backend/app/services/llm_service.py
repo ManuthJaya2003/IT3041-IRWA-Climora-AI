@@ -1,13 +1,13 @@
 """
-LLM Service - Unified interface for language model access.
+LLM Service - Claude via AWS Bedrock.
 
-Supports multiple providers:
-- Google Gemini (free tier, immediate access)
-- AWS Bedrock / Claude (when access is approved)
-- Mock mode (for development without any API key)
+Simple, focused service for invoking Claude through Bedrock.
+Supports temporary credentials (session tokens) — just update .env when they expire.
 
-The active provider is determined by which API keys are configured in .env.
-Priority: Gemini → Bedrock → Mock
+To refresh credentials:
+1. Get new AWS keys + session token
+2. Update backend/.env with new values
+3. Restart the server
 """
 
 import json
@@ -17,62 +17,48 @@ from app.config import settings
 
 
 class LLMService:
-    """Unified LLM service supporting multiple providers."""
+    """Claude LLM service via AWS Bedrock."""
 
     def __init__(self):
-        self._provider = "mock"  # gemini, bedrock, mock
-        self._gemini_model = None
-        self._bedrock_client = None
+        self._client = None
         self._available = False
+        self._provider = "mock"
 
     async def initialize(self):
-        """Initialize the best available LLM provider."""
+        """Initialize the Bedrock client."""
+        if not settings.aws_access_key_id or not settings.aws_secret_access_key:
+            self._provider = "mock"
+            self._available = True
+            print("   ⚠ LLM service: No AWS credentials - running in MOCK mode")
+            return
 
-        # Try Gemini first (easiest to set up)
-        if settings.gemini_api_key:
-            try:
-                import google.generativeai as genai
+        try:
+            import boto3
 
-                genai.configure(api_key=settings.gemini_api_key)
-                self._gemini_model = genai.GenerativeModel(settings.gemini_model_id)
+            kwargs = {
+                "service_name": "bedrock-runtime",
+                "aws_access_key_id": settings.aws_access_key_id,
+                "aws_secret_access_key": settings.aws_secret_access_key,
+                "region_name": settings.aws_region,
+            }
 
-                # Quick test
-                self._provider = "gemini"
-                self._available = True
-                print(f"   ✓ LLM service initialized (provider: Gemini - {settings.gemini_model_id})")
-                return
-            except Exception as e:
-                print(f"   ⚠ Gemini init failed: {e}")
+            if settings.aws_session_token:
+                kwargs["aws_session_token"] = settings.aws_session_token
 
-        # Try Bedrock
-        if settings.aws_access_key_id and settings.aws_secret_access_key:
-            try:
-                import boto3
+            self._client = boto3.client(**kwargs)
+            self._provider = "bedrock"
+            self._available = True
+            print(f"   ✓ LLM service initialized (provider: Bedrock - {settings.bedrock_model_id})")
 
-                self._bedrock_client = boto3.client(
-                    "bedrock-runtime",
-                    aws_access_key_id=settings.aws_access_key_id,
-                    aws_secret_access_key=settings.aws_secret_access_key,
-                    region_name=settings.aws_region,
-                )
-                self._provider = "bedrock"
-                self._available = True
-                print(f"   ✓ LLM service initialized (provider: Bedrock - {settings.bedrock_model_id})")
-                return
-            except Exception as e:
-                print(f"   ⚠ Bedrock init failed: {e}")
-
-        # Fallback to mock
-        self._provider = "mock"
-        self._available = True
-        print("   ⚠ LLM service: No API keys found - running in MOCK mode")
+        except Exception as e:
+            self._provider = "mock"
+            self._available = True
+            print(f"   ⚠ LLM service: Bedrock init failed ({e}) - running in MOCK mode")
 
     def is_available(self) -> bool:
-        """Check if service is available."""
         return self._available
 
     def get_provider(self) -> str:
-        """Get the active provider name."""
         return self._provider
 
     async def invoke_model(
@@ -83,7 +69,7 @@ class LLMService:
         temperature: float = 0.7,
     ) -> str:
         """
-        Invoke the LLM with a prompt.
+        Invoke Claude via Bedrock.
 
         Args:
             prompt: The user/task prompt.
@@ -94,67 +80,21 @@ class LLMService:
         Returns:
             Model response text.
         """
-        if self._provider == "gemini":
-            return await self._invoke_gemini(prompt, system_prompt, max_tokens, temperature)
-        elif self._provider == "bedrock":
-            return await self._invoke_bedrock(prompt, system_prompt, max_tokens, temperature)
-        else:
-            return await self._mock_response(prompt)
+        if self._provider == "mock":
+            return self._mock_response(prompt)
 
-    async def _invoke_gemini(
-        self,
-        prompt: str,
-        system_prompt: Optional[str],
-        max_tokens: int,
-        temperature: float,
-    ) -> str:
-        """Invoke Google Gemini."""
         try:
-            import google.generativeai as genai
-
-            # Build the full prompt with system instructions
-            full_prompt = prompt
-            if system_prompt:
-                full_prompt = f"{system_prompt}\n\n{prompt}"
-
-            generation_config = genai.types.GenerationConfig(
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-            )
-
-            response = self._gemini_model.generate_content(
-                full_prompt,
-                generation_config=generation_config,
-            )
-
-            return response.text
-
-        except Exception as e:
-            print(f"   ✗ Gemini invocation error: {e}")
-            return await self._mock_response(prompt)
-
-    async def _invoke_bedrock(
-        self,
-        prompt: str,
-        system_prompt: Optional[str],
-        max_tokens: int,
-        temperature: float,
-    ) -> str:
-        """Invoke AWS Bedrock (Claude)."""
-        try:
-            messages = [{"role": "user", "content": prompt}]
-
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": max_tokens,
                 "temperature": temperature,
-                "messages": messages,
+                "messages": [{"role": "user", "content": prompt}],
             }
 
             if system_prompt:
                 body["system"] = system_prompt
 
-            response = self._bedrock_client.invoke_model(
+            response = self._client.invoke_model(
                 modelId=settings.bedrock_model_id,
                 contentType="application/json",
                 accept="application/json",
@@ -165,15 +105,21 @@ class LLMService:
             return response_body["content"][0]["text"]
 
         except Exception as e:
-            print(f"   ✗ Bedrock invocation error: {e}")
-            return await self._mock_response(prompt)
+            error_msg = str(e)
+            print(f"   ✗ Bedrock invocation error: {error_msg}")
 
-    async def _mock_response(self, prompt: str) -> str:
-        """Mock response for development."""
+            # If token expired, tell the user clearly
+            if "ExpiredToken" in error_msg or "expired" in error_msg.lower():
+                print("   ⚠ AWS session token has expired! Update .env with new credentials and restart.")
+
+            return self._mock_response(prompt)
+
+    def _mock_response(self, prompt: str) -> str:
+        """Mock response when Bedrock isn't available."""
         return (
-            f"[MOCK LLM RESPONSE] This is a development placeholder. "
-            f"Configure GEMINI_API_KEY or AWS credentials in .env for real responses. "
-            f"Query received: '{prompt[:100]}...'"
+            f"[MOCK RESPONSE - Bedrock unavailable] "
+            f"Update AWS credentials in .env and restart. "
+            f"Query: '{prompt[:80]}...'"
         )
 
 
