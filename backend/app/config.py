@@ -32,6 +32,9 @@ class Settings(BaseSettings):
     gemini_api_key: Optional[str] = None
     gemini_model_id: str = "gemini-3.6-flash"
 
+    # Weather APIs
+    openweather_api_key: Optional[str] = None
+
     # Vector Store (ChromaDB - local)
     vector_store_collection: str = "climora-climate-data"
 
