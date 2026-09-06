@@ -38,6 +38,12 @@ DEFAULT_LONGITUDE = 79.8612
 DRY_ZONE_LOCATION_NAME = "Dry Zone, Sri Lanka"
 DRY_ZONE_LATITUDE = 8.3114
 DRY_ZONE_LONGITUDE = 80.4037
+CLIMATE_QUERY_TERMS = (
+    "climate", "weather", "flood", "drought", "rain", "rainfall", "monsoon",
+    "storm", "cyclone", "heat", "temperature", "humidity", "wind", "agriculture",
+    "environment", "pollution", "landslide", "water", "irrigation", "sea level",
+    "forecast", "disaster", "preparedness", "risk",
+)
 
 
 class IRAgent(BaseAgentServer):
@@ -105,6 +111,13 @@ class IRAgent(BaseAgentServer):
         )
         entities = arguments.get("entities", {})
         top_k = arguments.get("top_k", 5)
+
+        if not self._is_climate_query(query, entities):
+            return {
+                "documents": [],
+                "message": "No climate-related evidence was retrieved for this query.",
+            }
+
         requested_location = self._requested_location(query, entities)
 
         # Build enhanced search query string from extracted NLP entities
@@ -309,6 +322,13 @@ class IRAgent(BaseAgentServer):
         if not location and "colombo" in query_lower:
             return "Colombo, Sri Lanka"
         return str(location or "")
+
+    def _is_climate_query(self, query: str, entities: dict) -> bool:
+        """Reject unrelated questions before semantic search returns arbitrary climate data."""
+        if entities.get("climate_topic") or entities.get("hazard_type"):
+            return True
+        query_lower = query.lower()
+        return any(term in query_lower for term in CLIMATE_QUERY_TERMS)
 
     async def _query_open_weather(self, location: str) -> dict:
         """

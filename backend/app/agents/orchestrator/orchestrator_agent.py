@@ -94,6 +94,22 @@ class OrchestratorAgent:
 
             retrieved_evidence = ir_result.get("documents", [])
 
+            if not retrieved_evidence:
+                verification_result = await self._invoke_verification_agent(
+                    claims=[],
+                    sources=[],
+                )
+                agents_used.append("verification_agent")
+                return ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary="I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, or preparedness.",
+                    verification_results=verification_result,
+                    confidence_score=0.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=agents_used,
+                )
+
             # --- Step 4: Climate Analysis ---
             analysis_result = await self._invoke_analysis_agent(
                 query=request.query,
