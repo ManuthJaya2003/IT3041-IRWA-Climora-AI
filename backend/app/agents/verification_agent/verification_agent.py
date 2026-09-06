@@ -213,9 +213,9 @@ class VerificationAgent(BaseAgentServer):
             - freshness (str): How current the information is
             - notes (str): Any concerns about the source
         """
-        source_name = arguments.get("source_name", "").strip().lower()
-        source_url = arguments.get("source_url", "").lower()
-        content_date = arguments.get("content_date", "live")
+        source_name = str(arguments.get("source_name") or "").strip().lower()
+        source_url = str(arguments.get("source_url") or "").lower()
+        content_date = arguments.get("content_date") or "live"
 
         reliability_score = 0.70
         category = "general_media"

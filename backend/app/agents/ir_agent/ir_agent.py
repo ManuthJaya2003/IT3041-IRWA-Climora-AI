@@ -142,7 +142,9 @@ class IRAgent(BaseAgentServer):
         external_results = await self._search_external_sources(query, entities)
         documents.extend(external_results)
 
-        # Step 3: Combine, rank, and limit results to top_k
+        # Step 3: Prefer live API evidence when limiting the result set.
+        # Current conditions and forecasts are more useful for time-sensitive risk questions.
+        documents = external_results + documents
         return {"documents": documents[:top_k] if documents else []}
 
     async def search_sources(self, arguments: dict) -> dict:
@@ -176,14 +178,27 @@ class IRAgent(BaseAgentServer):
                 async with httpx.AsyncClient(timeout=5.0) as client:
                     resp = await client.get(
                         "https://api.open-meteo.com/v1/forecast",
-                        params={"latitude": latitude, "longitude": longitude, "current_weather": True}
+                        params={
+                            "latitude": latitude,
+                            "longitude": longitude,
+                            "current_weather": True,
+                            "daily": "precipitation_sum,rain_sum,precipitation_probability_max",
+                            "forecast_days": 7,
+                            "timezone": "auto",
+                        }
                     )
                     if resp.status_code == 200:
+                        data = resp.json()
                         results.append({
-                            "source_name": "Open-Meteo API",
+                            "source_name": "Open-Meteo Climate API",
+                            "url": "https://open-meteo.com",
                             "location": resolved_name,
-                            "data": resp.json().get("current_weather", {}),
-                            "status": "success"
+                            "data": {
+                                "current_weather": data.get("current_weather", {}),
+                                "daily": data.get("daily", {}),
+                            },
+                            "status": "success",
+                            "date": "live",
                         })
             except Exception as e:
                 results.append({"source_name": "Open-Meteo API", "error": str(e), "status": "failed"})
@@ -327,13 +342,25 @@ class IRAgent(BaseAgentServer):
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(
                     "https://api.open-meteo.com/v1/forecast",
-                    params={"latitude": latitude, "longitude": longitude, "current_weather": True}
+                    params={
+                        "latitude": latitude,
+                        "longitude": longitude,
+                        "current_weather": True,
+                        "daily": "precipitation_sum,rain_sum,precipitation_probability_max",
+                        "forecast_days": 7,
+                        "timezone": "auto",
+                    }
                 )
                 if resp.status_code == 200:
-                    weather = resp.json().get("current_weather", {})
+                    data = resp.json()
+                    weather = data.get("current_weather", {})
+                    daily = data.get("daily", {})
                     content_str = (
                         f"Live climate readings for {resolved_name}: Temperature is {weather.get('temperature')}°C, "
-                        f"Wind Speed is {weather.get('windspeed')} km/h."
+                        f"Wind Speed is {weather.get('windspeed')} km/h. "
+                        f"Seven-day precipitation totals are {daily.get('precipitation_sum', [])} mm, "
+                        f"with maximum daily precipitation probabilities of "
+                        f"{daily.get('precipitation_probability_max', [])}%."
                     )
                     results.append({
                         "source_name": "Open-Meteo Climate API",
