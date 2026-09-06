@@ -68,6 +68,9 @@ class OrchestratorAgent:
         agents_used = []
 
         try:
+            # Discover reachable MCP servers before dispatching tasks.
+            await self.mcp_client.initialize()
+
             # --- Step 1: Security Validation ---
             security_result = await self._invoke_security_agent(request)
             agents_used.append("security_agent")
@@ -344,6 +347,9 @@ class OrchestratorAgent:
             risk_assessment=risk_assessment,
             recommendations=recommendations,
             sources=sources,
+            retrieved_sources=ir_result.get("documents", []),
+            extracted_facts=analysis_result.get("claims", []),
+            verification_results=verification_result,
             confidence_score=confidence,
             processing_time_ms=processing_time,
             agents_used=agents_used,
