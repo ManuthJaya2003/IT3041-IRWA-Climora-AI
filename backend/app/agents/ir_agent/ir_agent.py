@@ -35,6 +35,9 @@ from app.config import settings
 DEFAULT_LOCATION_NAME = "Colombo, Sri Lanka"
 DEFAULT_LATITUDE = 6.9271
 DEFAULT_LONGITUDE = 79.8612
+DRY_ZONE_LOCATION_NAME = "Dry Zone, Sri Lanka"
+DRY_ZONE_LATITUDE = 8.3114
+DRY_ZONE_LONGITUDE = 80.4037
 
 
 class IRAgent(BaseAgentServer):
@@ -102,6 +105,7 @@ class IRAgent(BaseAgentServer):
         )
         entities = arguments.get("entities", {})
         top_k = arguments.get("top_k", 5)
+        requested_location = self._requested_location(query, entities)
 
         # Build enhanced search query string from extracted NLP entities
         search_parts = [query]
@@ -124,7 +128,7 @@ class IRAgent(BaseAgentServer):
 
             for r in faiss_results:
                 metadata = r.get("metadata", {})
-                documents.append({
+                document = {
                     "source_name": metadata.get("source", "FAISS Local Store"),
                     "url": r.get("url", metadata.get("url", "")),
                     "content": r.get("content", ""),
@@ -133,14 +137,22 @@ class IRAgent(BaseAgentServer):
                     "topic": metadata.get("topic", "climate"),
                     "location": metadata.get("location", ""),
                     "date": metadata.get("date", "live")
-                })
+                }
+                source_name = document["source_name"].strip().lower()
+                document_location = str(document["location"]).lower()
+                if source_name == "test":
+                    continue
+                if requested_location and document_location:
+                    requested_name = requested_location.lower().split(",")[0].strip()
+                    if requested_name not in document_location:
+                        continue
+                documents.append(document)
         except Exception:
             # Fallback gracefully if vector store is empty or unseeded
             pass
 
         # Step 2: Query External APIs (OpenWeatherMap & Open-Meteo) for live readings
         external_results = await self._search_external_sources(query, entities)
-        documents.extend(external_results)
 
         # Step 3: Prefer live API evidence when limiting the result set.
         # Current conditions and forecasts are more useful for time-sensitive risk questions.
@@ -189,9 +201,15 @@ class IRAgent(BaseAgentServer):
                     )
                     if resp.status_code == 200:
                         data = resp.json()
+                        forecast_url = (
+                            "https://api.open-meteo.com/v1/forecast?"
+                            f"latitude={latitude}&longitude={longitude}&current_weather=true&"
+                            "daily=precipitation_sum,rain_sum,precipitation_probability_max&"
+                            "forecast_days=7&timezone=auto"
+                        )
                         results.append({
                             "source_name": "Open-Meteo Climate API",
-                            "url": "https://open-meteo.com",
+                            "url": forecast_url,
                             "location": resolved_name,
                             "data": {
                                 "current_weather": data.get("current_weather", {}),
@@ -255,6 +273,9 @@ class IRAgent(BaseAgentServer):
         if not location_name:
             return DEFAULT_LATITUDE, DEFAULT_LONGITUDE, DEFAULT_LOCATION_NAME
 
+        if "dry zone" in location_name.lower():
+            return DRY_ZONE_LATITUDE, DRY_ZONE_LONGITUDE, DRY_ZONE_LOCATION_NAME
+
         try:
             async with httpx.AsyncClient(timeout=5.0) as client:
                 resp = await client.get(
@@ -275,6 +296,19 @@ class IRAgent(BaseAgentServer):
         # Geocoding failed (network issue, unknown place name, etc.) - fall back
         # to the default coordinates rather than silently querying the wrong city.
         return DEFAULT_LATITUDE, DEFAULT_LONGITUDE, DEFAULT_LOCATION_NAME
+
+    def _requested_location(self, query: str, entities: dict) -> str:
+        """Return an explicit query location, falling back to the supplied entity."""
+        location = entities.get("location", "")
+        if isinstance(location, list):
+            location = location[0] if location else ""
+
+        query_lower = query.lower()
+        if "dry zone" in query_lower:
+            return DRY_ZONE_LOCATION_NAME
+        if not location and "colombo" in query_lower:
+            return "Colombo, Sri Lanka"
+        return str(location or "")
 
     async def _query_open_weather(self, location: str) -> dict:
         """
@@ -322,10 +356,13 @@ class IRAgent(BaseAgentServer):
         Helper method to query all external climate and weather APIs (OpenWeatherMap & Open-Meteo).
         """
         results = []
-        location = entities.get("location", "")
-        if isinstance(location, list) and location:
-            location = location[0]
-        loc_str = str(location) if location else DEFAULT_LOCATION_NAME
+        location = self._requested_location(query, entities)
+
+        # Do not silently attach Colombo weather to a region-free question.
+        if not location:
+            return results
+
+        loc_str = str(location)
 
         # 1. Fetch live data from OpenWeatherMap API
         owm_data = await self._query_open_weather(loc_str)
@@ -355,6 +392,12 @@ class IRAgent(BaseAgentServer):
                     data = resp.json()
                     weather = data.get("current_weather", {})
                     daily = data.get("daily", {})
+                    forecast_url = (
+                        "https://api.open-meteo.com/v1/forecast?"
+                        f"latitude={latitude}&longitude={longitude}&current_weather=true&"
+                        "daily=precipitation_sum,rain_sum,precipitation_probability_max&"
+                        "forecast_days=7&timezone=auto"
+                    )
                     content_str = (
                         f"Live climate readings for {resolved_name}: Temperature is {weather.get('temperature')}°C, "
                         f"Wind Speed is {weather.get('windspeed')} km/h. "
@@ -364,7 +407,7 @@ class IRAgent(BaseAgentServer):
                     )
                     results.append({
                         "source_name": "Open-Meteo Climate API",
-                        "url": "https://open-meteo.com",
+                        "url": forecast_url,
                         "content": content_str,
                         "snippet": content_str,
                         "reliability_score": 0.90,
