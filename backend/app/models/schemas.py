@@ -84,6 +84,9 @@ class ChatResponse(BaseModel):
     risk_assessment: Optional[RiskAssessment] = Field(None, description="Risk assessment if applicable")
     recommendations: list[Recommendation] = Field(default_factory=list, description="Practical recommendations")
     sources: list[SourceEvidence] = Field(default_factory=list, description="Supporting evidence sources")
+    retrieved_sources: list[dict] = Field(default_factory=list, description="Raw evidence returned by the IR agent")
+    extracted_facts: list[str] = Field(default_factory=list, description="Claims extracted from the evidence")
+    verification_results: dict = Field(default_factory=dict, description="Raw verification agent results")
     confidence_score: Optional[float] = Field(None, ge=0, le=1, description="Overall response confidence")
     disclaimer: str = Field(
         default="This information is for awareness purposes. For emergency situations, contact local authorities.",
