@@ -88,6 +88,30 @@ class OrchestratorAgent:
             intent = nlp_result.get("intent", "general_climate_query")
             entities = nlp_result.get("entities", {})
 
+            # --- Step 2b: Reject non-climate queries at orchestrator level ---
+            # If NLP found no climate topic AND no hazard type, check the query
+            # text directly. This catches cases where a location is detected
+            # (e.g. "Kandy") but the question is unrelated to climate.
+            # Also honour the hard blocklist set by _fallback_nlp (intent="non_climate").
+            if not entities.get("climate_topic") and not entities.get("hazard_type"):
+                from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
+                query_lower = request.query.lower()
+                # Whole-word climate term check — avoids "train" matching "rain"
+                import re
+                has_climate_term = any(
+                    re.search(r'\b' + re.escape(term) + r'\b', query_lower)
+                    for term in CLIMATE_QUERY_TERMS
+                )
+                if not has_climate_term or intent == "non_climate":
+                    return ChatResponse(
+                        session_id=session_id,
+                        query=request.query,
+                        summary="I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, flood, drought, or preparedness.",
+                        confidence_score=0.0,
+                        processing_time_ms=(time.time() - start_time) * 1000,
+                        agents_used=agents_used,
+                    )
+
             # --- Step 3: Information Retrieval ---
             ir_result = await self._invoke_ir_agent(structured_query, entities)
             agents_used.append("ir_agent")
@@ -409,45 +433,155 @@ Do not make claims beyond what the evidence supports."""
     # =========================================================================
 
     async def _fallback_nlp(self, request: ChatRequest) -> dict:
-        """Fallback NLP processing — simple extraction without LLM call."""
-        # Instead of using an LLM call (which can fail to return valid JSON),
-        # do simple rule-based NLP. This is fast, reliable, and doesn't waste
-        # an LLM call on something the NLP agent should handle properly later.
+        """
+        Fallback NLP processing — rule-based extraction without an LLM call.
 
+        Key improvement: extracts location directly from query text so users
+        don't have to fill the separate location field. Covers all 25 Sri Lanka
+        districts, 9 provinces, and common geographic sub-regions.
+        """
         query = request.query.lower()
-        location = request.location
 
-        # Simple intent detection based on keywords
+        # ------------------------------------------------------------------
+        # Hard blocklist — reject clearly non-climate questions even if they
+        # mention a Sri Lanka place name (e.g. "Kandy train timetable").
+        # These terms have no climate meaning and should never produce results.
+        # ------------------------------------------------------------------
+        NON_CLIMATE_TERMS = [
+            "price of", "cost of", "how much does", "how much is",
+            "train", "bus", "flight", "timetable", "schedule", "ticket",
+            "president", "prime minister", "minister", "government",
+            "election", "vote", "parliament", "political",
+            "recipe", "cook", "restaurant", "hotel", "tourist",
+            "cricket", "football", "sport", "match", "score",
+            "school", "university", "exam", "admission",
+            "salary", "job", "vacancy", "hire",
+            "population", "history of", "capital of",
+        ]
+        if any(term in query for term in NON_CLIMATE_TERMS):
+            # Return empty entities with no climate topic — orchestrator will reject
+            return {
+                "intent": "non_climate",
+                "entities": {},
+                "structured_query": {"original_query": request.query},
+                "expanded_terms": [],
+            }
+
+        # ------------------------------------------------------------------
+        # Location extraction — query text takes priority over the location
+        # field, because users type "flood risk in Kandy" without filling the
+        # separate location box. The location field is used as fallback only.
+        # ------------------------------------------------------------------
+
+        # All 25 Sri Lanka districts + provinces + common sub-regions,
+        # ordered longest-first so "nuwara eliya" matches before "eliya".
+        SRI_LANKA_LOCATIONS = [
+            # Districts (longest/most specific first)
+            ("nuwara eliya",     "Nuwara Eliya, Sri Lanka"),
+            ("anuradhapura",     "Anuradhapura, Sri Lanka"),
+            ("polonnaruwa",      "Polonnaruwa, Sri Lanka"),
+            ("trincomalee",      "Trincomalee, Sri Lanka"),
+            ("hambantota",       "Hambantota, Sri Lanka"),
+            ("kilinochchi",      "Kilinochchi, Sri Lanka"),
+            ("mullaitivu",       "Mullaitivu, Sri Lanka"),
+            ("vavuniya",         "Vavuniya, Sri Lanka"),
+            ("batticaloa",       "Batticaloa, Sri Lanka"),
+            ("monaragala",       "Monaragala, Sri Lanka"),
+            ("kurunegala",       "Kurunegala, Sri Lanka"),
+            ("ratnapura",        "Ratnapura, Sri Lanka"),
+            ("kalpitiya",        "Kalpitiya, Sri Lanka"),
+            ("kalutara",         "Kalutara, Sri Lanka"),
+            ("gampaha",          "Gampaha, Sri Lanka"),
+            ("matale",           "Matale, Sri Lanka"),
+            ("badulla",          "Badulla, Sri Lanka"),
+            ("kegalle",          "Kegalle, Sri Lanka"),
+            ("ampara",           "Ampara, Sri Lanka"),
+            ("puttalam",         "Puttalam, Sri Lanka"),
+            ("matara",           "Matara, Sri Lanka"),
+            ("mannar",           "Mannar, Sri Lanka"),
+            ("kandy",            "Kandy, Sri Lanka"),
+            ("galle",            "Galle, Sri Lanka"),
+            ("jaffna",           "Jaffna, Sri Lanka"),
+            ("colombo",          "Colombo, Sri Lanka"),
+            # Provinces
+            ("western province",      "Western Province, Sri Lanka"),
+            ("central province",      "Central Province, Sri Lanka"),
+            ("southern province",     "Southern Province, Sri Lanka"),
+            ("northern province",     "Northern Province, Sri Lanka"),
+            ("eastern province",      "Eastern Province, Sri Lanka"),
+            ("north western province","North Western Province, Sri Lanka"),
+            ("north central province","North Central Province, Sri Lanka"),
+            ("uva province",          "Uva Province, Sri Lanka"),
+            ("sabaragamuwa",          "Sabaragamuwa Province, Sri Lanka"),
+            # Sub-regions / geographic features
+            ("dry zone",         "Dry Zone, Sri Lanka"),
+            ("hill country",     "Central Highlands, Sri Lanka"),
+            ("knuckles",         "Matale, Sri Lanka"),
+            ("horton plains",    "Nuwara Eliya, Sri Lanka"),
+            ("wilpattu",         "Anuradhapura, Sri Lanka"),
+            ("yala",             "Hambantota, Sri Lanka"),
+            ("sinharaja",        "Sinharaja, Sri Lanka"),
+            ("mahaweli",         "Mahaweli Basin, Sri Lanka"),
+            ("kelani",           "Colombo, Sri Lanka"),
+            ("sri lanka",        "Sri Lanka"),
+        ]
+
+        # Extract location from query — use first match found
+        detected_location = None
+        for keyword, canonical in SRI_LANKA_LOCATIONS:
+            if keyword in query:
+                detected_location = canonical
+                break
+
+        # Fall back to the separate location field if query has no location
+        location = detected_location or request.location or None
+
+        # ------------------------------------------------------------------
+        # Intent detection
+        # ------------------------------------------------------------------
         intent = "general_climate_query"
-        if any(w in query for w in ["risk", "danger", "threat", "vulnerable"]):
+        if any(w in query for w in ["risk", "danger", "threat", "vulnerable", "hazard"]):
             intent = "risk_awareness"
-        elif any(w in query for w in ["prepare", "should i", "what to do", "how to"]):
+        elif any(w in query for w in ["prepare", "should i", "what to do", "how to", "advice"]):
             intent = "preparedness"
-        elif any(w in query for w in ["forecast", "predict", "next week", "tomorrow"]):
+        elif any(w in query for w in ["forecast", "predict", "next week", "tomorrow", "upcoming"]):
             intent = "forecast"
-        elif any(w in query for w in ["history", "trend", "past", "change over"]):
+        elif any(w in query for w in ["history", "trend", "past", "change over", "last year"]):
             intent = "trend_analysis"
 
-        # Simple entity extraction
-        entities = {"location": location}
-
-        # Detect climate topics
+        # ------------------------------------------------------------------
+        # Climate topic detection — expanded keyword lists
+        # ------------------------------------------------------------------
         topic_keywords = {
-            "flood": ["flood", "flooding", "inundation", "overflow", "waterlog"],
-            "drought": ["drought", "dry", "water scarcity", "arid"],
-            "heat": ["heat", "hot", "temperature", "heatwave", "heat wave"],
-            "storm": ["storm", "cyclone", "hurricane", "typhoon", "wind"],
-            "landslide": ["landslide", "mudslide", "slope", "hillside"],
-            "sea-level": ["sea level", "coastal", "ocean", "tide"],
-            "rain": ["rain", "rainfall", "monsoon", "precipitation"],
-            "air-quality": ["air quality", "pollution", "pm2.5", "smog"],
+            "flood":        ["flood", "flooding", "inundation", "overflow", "waterlog", "flash flood", "river level", "discharge"],
+            "drought":      ["drought", "dry spell", "water scarcity", "arid", "low rainfall", "water shortage"],
+            "heat-wave":    ["heat wave", "heatwave", "heat stress", "heat island", "extreme heat", "heat index"],
+            "cyclone":      ["cyclone", "hurricane", "typhoon", "tropical storm", "storm surge", "wind speed"],
+            "landslide":    ["landslide", "mudslide", "slope failure", "debris flow", "hillside collapse"],
+            "sea-level-rise":["sea level", "coastal erosion", "storm surge", "shoreline erosion", "tidal flooding"],
+            "rain":         ["rainfall", "monsoon", "precipitation", "downpour", "heavy rain"],
+            "air-quality":  ["air quality", "pollution", "pm2.5", "smog", "particulate", "aqi"],
+            "wildfire":     ["wildfire", "forest fire", "fire risk", "bush fire", "burning forest"],
+            "erosion":      ["erosion", "soil erosion", "bank erosion", "sediment", "topsoil loss"],
+            "water-scarcity":["groundwater", "aquifer", "water table", "drinking water shortage", "water stress"],
+            "agriculture":  ["crop failure", "crop damage", "harvest loss", "farming climate", "climate agriculture",
+                             "drought crop", "flood crop", "monsoon farming", "yield decline"],
         }
 
+        climate_topic = None
+        hazard_type = None
         for topic, keywords in topic_keywords.items():
             if any(kw in query for kw in keywords):
-                entities["climate_topic"] = topic
-                entities["hazard_type"] = topic
+                climate_topic = topic
+                hazard_type = topic
                 break
+
+        entities: dict = {}
+        if location:
+            entities["location"] = location
+        if climate_topic:
+            entities["climate_topic"] = climate_topic
+            entities["hazard_type"] = hazard_type
 
         return {
             "intent": intent,
@@ -459,40 +593,67 @@ Do not make claims beyond what the evidence supports."""
     async def _fallback_ir(self, structured_query: dict, entities: dict) -> dict:
         """
         Fallback IR: query FAISS vector store directly when IR agent isn't running.
+        Applies the same location filter as the IR agent so Kandy queries don't
+        return Colombo or Galle documents.
         """
         from app.services.vector_store_service import vector_store_service
+        from app.agents.ir_agent.ir_agent import _location_matches, CLIMATE_QUERY_TERMS
 
         if not vector_store_service.is_available() or vector_store_service._index.ntotal == 0:
             return {"documents": [], "message": "No documents in vector store"}
 
-        # Use the original query as the primary search — it works best with embeddings
-        search_query = structured_query.get("original_query", "")
+        original_query = structured_query.get("original_query", "")
 
-        # Only append location if it's not already in the query
+        # Reject non-climate queries early
+        query_lower = original_query.lower()
+        has_climate_entities = entities.get("climate_topic") or entities.get("hazard_type")
+        if not has_climate_entities and not any(t in query_lower for t in CLIMATE_QUERY_TERMS):
+            return {"documents": [], "message": "No climate-related evidence was retrieved for this query."}
+
+        # Build search query — include location for better embedding match
         location = entities.get("location", "")
+        if isinstance(location, list):
+            location = location[0] if location else ""
+        search_query = original_query
         if location and location.lower() not in search_query.lower():
             search_query = f"{search_query} {location}"
 
-        # Query FAISS
+        # Over-fetch to compensate for post-filter location filtering
         results = await vector_store_service.query_similar(
             query_text=search_query,
-            top_k=5,
+            top_k=15,
         )
 
-        # Format results to match expected document structure
+        # Format and apply location filter
         documents = []
+        seen_content: set[str] = set()
         for result in results:
+            metadata = result.get("metadata", {})
             doc = {
-                "source_name": result.get("source_name", result.get("metadata", {}).get("source", "Unknown")),
+                "source_name": result.get("source_name", metadata.get("source", "Unknown")),
                 "url": result.get("url"),
                 "content": result.get("content", ""),
                 "snippet": result.get("snippet", result.get("content", "")[:300]),
                 "reliability_score": min(result.get("score", 0.5), 1.0),
-                "topic": result.get("metadata", {}).get("topic", ""),
-                "location": result.get("metadata", {}).get("location", ""),
-                "date": result.get("metadata", {}).get("date", ""),
+                "topic": metadata.get("topic", ""),
+                "location": metadata.get("location", ""),
+                "date": metadata.get("date", ""),
             }
+            # Skip test documents
+            if doc["source_name"].strip().lower() == "test":
+                continue
+            # Apply fuzzy location filter — same logic as IR agent
+            if location and doc["location"]:
+                if not _location_matches(location, str(doc["location"])):
+                    continue
+            # Deduplicate by content
+            content_key = doc["content"][:120].strip()
+            if content_key in seen_content:
+                continue
+            seen_content.add(content_key)
             documents.append(doc)
+            if len(documents) >= 5:
+                break
 
         return {
             "documents": documents,
