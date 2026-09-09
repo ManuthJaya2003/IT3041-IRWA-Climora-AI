@@ -438,7 +438,144 @@ class IRAgent(BaseAgentServer):
         except Exception:
             pass
 
+        # 4. Add topic-specific public data products when the query needs them.
+        if any(term in query.lower() for term in ("flood", "flooding", "river", "overflow")):
+            flood_result = await self._query_open_meteo_flood(
+                latitude, longitude, resolved_name
+            )
+            if flood_result:
+                results.append(flood_result)
+
+        if any(term in query.lower() for term in ("air quality", "pollution", "pm2.5", "smog")):
+            air_quality_result = await self._query_open_meteo_air_quality(
+                latitude, longitude, resolved_name
+            )
+            if air_quality_result:
+                results.append(air_quality_result)
+
+        if any(term in query.lower() for term in ("coastal", "coast", "wave", "sea level", "storm surge")):
+            marine_result = await self._query_open_meteo_marine(
+                latitude, longitude, resolved_name
+            )
+            if marine_result:
+                results.append(marine_result)
+
         return results
+
+    async def _query_open_meteo_flood(
+        self, latitude: float, longitude: float, location: str
+    ) -> dict | None:
+        """Fetch seven-day river-discharge evidence from Open-Meteo Flood API."""
+        endpoint = "https://flood-api.open-meteo.com/v1/flood"
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "daily": "river_discharge",
+            "forecast_days": 7,
+        }
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(endpoint, params=params)
+                if response.status_code != 200:
+                    return None
+                data = response.json()
+                daily = data.get("daily", {})
+                discharge = daily.get("river_discharge", [])
+                if not discharge:
+                    return None
+                query = httpx.QueryParams(params)
+                return {
+                    "source_name": "Open-Meteo Flood API",
+                    "url": f"{endpoint}?{query}",
+                    "content": (
+                        f"Seven-day river discharge forecast for {location}: "
+                        f"{discharge}. Higher discharge can increase river overflow risk; "
+                        "this is an indicator, not an official warning."
+                    ),
+                    "snippet": f"River discharge forecast for {location}: {discharge}.",
+                    "reliability_score": 0.90,
+                    "topic": "flood",
+                    "location": location,
+                    "date": "live",
+                }
+        except Exception:
+            return None
+
+    async def _query_open_meteo_air_quality(
+        self, latitude: float, longitude: float, location: str
+    ) -> dict | None:
+        """Fetch current PM2.5 and AQI evidence from Open-Meteo Air Quality API."""
+        endpoint = "https://air-quality-api.open-meteo.com/v1/air-quality"
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "current": "pm2_5,us_aqi",
+            "timezone": "auto",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(endpoint, params=params)
+                if response.status_code != 200:
+                    return None
+                data = response.json().get("current", {})
+                if not data:
+                    return None
+                query = httpx.QueryParams(params)
+                return {
+                    "source_name": "Open-Meteo Air Quality API",
+                    "url": f"{endpoint}?{query}",
+                    "content": (
+                        f"Current air quality for {location}: PM2.5 is "
+                        f"{data.get('pm2_5')} micrograms per cubic meter and US AQI is "
+                        f"{data.get('us_aqi')}."
+                    ),
+                    "snippet": f"Current PM2.5 and US AQI for {location}.",
+                    "reliability_score": 0.90,
+                    "topic": "air-quality",
+                    "location": location,
+                    "date": "live",
+                }
+        except Exception:
+            return None
+
+    async def _query_open_meteo_marine(
+        self, latitude: float, longitude: float, location: str
+    ) -> dict | None:
+        """Fetch seven-day wave and sea-level indicators from Open-Meteo Marine API."""
+        endpoint = "https://marine-api.open-meteo.com/v1/marine"
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "daily": "wave_height_max",
+            "forecast_days": 7,
+            "timezone": "auto",
+        }
+        try:
+            async with httpx.AsyncClient(timeout=5.0) as client:
+                response = await client.get(endpoint, params=params)
+                if response.status_code != 200:
+                    return None
+                daily = response.json().get("daily", {})
+                wave_heights = daily.get("wave_height_max", [])
+                if not wave_heights:
+                    return None
+                query = httpx.QueryParams(params)
+                return {
+                    "source_name": "Open-Meteo Marine API",
+                    "url": f"{endpoint}?{query}",
+                    "content": (
+                        f"Seven-day coastal indicators for {location}: maximum wave heights "
+                        f"{wave_heights} meters. Elevated wave heights can increase coastal hazard "
+                        "exposure; this is an indicator, not an official warning."
+                    ),
+                    "snippet": f"Wave and sea-level indicators for {location}.",
+                    "reliability_score": 0.90,
+                    "topic": "coastal-hazard",
+                    "location": location,
+                    "date": "live",
+                }
+        except Exception:
+            return None
 
 
 # Entry point for running this agent standalone

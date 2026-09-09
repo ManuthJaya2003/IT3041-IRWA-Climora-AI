@@ -53,6 +53,9 @@ class VerificationAgent(BaseAgentServer):
         "water supply and drainage board sri lanka": {"score": 0.90, "category": "government_utility"},
         "openopenweathermap api": {"score": 0.90, "category": "live_weather_api"},
         "open-meteo climate api": {"score": 0.90, "category": "live_weather_api"},
+        "open-meteo flood api": {"score": 0.90, "category": "live_hydrology_api"},
+        "open-meteo air quality api": {"score": 0.90, "category": "live_air_quality_api"},
+        "open-meteo marine api": {"score": 0.90, "category": "live_marine_api"},
         "university of moratuwa": {"score": 0.88, "category": "academic"},
         "tea research institute of sri lanka": {"score": 0.88, "category": "academic_research"},
     }
