@@ -30,9 +30,45 @@ Port: 8104
 """
 
 import json
+import logging
+import re
 from datetime import datetime
 from app.mcp.base_agent_server import BaseAgentServer
 from app.services.llm_service import llm_service
+
+logger = logging.getLogger(__name__)
+
+
+def _extract_json(text: str) -> dict:
+    """
+    Robustly extract a JSON object from an LLM response string.
+
+    Tries direct parse first, then strips markdown fences, then uses a
+    regex to find the first {...} block in the text. Raises ValueError
+    if no valid JSON object can be found.
+    """
+    # 1. Direct parse (response is already clean JSON)
+    try:
+        return json.loads(text)
+    except json.JSONDecodeError:
+        pass
+
+    # 2. Strip common markdown fences and retry
+    cleaned = text.strip().replace("```json", "").replace("```", "").strip()
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+
+    # 3. Regex extraction — find the outermost { ... } block
+    match = re.search(r"\{.*\}", cleaned, re.DOTALL)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"No valid JSON object found in LLM response: {text[:200]!r}")
 
 
 class VerificationAgent(BaseAgentServer):
@@ -51,7 +87,8 @@ class VerificationAgent(BaseAgentServer):
         "coast conservation department": {"score": 0.92, "category": "government_agency"},
         "mahaweli authority of sri lanka": {"score": 0.90, "category": "government_agency"},
         "water supply and drainage board sri lanka": {"score": 0.90, "category": "government_utility"},
-        "openopenweathermap api": {"score": 0.90, "category": "live_weather_api"},
+        # Fixed: was "openopenweathermap api" (double "open") — never matched the IR agent's source name
+        "openweathermap api": {"score": 0.90, "category": "live_weather_api"},
         "open-meteo climate api": {"score": 0.90, "category": "live_weather_api"},
         "open-meteo flood api": {"score": 0.90, "category": "live_hydrology_api"},
         "open-meteo air quality api": {"score": 0.90, "category": "live_air_quality_api"},
@@ -96,12 +133,14 @@ class VerificationAgent(BaseAgentServer):
             - verified (bool): Overall verification status
             - confidence (float): Overall confidence in the information (0-1)
             - claim_results (list): Per-claim verification results
-            - warnings (list): Any issues found (conflicts, staleness, etc.)
+            - warnings (list): Critical issues (unsupported/contradicted claims)
+            - info (list): Informational notes (e.g. stale sources) that do not
+                          fail overall verification on their own
         """
         claims = arguments.get("claims", [])
         sources = arguments.get("sources", [])
 
-        # If string claims or single dict claims are passed, normalize to list
+        # Normalise a bare string claim to a list
         if isinstance(claims, str):
             claims = [claims]
 
@@ -110,11 +149,34 @@ class VerificationAgent(BaseAgentServer):
                 "verified": False,
                 "confidence": 0.0,
                 "claim_results": [],
-                "warnings": ["No claims were provided for verification."]
+                "warnings": ["No claims were provided for verification."],
+                "info": [],
+            }
+
+        # Warn early when no evidence was provided — don't silently run LLM
+        # against a placeholder string and return spuriously low confidence.
+        if not sources:
+            return {
+                "verified": False,
+                "confidence": 0.0,
+                "claim_results": [
+                    {
+                        "claim": str(c),
+                        "status": "unverifiable",
+                        "confidence": 0.0,
+                        "explanation": "No evidence sources were provided for verification.",
+                    }
+                    for c in claims
+                ],
+                "warnings": ["No evidence sources were provided — claims cannot be verified."],
+                "info": [],
             }
 
         claim_results = []
-        warnings = []
+        # Separate critical warnings from informational notes so a stale-source
+        # note does not cause the whole response to return verified=False.
+        critical_warnings: list[str] = []
+        info_notes: list[str] = []
         total_confidence = 0.0
 
         # Build context block out of sources/evidence
@@ -123,44 +185,49 @@ class VerificationAgent(BaseAgentServer):
             name = src.get("source_name", src.get("source", "Unknown"))
             content = src.get("content", src.get("snippet", ""))
             evidence_texts.append(f"[{name}]: {content}")
-        
-        combined_evidence = "\n".join(evidence_texts) if evidence_texts else "No retrieved evidence provided."
+
+        combined_evidence = "\n".join(evidence_texts)
 
         for claim in claims:
             claim_str = str(claim)
-            
+
             # Attempt LLM-based verification prompt
             prompt = f"""
-            You are a rigorous Fact-Checking & Climate Verification Agent.
-            Evaluate if the following CLAIM is strictly supported by the provided EVIDENCE.
+You are a rigorous Fact-Checking & Climate Verification Agent.
+Evaluate if the following CLAIM is strictly supported by the provided EVIDENCE.
 
-            CLAIM: "{claim_str}"
+CLAIM: "{claim_str}"
 
-            EVIDENCE:
-            {combined_evidence}
+EVIDENCE:
+{combined_evidence}
 
-            Respond ONLY in valid raw JSON with the following structure:
-            {{
-                "status": "supported" | "partially_supported" | "unsupported" | "contradicted",
-                "confidence": <float 0.0 to 1.0>,
-                "explanation": "<short explanation>"
-            }}
-            """
+Respond ONLY in valid raw JSON with the following structure:
+{{
+    "status": "supported" | "partially_supported" | "unsupported" | "contradicted",
+    "confidence": <float 0.0 to 1.0>,
+    "explanation": "<short explanation>"
+}}
+"""
 
             try:
                 llm_response = await llm_service.generate_text(prompt=prompt)
-                
-                # Sanitize response string for JSON parsing
-                cleaned_resp = llm_response.strip().replace("```json", "").replace("```", "").strip()
-                parsed = json.loads(cleaned_resp)
-                
+                parsed = _extract_json(llm_response)
+
                 status = parsed.get("status", "partially_supported")
                 conf = float(parsed.get("confidence", 0.7))
                 exp = parsed.get("explanation", "Verified against provided evidence.")
 
-            except Exception:
-                # Rule-based / Keyword Fallback verification if LLM fails or is unavailable
-                matches = sum(1 for src in sources if any(word in src.get("content", "").lower() for word in claim_str.lower().split() if len(word) > 3))
+            except Exception as exc:
+                logger.warning("LLM verification failed for claim '%s': %s", claim_str[:60], exc)
+                # Rule-based / keyword fallback when LLM is unavailable or returns bad JSON
+                matches = sum(
+                    1 for src in sources
+                    if any(
+                        word in src.get("content", "").lower()
+                        for word in claim_str.lower().split()
+                        if len(word) > 3
+                    )
+                )
                 if matches >= 2:
                     status = "supported"
                     conf = 0.85
@@ -178,27 +245,45 @@ class VerificationAgent(BaseAgentServer):
                 "claim": claim_str,
                 "status": status,
                 "confidence": conf,
-                "explanation": exp
+                "explanation": exp,
             })
 
             total_confidence += conf
-            if status in ["unsupported", "contradicted"]:
-                warnings.append(f"Claim '{claim_str[:40]}...' is {status}.")
+            if status in ("unsupported", "contradicted"):
+                critical_warnings.append(f"Claim '{claim_str[:60]}...' is {status}.")
 
         overall_confidence = round(total_confidence / len(claims), 2) if claims else 0.0
-        overall_verified = overall_confidence >= 0.65 and len(warnings) == 0
+        # Only fail verification on critical issues (unsupported/contradicted claims).
+        # Informational notes like stale sources are reported separately.
+        overall_verified = overall_confidence >= 0.65 and len(critical_warnings) == 0
 
-        # Check for source staleness warnings
+        # Source freshness check — uses year-diff logic, not hardcoded year string
+        current_year = datetime.now().year
         for src in sources:
-            date_str = src.get("date", src.get("content_date", ""))
-            if date_str and "2020" in date_str:
-                warnings.append(f"Source '{src.get('source_name', 'Unknown')}' may contain older historical data.")
+            date_str = str(src.get("date", src.get("content_date", "")) or "")
+            if not date_str or date_str in ("live", "current", "today"):
+                continue
+            # Extract the first 4-digit year found in the date string
+            year_match = re.search(r"\b(19|20)\d{2}\b", date_str)
+            if year_match:
+                pub_year = int(year_match.group())
+                diff = current_year - pub_year
+                if diff > 3:
+                    info_notes.append(
+                        f"Source '{src.get('source_name', 'Unknown')}' contains data from "
+                        f"{pub_year} ({diff} years ago) — treat as historical context."
+                    )
+                elif diff > 1:
+                    info_notes.append(
+                        f"Source '{src.get('source_name', 'Unknown')}' data is {diff} year(s) old."
+                    )
 
         return {
             "verified": overall_verified,
             "confidence": overall_confidence,
             "claim_results": claim_results,
-            "warnings": warnings
+            "warnings": critical_warnings,
+            "info": info_notes,
         }
 
     async def check_source_quality(self, arguments: dict) -> dict:
@@ -229,7 +314,7 @@ class VerificationAgent(BaseAgentServer):
             if key in source_name or key in source_url:
                 reliability_score = info["score"]
                 category = info["category"]
-                notes = "High authority recognized climate institution."
+                notes = "High authority recognised climate institution."
                 break
 
         if ".gov" in source_url or ".gov.lk" in source_url:
@@ -243,20 +328,24 @@ class VerificationAgent(BaseAgentServer):
 
         # Freshness evaluation
         freshness = "unknown"
-        if content_date in ["live", "current", "today"]:
+        if str(content_date).lower() in ("live", "current", "today"):
             freshness = "real_time"
         else:
             try:
-                pub_year = int("".join(filter(str.isdigit, str(content_date)))[:4])
-                current_year = datetime.now().year
-                diff = current_year - pub_year
-                if diff <= 1:
-                    freshness = "current"
-                elif diff <= 3:
-                    freshness = "recent"
+                year_match = re.search(r"\b(19|20)\d{2}\b", str(content_date))
+                if year_match:
+                    pub_year = int(year_match.group())
+                    current_year = datetime.now().year
+                    diff = current_year - pub_year
+                    if diff <= 1:
+                        freshness = "current"
+                    elif diff <= 3:
+                        freshness = "recent"
+                    else:
+                        freshness = "historical"
+                        notes += f" Note: Historical data ({diff} years old)."
                 else:
-                    freshness = "historical"
-                    notes += " Note: Historical data (>3 years old)."
+                    freshness = "recent"
             except Exception:
                 freshness = "recent"
 
@@ -264,12 +353,12 @@ class VerificationAgent(BaseAgentServer):
             "reliability_score": reliability_score,
             "category": category,
             "freshness": freshness,
-            "notes": notes
+            "notes": notes,
         }
 
     async def cross_reference(self, arguments: dict) -> dict:
         """
-        Cross-reference claims across multiple sources.
+        Cross-reference a claim across multiple sources using LLM-based evaluation.
 
         Input:
             - claim (str): The claim to cross-reference
@@ -277,46 +366,75 @@ class VerificationAgent(BaseAgentServer):
 
         Output:
             - supported_by (list): Sources that support the claim
-            - contradicted_by (list): Sources that contradict
+            - contradicted_by (list): Sources that contradict the claim
             - not_mentioned_in (list): Sources that don't cover it
-            - consensus_score (float): How much agreement exists (0-1)
+            - consensus_score (float): Agreement ratio across sources (0-1)
         """
         claim = arguments.get("claim", "")
         sources = arguments.get("sources", [])
 
-        supported_by = []
-        contradiction_sources = []
-        not_mentioned_in = []
-
-        claim_words = [w.lower() for w in claim.split() if len(w) > 3]
+        supported_by: list[str] = []
+        contradicted_by: list[str] = []
+        not_mentioned_in: list[str] = []
 
         for src in sources:
             src_name = src.get("source_name", src.get("source", "Unknown Source"))
-            content = src.get("content", src.get("snippet", "")).lower()
+            content = src.get("content", src.get("snippet", "")).strip()
 
             if not content:
                 not_mentioned_in.append(src_name)
                 continue
 
-            # Check overlap of key concepts
-            match_count = sum(1 for word in claim_words if word in content)
-            
-            if match_count >= max(1, len(claim_words) // 2):
+            # LLM-based per-source evaluation — detects negation and contradictions
+            prompt = f"""
+You are a climate fact-checker. Does the following SOURCE CONTENT support, contradict,
+or not mention the CLAIM? Answer precisely.
+
+CLAIM: "{claim}"
+
+SOURCE ({src_name}):
+{content[:1000]}
+
+Respond ONLY in valid raw JSON:
+{{
+    "verdict": "supports" | "contradicts" | "not_mentioned",
+    "reason": "<one sentence>"
+}}
+"""
+            verdict = "not_mentioned"
+            try:
+                llm_response = await llm_service.generate_text(prompt=prompt)
+                parsed = _extract_json(llm_response)
+                verdict = parsed.get("verdict", "not_mentioned")
+            except Exception as exc:
+                logger.warning(
+                    "LLM cross-reference failed for source '%s': %s — falling back to keyword match",
+                    src_name, exc,
+                )
+                # Keyword fallback: conservative — only mark as supporting if clear word overlap
+                claim_words = [w.lower() for w in claim.split() if len(w) > 3]
+                content_lower = content.lower()
+                match_count = sum(1 for w in claim_words if w in content_lower)
+                if match_count >= max(1, len(claim_words) // 2):
+                    verdict = "supports"
+                else:
+                    verdict = "not_mentioned"
+
+            if verdict == "supports":
                 supported_by.append(src_name)
+            elif verdict == "contradicts":
+                contradicted_by.append(src_name)
             else:
                 not_mentioned_in.append(src_name)
 
-        total_checked = len(supported_by) + len(contradiction_sources) + len(not_mentioned_in)
-        if total_checked > 0:
-            consensus_score = round(len(supported_by) / total_checked, 2)
-        else:
-            consensus_score = 0.0
+        total_checked = len(supported_by) + len(contradicted_by) + len(not_mentioned_in)
+        consensus_score = round(len(supported_by) / total_checked, 2) if total_checked > 0 else 0.0
 
         return {
             "supported_by": supported_by,
-            "contradicted_by": contradiction_sources,
+            "contradicted_by": contradicted_by,
             "not_mentioned_in": not_mentioned_in,
-            "consensus_score": consensus_score
+            "consensus_score": consensus_score,
         }
 
 
