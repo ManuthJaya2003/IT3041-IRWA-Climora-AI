@@ -12,6 +12,7 @@ pip-delete-this-directory.txt
 *.egg-info/
 dist/
 build/
+audio_cache/
 
 # Environment
 .env
