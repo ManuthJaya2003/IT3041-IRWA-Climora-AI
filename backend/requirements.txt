@@ -24,7 +24,7 @@ faiss-cpu==1.15.0
 
 # Database
 sqlalchemy==2.0.35
-psycopg[binary]==3.2.1
+psycopg[binary]==3.2.2
 
 # NLP (for teammates who need it)
 # spacy==3.7.6
