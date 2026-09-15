@@ -52,6 +52,13 @@ export interface ChatResponse {
   disclaimer: string
   processing_time_ms?: number
   agents_used: string[]
+  language?: string
+}
+
+export interface VoiceQueryResponse {
+  response: ChatResponse
+  audio_url: string | null
+  language: string
 }
 
 export interface AgentInfo {
@@ -81,4 +88,28 @@ export async function getAgentsStatus(): Promise<Record<string, unknown>> {
 export async function getHealthCheck(): Promise<Record<string, unknown>> {
   const response = await api.get('/health')
   return response.data
+}
+
+// --- Speech API Functions ---
+
+export async function sendVoiceQuery(request: {
+  query: string
+  location?: string
+  session_id?: string
+}): Promise<VoiceQueryResponse> {
+  const response = await api.post<VoiceQueryResponse>('/speech/voice-query', request)
+  return response.data
+}
+
+export function getAudioUrl(audioPath: string): string {
+  return `${API_BASE_URL}${audioPath}`
+}
+
+export async function textToSpeech(text: string, language?: string): Promise<string> {
+  const response = await api.post('/speech/speak', { text, language }, {
+    responseType: 'blob',
+  })
+  // Create a blob URL for audio playback
+  const blob = new Blob([response.data], { type: 'audio/mpeg' })
+  return URL.createObjectURL(blob)
 }

@@ -68,8 +68,9 @@ class OrchestratorAgent:
         agents_used = []
 
         try:
-            # Discover reachable MCP servers before dispatching tasks.
-            await self.mcp_client.initialize()
+            # --- Step 0: Language Detection ---
+            from app.services.language_service import detect_language, get_language_name
+            detected_language = detect_language(request.query)
 
             # --- Step 1: Security Validation ---
             security_result = await self._invoke_security_agent(request)
@@ -169,6 +170,7 @@ class OrchestratorAgent:
                 recommendation_result=recommendation_result,
                 agents_used=agents_used,
                 start_time=start_time,
+                language=detected_language,
             )
 
             # Store in session
@@ -333,6 +335,7 @@ class OrchestratorAgent:
         recommendation_result: dict,
         agents_used: list[str],
         start_time: float,
+        language: str = "en",
     ) -> ChatResponse:
         """Assemble the final response from all agent outputs."""
 
@@ -343,6 +346,7 @@ class OrchestratorAgent:
             query=request.query,
             analysis=analysis_result,
             verification=verification_result,
+            language=language,
         )
 
         # Build risk assessment
@@ -393,12 +397,17 @@ class OrchestratorAgent:
             confidence_score=confidence,
             processing_time_ms=processing_time,
             agents_used=agents_used,
+            language=language,
         )
 
     async def _generate_summary(
-        self, query: str, analysis: dict, verification: dict
+        self, query: str, analysis: dict, verification: dict, language: str = "en"
     ) -> str:
         """Use the LLM to generate a user-friendly summary from agent outputs."""
+        from app.services.language_service import get_response_instruction
+
+        language_instruction = get_response_instruction(language)
+
         prompt = f"""Based on the following climate analysis, provide a clear and concise summary 
 for the user who asked: "{query}"
 
@@ -410,13 +419,16 @@ Confidence: {verification.get('confidence', 'Unknown')}
 
 Provide a helpful, evidence-based summary in 2-4 sentences. Be specific about the risks 
 and what the user should know. Be clear about what is known and what is uncertain. 
-Do not make claims beyond what the evidence supports."""
+Do not make claims beyond what the evidence supports.
+
+{language_instruction}"""
 
         system_prompt = (
             "You are Climora AI, a climate intelligence assistant. "
             "Provide clear, evidence-based responses. "
             "Always communicate uncertainty honestly. "
-            "Never present uncertain information as fact."
+            "Never present uncertain information as fact. "
+            f"{language_instruction}"
         )
 
         response = await llm_service.invoke_model(

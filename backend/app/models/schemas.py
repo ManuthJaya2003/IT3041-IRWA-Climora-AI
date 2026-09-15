@@ -94,6 +94,7 @@ class ChatResponse(BaseModel):
     )
     processing_time_ms: Optional[float] = Field(None, description="Total processing time in ms")
     agents_used: list[str] = Field(default_factory=list, description="Agents that contributed to this response")
+    language: str = Field(default="en", description="Detected response language (en, si, ta)")
 
 
 # --- Agent Communication Models ---

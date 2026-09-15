@@ -1,5 +1,6 @@
-import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock } from 'lucide-react'
-import { ChatResponse } from '../api/climoraApi'
+import { useState } from 'react'
+import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock, Volume2, Loader2 } from 'lucide-react'
+import { ChatResponse, textToSpeech } from '../api/climoraApi'
 import { Message } from './ChatInterface'
 
 interface ChatMessageProps {
@@ -29,7 +30,10 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           {isUser ? (
             <p className="text-sm whitespace-pre-wrap">{message.content}</p>
           ) : (
-            <FormattedText text={message.content} />
+            <div>
+              <FormattedText text={message.content} />
+              <ReadAloudButton text={message.content} language={message.response?.language} />
+            </div>
           )}
         </div>
 
@@ -255,5 +259,52 @@ function ReliabilityBadge({ score }: { score: number }) {
     <span className={`text-xs font-medium shrink-0 ${color}`}>
       {percentage}%
     </span>
+  )
+}
+
+
+function ReadAloudButton({ text, language }: { text: string; language?: string }) {
+  const [isLoading, setIsLoading] = useState(false)
+  const [isPlaying, setIsPlaying] = useState(false)
+
+  const handleReadAloud = async () => {
+    if (isPlaying) return
+
+    setIsLoading(true)
+    try {
+      const audioUrl = await textToSpeech(text, language)
+      setIsLoading(false)
+      setIsPlaying(true)
+
+      const audio = new Audio(audioUrl)
+      audio.play()
+      audio.onended = () => {
+        setIsPlaying(false)
+        URL.revokeObjectURL(audioUrl)
+      }
+      audio.onerror = () => {
+        setIsPlaying(false)
+        URL.revokeObjectURL(audioUrl)
+      }
+    } catch {
+      setIsLoading(false)
+      setIsPlaying(false)
+    }
+  }
+
+  return (
+    <button
+      onClick={handleReadAloud}
+      disabled={isLoading || isPlaying}
+      className="mt-2 flex items-center gap-1 text-xs text-slate-400 hover:text-climora-600 transition-colors disabled:opacity-50"
+      aria-label="Read aloud"
+    >
+      {isLoading ? (
+        <Loader2 className="w-3 h-3 animate-spin" />
+      ) : (
+        <Volume2 className="w-3 h-3" />
+      )}
+      <span>{isPlaying ? 'Playing...' : isLoading ? 'Generating...' : 'Read aloud'}</span>
+    </button>
   )
 }
