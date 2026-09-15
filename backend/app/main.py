@@ -4,12 +4,34 @@ Climora AI - FastAPI Application Entry Point
 Agentic AI-Powered Climate Intelligence & Decision Support System
 """
 
+import multiprocessing
+
+# Required on Windows: prevents subprocesses from re-executing this module
+# when multiprocessing uses the 'spawn' start method (Windows default).
+multiprocessing.freeze_support()
+
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
 from app.routers import chat, health, agents, vector_store
+
+
+def _run_ir_agent():
+    """Entry point for IR Agent subprocess."""
+    from app.agents.ir_agent.ir_agent import IRAgent
+    IRAgent().run()
+
+
+def _run_verification_agent():
+    """Entry point for Verification Agent subprocess."""
+    from app.agents.verification_agent.verification_agent import VerificationAgent
+    VerificationAgent().run()
+
+
+# Keep references so we can terminate on shutdown
+_agent_processes: list[multiprocessing.Process] = []
 
 
 @asynccontextmanager
@@ -31,10 +53,25 @@ async def lifespan(app: FastAPI):
 
     print("   Services initialized successfully")
 
+    # Auto-start IR and Verification agents as background subprocesses.
+    # This means you only need one terminal: `uvicorn app.main:app`
+    for name, target in [
+        ("ir_agent      (port 8102)", _run_ir_agent),
+        ("verification  (port 8104)", _run_verification_agent),
+    ]:
+        proc = multiprocessing.Process(target=target, name=name, daemon=True)
+        proc.start()
+        _agent_processes.append(proc)
+        print(f"   🤖 Started {name}  [pid {proc.pid}]")
+
     yield
 
-    # Shutdown
+    # Shutdown — terminate agent subprocesses cleanly
     print(f"🛑 Shutting down {settings.app_name}")
+    for proc in _agent_processes:
+        proc.terminate()
+        proc.join(timeout=3)
+        print(f"   ✓ {proc.name} stopped")
 
 
 app = FastAPI(
