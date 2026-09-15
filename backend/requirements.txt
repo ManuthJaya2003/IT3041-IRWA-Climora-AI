@@ -39,4 +39,7 @@ python-multipart==0.0.9
 python-dotenv==1.0.1
 tenacity==9.0.0
 
+# Text-to-Speech (multilingual)
+gTTS==2.5.1
+
 # CORS already included in fastapi

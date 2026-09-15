@@ -43,6 +43,7 @@ docker-compose.override.yml
 *.sqlite3
 chroma_data/
 vector_data/
+audio_cache/
 
 # Logs
 *.log

@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, MapPin, Loader2 } from 'lucide-react'
+import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
 import ChatMessage from './ChatMessage'
-import { sendQuery, ChatResponse } from '../api/climoraApi'
+import { sendQuery, sendVoiceQuery, getAudioUrl, ChatResponse } from '../api/climoraApi'
+import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 
 export interface Message {
   id: string
@@ -29,7 +30,34 @@ export default function ChatInterface({
   const [location, setLocation] = useState('')
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId)
+  const [isPlayingAudio, setIsPlayingAudio] = useState(false)
+  const [speechLang, setSpeechLang] = useState<string>('en')
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+
+  // Speech recognition hook
+  const {
+    isListening,
+    transcript,
+    startListening,
+    stopListening,
+    isSupported: isSpeechSupported,
+    error: speechError,
+  } = useSpeechRecognition()
+
+  // When speech recognition produces a transcript, put it in the input
+  useEffect(() => {
+    if (transcript) {
+      setInput(transcript)
+    }
+  }, [transcript])
+
+  // Auto-submit when speech recognition finishes with a transcript
+  useEffect(() => {
+    if (!isListening && transcript && transcript.trim()) {
+      submitVoiceQuery(transcript)
+    }
+  }, [isListening])
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -97,6 +125,84 @@ export default function ChatInterface({
     await submitQuery(input)
   }
 
+  const submitVoiceQuery = async (query: string) => {
+    if (!query.trim() || isLoading) return
+
+    const userMessage: Message = {
+      id: crypto.randomUUID(),
+      role: 'user',
+      content: `🎤 ${query}`,
+      timestamp: new Date(),
+    }
+
+    setMessages(prev => [...prev, userMessage])
+    setInput('')
+    setIsLoading(true)
+
+    try {
+      const result = await sendVoiceQuery({
+        query,
+        location: location || undefined,
+        session_id: sessionId || undefined,
+      })
+
+      const response = result.response
+      setSessionId(response.session_id)
+
+      const assistantMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: response.summary,
+        response,
+        timestamp: new Date(),
+      }
+
+      const updatedMessages = [...messages, userMessage, assistantMessage]
+      setMessages(prev => [...prev, assistantMessage])
+
+      if (!sessionId && onNewConversation) {
+        onNewConversation(response.session_id, query, updatedMessages)
+      } else if (sessionId && onUpdateConversation) {
+        onUpdateConversation(sessionId, updatedMessages)
+      }
+
+      // Auto-play audio response
+      if (result.audio_url) {
+        playAudio(getAudioUrl(result.audio_url))
+      }
+    } catch (error) {
+      const errorMessage: Message = {
+        id: crypto.randomUUID(),
+        role: 'assistant',
+        content: 'Sorry, I encountered an error processing your voice query.',
+        timestamp: new Date(),
+      }
+      setMessages(prev => [...prev, errorMessage])
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  const playAudio = (url: string) => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+    }
+    const audio = new Audio(url)
+    audioRef.current = audio
+    setIsPlayingAudio(true)
+    audio.play()
+    audio.onended = () => setIsPlayingAudio(false)
+    audio.onerror = () => setIsPlayingAudio(false)
+  }
+
+  const stopAudio = () => {
+    if (audioRef.current) {
+      audioRef.current.pause()
+      audioRef.current.currentTime = 0
+      setIsPlayingAudio(false)
+    }
+  }
+
   const handleSuggestionClick = (text: string) => {
     submitQuery(text)
   }
@@ -142,6 +248,39 @@ export default function ChatInterface({
       {/* Input Area */}
       <div className="border-t border-slate-200 bg-white px-4 py-4">
         <div className="max-w-3xl mx-auto">
+          {/* Listening indicator */}
+          {isListening && (
+            <div className="flex items-center gap-2 mb-2 px-2">
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
+              <span className="text-xs text-red-600 font-medium">Listening... speak now</span>
+              <button
+                onClick={stopListening}
+                className="text-xs text-slate-500 hover:text-slate-700 ml-auto"
+              >
+                Cancel
+              </button>
+            </div>
+          )}
+
+          {/* Audio playing indicator */}
+          {isPlayingAudio && (
+            <div className="flex items-center gap-2 mb-2 px-2">
+              <Volume2 className="w-3 h-3 text-climora-600 animate-pulse" />
+              <span className="text-xs text-climora-600 font-medium">Playing response...</span>
+              <button
+                onClick={stopAudio}
+                className="text-xs text-slate-500 hover:text-slate-700 ml-auto"
+              >
+                Stop
+              </button>
+            </div>
+          )}
+
+          {/* Speech error */}
+          {speechError && (
+            <p className="text-xs text-red-500 mb-2 px-2">{speechError}</p>
+          )}
+
           {/* Location input */}
           <div className="flex items-center gap-2 mb-2">
             <MapPin className="w-4 h-4 text-slate-400" />
@@ -154,8 +293,38 @@ export default function ChatInterface({
             />
           </div>
 
-          {/* Query input */}
+          {/* Query input with mic and send */}
           <form onSubmit={handleSubmit} className="flex items-end gap-2">
+            {/* Language selector + Mic button */}
+            {isSpeechSupported && (
+              <div className="flex items-center">
+                <select
+                  value={speechLang}
+                  onChange={e => setSpeechLang(e.target.value)}
+                  className="text-xs bg-slate-100 border-none rounded-l-xl px-2 py-3 text-slate-600 focus:outline-none cursor-pointer h-[48px]"
+                  disabled={isLoading || isListening}
+                  aria-label="Select speech language"
+                >
+                  <option value="en">EN</option>
+                  <option value="si">සි</option>
+                  <option value="ta">த</option>
+                </select>
+                <button
+                  type="button"
+                  onClick={isListening ? stopListening : () => startListening(speechLang)}
+                  disabled={isLoading}
+                  className={`p-3 rounded-r-xl transition-colors h-[48px] ${
+                    isListening
+                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
+                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                  } disabled:opacity-50 disabled:cursor-not-allowed`}
+                  aria-label={isListening ? 'Stop listening' : 'Start voice input'}
+                >
+                  {isListening ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                </button>
+              </div>
+            )}
+
             <textarea
               value={input}
               onChange={e => setInput(e.target.value)}
@@ -165,11 +334,13 @@ export default function ChatInterface({
                   handleSubmit(e)
                 }
               }}
-              placeholder="Ask about climate risks, weather patterns, or environmental concerns..."
+              placeholder={isListening ? "Listening..." : "Ask about climate risks, weather patterns, or environmental concerns..."}
               className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
               rows={1}
-              disabled={isLoading}
+              disabled={isLoading || isListening}
             />
+
+            {/* Send button */}
             <button
               type="submit"
               disabled={!input.trim() || isLoading}
@@ -181,7 +352,7 @@ export default function ChatInterface({
           </form>
 
           <p className="text-xs text-slate-400 mt-2 text-center">
-            Climora AI provides climate information for awareness. For emergencies, contact local authorities.
+            Climora AI supports English, සිංහල, and தமிழ் — speak or type in any language.
           </p>
         </div>
       </div>
