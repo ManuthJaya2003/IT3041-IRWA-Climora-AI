@@ -18,16 +18,40 @@ from app.config import settings
 from app.routers import chat, health, agents, vector_store, speech
 
 
+def _run_security_agent():
+    """Entry point for Security Agent subprocess."""
+    from app.agents.security_agent.security_agent import SecurityAgent
+    SecurityAgent().run()
+
+
+def _run_nlp_agent():
+    """Entry point for NLP Agent subprocess."""
+    from app.agents.nlp_agent.nlp_agent import NLPAgent
+    NLPAgent().run()
+
+
 def _run_ir_agent():
     """Entry point for IR Agent subprocess."""
     from app.agents.ir_agent.ir_agent import IRAgent
     IRAgent().run()
 
 
+def _run_analysis_agent():
+    """Entry point for Analysis Agent subprocess."""
+    from app.agents.analysis_agent.analysis_agent import AnalysisAgent
+    AnalysisAgent().run()
+
+
 def _run_verification_agent():
     """Entry point for Verification Agent subprocess."""
     from app.agents.verification_agent.verification_agent import VerificationAgent
     VerificationAgent().run()
+
+
+def _run_recommendation_agent():
+    """Entry point for Recommendation Agent subprocess."""
+    from app.agents.recommendation_agent.recommendation_agent import RecommendationAgent
+    RecommendationAgent().run()
 
 
 # Keep references so we can terminate on shutdown
@@ -55,11 +79,14 @@ async def lifespan(app: FastAPI):
 
     print("   Services initialized successfully")
 
-    # Auto-start IR and Verification agents as background subprocesses.
-    # This means you only need one terminal: `uvicorn app.main:app`
+    # Auto-start all 6 agents as daemon subprocesses — only one terminal needed.
     for name, target in [
-        ("ir_agent      (port 8102)", _run_ir_agent),
-        ("verification  (port 8104)", _run_verification_agent),
+        ("security_agent       (port 8100)", _run_security_agent),
+        ("nlp_agent            (port 8101)", _run_nlp_agent),
+        ("ir_agent             (port 8102)", _run_ir_agent),
+        ("analysis_agent       (port 8103)", _run_analysis_agent),
+        ("verification_agent   (port 8104)", _run_verification_agent),
+        ("recommendation_agent (port 8105)", _run_recommendation_agent),
     ]:
         proc = multiprocessing.Process(target=target, name=name, daemon=True)
         proc.start()
