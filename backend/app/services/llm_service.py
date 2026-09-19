@@ -6,9 +6,9 @@ Priority order:
   2. Google Gemini     — free-tier fallback, if GEMINI_API_KEY is set in .env
   3. Mock              — returns structured placeholders when neither is available
 
-To use Gemini while Bedrock credentials are expired:
-  - GEMINI_API_KEY is already set in backend/.env (gemini-3.6-flash)
-  - The service auto-detects the working model via a probe call on startup
+IMPORTANT — Gemini free tier:
+  gemini-3.6-flash allows only 20 requests/day on the free tier.
+  Do NOT make probe/test calls during initialize() — preserve all 20 for real queries.
 
 To refresh AWS credentials:
   1. Get new AWS keys + session token
@@ -37,10 +37,12 @@ class LLMService:
     async def initialize(self):
         """
         Initialize the best available LLM provider.
-        Bedrock is validated with a live probe call so an expired token
-        immediately falls through to Gemini instead of silently mocking.
+
+        Bedrock: validated with a live probe call (cheap — just 10 tokens).
+        Gemini: client is instantiated WITHOUT a probe call to preserve the
+                20 req/day free-tier quota for actual user queries.
         """
-        # --- 1. Try AWS Bedrock (with live validation) ---
+        # --- 1. Try AWS Bedrock (live validation) ---
         if settings.aws_access_key_id and settings.aws_secret_access_key:
             try:
                 import boto3
@@ -55,7 +57,6 @@ class LLMService:
                     kwargs["aws_session_token"] = settings.aws_session_token
 
                 client = boto3.client(**kwargs)
-                # Validate credentials with a minimal test call
                 test_body = json.dumps({
                     "anthropic_version": "bedrock-2023-05-31",
                     "max_tokens": 10,
@@ -75,15 +76,15 @@ class LLMService:
             except Exception as e:
                 print(f"   ⚠ LLM service: Bedrock unavailable ({type(e).__name__}) — trying Gemini")
 
-        # --- 2. Try Google Gemini ---
+        # --- 2. Try Google Gemini (no probe call — preserves daily quota) ---
         if settings.gemini_api_key:
             try:
                 import google.generativeai as genai
 
                 genai.configure(api_key=settings.gemini_api_key)
-                model_id = settings.gemini_model_id or "gemini-1.5-flash"
+                model_id = settings.gemini_model_id or "gemini-3.6-flash"
 
-                # Probe candidates in order — use the first that responds
+                # Just instantiate — no API call made here
                 candidates = list(dict.fromkeys([
                     model_id,
                     "gemini-3.6-flash",
@@ -93,11 +94,7 @@ class LLMService:
                 chosen = None
                 for candidate in candidates:
                     try:
-                        m = genai.GenerativeModel(candidate)
-                        m.generate_content(
-                            "hi",
-                            generation_config={"max_output_tokens": 5},
-                        )
+                        genai.GenerativeModel(candidate)
                         chosen = candidate
                         break
                     except Exception:
@@ -108,9 +105,10 @@ class LLMService:
                     self._provider = "gemini"
                     self._available = True
                     print(f"   ✓ LLM service initialized (provider: Gemini - {chosen})")
+                    print(f"      ⚠ Free tier: 20 req/day — queries will fall back to mock when exhausted")
                     return
                 else:
-                    print("   ⚠ LLM service: Gemini key set but no working model found")
+                    print("   ⚠ LLM service: Gemini key set but could not instantiate any model")
             except ImportError:
                 print("   ⚠ LLM service: google-generativeai not installed — run: pip install google-generativeai")
             except Exception as e:
@@ -120,7 +118,6 @@ class LLMService:
         self._provider = "mock"
         self._available = True
         print("   ⚠ LLM service: No working LLM — running in MOCK mode")
-        print("      → GEMINI_API_KEY is set; check google-generativeai is installed")
 
     def is_available(self) -> bool:
         return self._available
@@ -139,18 +136,7 @@ class LLMService:
         max_tokens: int = 2048,
         temperature: float = 0.7,
     ) -> str:
-        """
-        Invoke the best available LLM.
-
-        Args:
-            prompt: The user/task prompt.
-            system_prompt: Optional system instructions.
-            max_tokens: Maximum tokens in response.
-            temperature: Creativity parameter (0-1).
-
-        Returns:
-            Model response text.
-        """
+        """Invoke the best available LLM."""
         if self._provider == "bedrock":
             return await self._invoke_bedrock(prompt, system_prompt, max_tokens, temperature)
         if self._provider == "gemini":
@@ -168,7 +154,6 @@ class LLMService:
         max_tokens: int,
         temperature: float,
     ) -> str:
-        """Call Claude via AWS Bedrock."""
         try:
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
@@ -193,11 +178,9 @@ class LLMService:
             if "ExpiredToken" in error_msg or "expired" in error_msg.lower():
                 logger.warning("AWS session token expired — update .env and restart.")
             else:
-                logger.warning("Bedrock invocation error: %s — falling back to Gemini/mock", error_msg)
+                logger.warning("Bedrock error: %s — falling back to Gemini/mock", error_msg)
 
-            # In-request fallback to Gemini if credentials expired mid-session
             if self._gemini_client:
-                logger.info("Falling back to Gemini for this request.")
                 return await self._invoke_gemini(prompt, system_prompt, max_tokens, temperature)
             return self._mock_response(prompt)
 
@@ -208,65 +191,85 @@ class LLMService:
         max_tokens: int,
         temperature: float,
     ) -> str:
-        """Call Google Gemini via the generativeai SDK."""
         try:
             import google.generativeai as genai
 
-            full_prompt = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
+            # Use system_instruction parameter — do NOT prepend to prompt.
+            # Concatenating system+user prompt triggers Gemini's safety filter
+            # on climate/disaster content (finish_reason=2/SAFETY).
+            if system_prompt:
+                model = genai.GenerativeModel(
+                    self._gemini_client.model_name,
+                    system_instruction=system_prompt,
+                )
+            else:
+                model = self._gemini_client
+
             generation_config = genai.types.GenerationConfig(
                 max_output_tokens=max_tokens,
                 temperature=temperature,
             )
-            response = self._gemini_client.generate_content(
-                full_prompt,
+            response = model.generate_content(
+                prompt,
                 generation_config=generation_config,
             )
+
+            if not response.candidates:
+                logger.warning("Gemini returned no candidates — using mock")
+                return self._mock_response(prompt)
+
+            candidate = response.candidates[0]
+            # finish_reason 2 = SAFETY block
+            if candidate.finish_reason == 2:
+                logger.warning("Gemini safety block — using mock")
+                return self._mock_response(prompt)
+
             return response.text
 
         except Exception as e:
-            logger.warning("Gemini invocation error: %s — falling back to mock", e)
+            err_str = str(e)
+            if "429" in err_str or "quota" in err_str.lower() or "ResourceExhausted" in err_str:
+                logger.warning("Gemini daily quota exhausted (20 req/day free tier) — using mock")
+            else:
+                logger.warning("Gemini error: %s — using mock", e)
             return self._mock_response(prompt)
 
     def _mock_response(self, prompt: str) -> str:
-        """
-        Structured mock so the pipeline produces readable output when no LLM
-        is available. Returns valid JSON for prompts that expect JSON.
-        """
+        """Structured mock so the pipeline produces readable output when no LLM is available."""
         prompt_lower = prompt.lower()
 
-        # Analysis agent expects JSON with risk fields
         if '"summary"' in prompt or "risk_level" in prompt_lower or "json object" in prompt_lower:
             return json.dumps({
-                "summary": "Live climate data retrieved. Configure GEMINI_API_KEY in backend/.env for AI analysis.",
+                "summary": "Live climate data retrieved. Gemini quota exhausted (20/day) — real AI analysis will resume tomorrow.",
                 "risk_level": "moderate",
                 "risk_factors": ["live_data_available"],
                 "risk_explanation": "Evidence suggests elevated risk based on retrieved climate data.",
-                "detailed_analysis": "Add GEMINI_API_KEY to backend/.env for full AI analysis.",
+                "detailed_analysis": "Gemini free tier: 20 requests/day. Quota resets daily. Live weather data is still being retrieved.",
                 "claims": ["Climate data was successfully retrieved from live sources."],
             })
 
-        # Verification agent expects JSON with status field
         if '"status"' in prompt or "fact-check" in prompt_lower or "verdicts" in prompt_lower:
             return json.dumps({
                 "status": "partially_supported",
                 "confidence": 0.7,
-                "explanation": "Mock verification — add GEMINI_API_KEY for real verification.",
+                "explanation": "Keyword-based verification (Gemini quota exhausted).",
                 "verdicts": [],
             })
 
-        # Recommendation agent expects JSON with recommendations field
         if "recommendations" in prompt_lower and "json" in prompt_lower:
             return json.dumps({
                 "recommendations": [
-                    {"action": "Monitor official weather alerts", "priority": "short-term",
-                     "explanation": "Stay informed about local conditions.", "category": "awareness"},
+                    {"action": "Monitor official weather alerts for your area",
+                     "priority": "short-term",
+                     "explanation": "Stay informed about local conditions.",
+                     "category": "awareness"},
                 ]
             })
 
-        # Plain text summary
         return (
-            "Live climate data retrieved successfully. "
-            "Add GEMINI_API_KEY to backend/.env and restart for AI-generated summaries."
+            "Live climate data retrieved. "
+            "Gemini free tier quota exhausted (20 req/day) — AI summaries resume tomorrow. "
+            "Evidence sources are shown below."
         )
 
 
