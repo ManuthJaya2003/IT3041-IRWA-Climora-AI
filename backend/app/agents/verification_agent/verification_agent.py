@@ -87,6 +87,7 @@ class VerificationAgent(BaseAgentServer):
         "coast conservation department": {"score": 0.92, "category": "government_agency"},
         "mahaweli authority of sri lanka": {"score": 0.90, "category": "government_agency"},
         "water supply and drainage board sri lanka": {"score": 0.90, "category": "government_utility"},
+        "national water supply and drainage board": {"score": 0.90, "category": "government_utility"},
         # Fixed: was "openopenweathermap api" (double "open") — never matched the IR agent's source name
         "openweathermap api": {"score": 0.90, "category": "live_weather_api"},
         "open-meteo climate api": {"score": 0.90, "category": "live_weather_api"},
@@ -95,6 +96,32 @@ class VerificationAgent(BaseAgentServer):
         "open-meteo marine api": {"score": 0.90, "category": "live_marine_api"},
         "university of moratuwa": {"score": 0.88, "category": "academic"},
         "tea research institute of sri lanka": {"score": 0.88, "category": "academic_research"},
+        # Sources from seeded vector store documents
+        "national building research organisation": {"score": 0.90, "category": "government_research"},
+        "rubber research institute of sri lanka": {"score": 0.87, "category": "academic_research"},
+        "coconut research institute sri lanka": {"score": 0.87, "category": "academic_research"},
+        "forest department sri lanka": {"score": 0.88, "category": "government_agency"},
+        "department of wildlife conservation": {"score": 0.88, "category": "government_agency"},
+        "central environmental authority": {"score": 0.88, "category": "government_agency"},
+        "urban development authority": {"score": 0.87, "category": "government_agency"},
+        "ministry of environment, sri lanka": {"score": 0.88, "category": "government_ministry"},
+        "ministry of agriculture sri lanka": {"score": 0.87, "category": "government_ministry"},
+        "department of agriculture sri lanka": {"score": 0.87, "category": "government_agency"},
+        "department of meteorology sri lanka": {"score": 0.95, "category": "government_meteorological"},
+        "epidemiology unit, ministry of health": {"score": 0.90, "category": "government_health"},
+        "marine environment protection authority": {"score": 0.88, "category": "government_agency"},
+        "sustainable energy authority sri lanka": {"score": 0.86, "category": "government_agency"},
+        "ceylon electricity board": {"score": 0.86, "category": "government_utility"},
+        "national aquatic resources research agency": {"score": 0.87, "category": "government_research"},
+        "export development board sri lanka": {"score": 0.85, "category": "government_agency"},
+        "india meteorological department": {"score": 0.93, "category": "government_meteorological"},
+        "iucn sri lanka": {"score": 0.90, "category": "international_agency"},
+        "road development authority sri lanka": {"score": 0.85, "category": "government_agency"},
+        "national gem and jewellery authority": {"score": 0.82, "category": "government_agency"},
+        "department of agrarian development": {"score": 0.85, "category": "government_agency"},
+        "ministry of education sri lanka": {"score": 0.85, "category": "government_ministry"},
+        "water resources board sri lanka": {"score": 0.88, "category": "government_agency"},
+        "occupational health unit, ministry of health sri lanka": {"score": 0.88, "category": "government_health"},
     }
 
     def __init__(self):
@@ -358,7 +385,9 @@ Respond ONLY in valid raw JSON with the following structure:
 
     async def cross_reference(self, arguments: dict) -> dict:
         """
-        Cross-reference a claim across multiple sources using LLM-based evaluation.
+        Cross-reference a claim across multiple sources using a single batched
+        LLM prompt instead of one call per source. Falls back to keyword matching
+        per source if the LLM is unavailable or returns bad JSON.
 
         Input:
             - claim (str): The claim to cross-reference
@@ -377,55 +406,84 @@ Respond ONLY in valid raw JSON with the following structure:
         contradicted_by: list[str] = []
         not_mentioned_in: list[str] = []
 
-        for src in sources:
-            src_name = src.get("source_name", src.get("source", "Unknown Source"))
+        if not sources:
+            return {
+                "supported_by": [],
+                "contradicted_by": [],
+                "not_mentioned_in": [],
+                "consensus_score": 0.0,
+            }
+
+        # Build a numbered source list for the prompt
+        source_entries = []
+        for i, src in enumerate(sources, 1):
+            src_name = src.get("source_name", src.get("source", f"Source {i}"))
             content = src.get("content", src.get("snippet", "")).strip()
+            source_entries.append((i, src_name, content))
 
-            if not content:
-                not_mentioned_in.append(src_name)
-                continue
-
-            # LLM-based per-source evaluation — detects negation and contradictions
-            prompt = f"""
-You are a climate fact-checker. Does the following SOURCE CONTENT support, contradict,
-or not mention the CLAIM? Answer precisely.
+        # --- Single batched LLM call ---
+        llm_success = False
+        try:
+            sources_block = "\n\n".join(
+                f"SOURCE {i} ({name}):\n{content[:600]}"
+                for i, name, content in source_entries
+                if content
+            )
+            prompt = f"""You are a climate fact-checker. For each source below, decide whether
+it supports, contradicts, or does not mention the CLAIM.
 
 CLAIM: "{claim}"
 
-SOURCE ({src_name}):
-{content[:1000]}
+{sources_block}
 
-Respond ONLY in valid raw JSON:
+Respond ONLY in valid raw JSON with this structure:
 {{
-    "verdict": "supports" | "contradicts" | "not_mentioned",
-    "reason": "<one sentence>"
+    "verdicts": [
+        {{"source_number": 1, "verdict": "supports"|"contradicts"|"not_mentioned"}},
+        ...
+    ]
 }}
-"""
-            verdict = "not_mentioned"
-            try:
-                llm_response = await llm_service.generate_text(prompt=prompt)
-                parsed = _extract_json(llm_response)
-                verdict = parsed.get("verdict", "not_mentioned")
-            except Exception as exc:
-                logger.warning(
-                    "LLM cross-reference failed for source '%s': %s — falling back to keyword match",
-                    src_name, exc,
-                )
-                # Keyword fallback: conservative — only mark as supporting if clear word overlap
-                claim_words = [w.lower() for w in claim.split() if len(w) > 3]
+Include one entry per source in order."""
+
+            llm_response = await llm_service.generate_text(prompt=prompt)
+            parsed = _extract_json(llm_response)
+            verdicts = parsed.get("verdicts", [])
+
+            if isinstance(verdicts, list) and len(verdicts) > 0:
+                verdict_map = {
+                    v.get("source_number"): v.get("verdict", "not_mentioned")
+                    for v in verdicts
+                    if isinstance(v, dict)
+                }
+                for i, src_name, content in source_entries:
+                    if not content:
+                        not_mentioned_in.append(src_name)
+                        continue
+                    verdict = verdict_map.get(i, "not_mentioned")
+                    if verdict == "supports":
+                        supported_by.append(src_name)
+                    elif verdict == "contradicts":
+                        contradicted_by.append(src_name)
+                    else:
+                        not_mentioned_in.append(src_name)
+                llm_success = True
+
+        except Exception as exc:
+            logger.warning("LLM batched cross-reference failed: %s — falling back to keyword match", exc)
+
+        # --- Keyword fallback (per source) when LLM unavailable or failed ---
+        if not llm_success:
+            claim_words = [w.lower() for w in claim.split() if len(w) > 3]
+            for _, src_name, content in source_entries:
+                if not content:
+                    not_mentioned_in.append(src_name)
+                    continue
                 content_lower = content.lower()
                 match_count = sum(1 for w in claim_words if w in content_lower)
                 if match_count >= max(1, len(claim_words) // 2):
-                    verdict = "supports"
+                    supported_by.append(src_name)
                 else:
-                    verdict = "not_mentioned"
-
-            if verdict == "supports":
-                supported_by.append(src_name)
-            elif verdict == "contradicts":
-                contradicted_by.append(src_name)
-            else:
-                not_mentioned_in.append(src_name)
+                    not_mentioned_in.append(src_name)
 
         total_checked = len(supported_by) + len(contradicted_by) + len(not_mentioned_in)
         consensus_score = round(len(supported_by) / total_checked, 2) if total_checked > 0 else 0.0

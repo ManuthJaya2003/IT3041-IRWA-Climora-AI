@@ -259,7 +259,9 @@ class IRAgent(BaseAgentServer):
 
         requested_location = self._requested_location(query, entities)
 
-        # Build enhanced search query string from extracted NLP entities
+        # Build enhanced search query string from extracted NLP entities.
+        # Prefer the NLP agent's expanded_query when available — it includes
+        # synonym expansion that improves FAISS semantic recall.
         search_parts = [query]
         if entities.get("location"):
             search_parts.append(str(entities["location"]))
@@ -268,7 +270,15 @@ class IRAgent(BaseAgentServer):
         if entities.get("hazard_type"):
             search_parts.append(str(entities["hazard_type"]))
 
-        search_query = " ".join([p for p in search_parts if p]).strip()
+        # expanded_query from the NLP agent already contains query + synonyms
+        expanded_query = (
+            structured_query.get("expanded_query", "")
+            or arguments.get("expanded_query", "")
+        )
+        if expanded_query and len(expanded_query) > len(query):
+            search_query = expanded_query
+        else:
+            search_query = " ".join([p for p in search_parts if p]).strip()
 
         # Budget split: reserve half the slots for live API data, half for FAISS.
         # This ensures current readings are always represented alongside indexed docs.
