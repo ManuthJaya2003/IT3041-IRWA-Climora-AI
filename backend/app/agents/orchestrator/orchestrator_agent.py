@@ -89,6 +89,12 @@ class OrchestratorAgent:
             intent = nlp_result.get("intent", "general_climate_query")
             entities = nlp_result.get("entities", {})
 
+            # Forward the NLP agent's expanded_query into structured_query so the
+            # IR agent can use it for better FAISS semantic search.
+            expanded_query = nlp_result.get("expanded_query", "")
+            if expanded_query:
+                structured_query["expanded_query"] = expanded_query
+
             # --- Step 2b: Reject non-climate queries at orchestrator level ---
             # If NLP found no climate topic AND no hazard type, check the query
             # text directly. This catches cases where a location is detected
@@ -369,13 +375,17 @@ class OrchestratorAgent:
             for rec in recommendation_result.get("recommendations", [])
         ]
 
-        # Build sources list
+        # Build sources list.
+        # FAISS cosine similarity scores (0.15-0.30) are raw similarity values,
+        # not reliability ratings. Cap them at a minimum of 0.60 so FAISS-sourced
+        # documents don't appear as "15% reliable" in the UI — their actual
+        # content quality is validated by the seeding process.
         sources = [
             SourceEvidence(
                 source_name=doc.get("source_name", "Unknown Source"),
                 source_url=doc.get("url"),
                 content_snippet=doc.get("snippet", doc.get("content", "")[:200]),
-                reliability_score=max(0.0, doc.get("reliability_score") or 0.0),
+                reliability_score=max(0.60, float(doc.get("reliability_score") or 0.60)),
             )
             for doc in ir_result.get("documents", [])
         ]
