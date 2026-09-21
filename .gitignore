@@ -43,8 +43,12 @@ docker-compose.override.yml
 *.db
 *.sqlite3
 chroma_data/
-vector_data/
 audio_cache/
+
+# Vector data — keep the FAISS index and seeded documents in git so teammates
+# don't need to run the seed script manually after cloning.
+# The .faiss file and documents.json are generated data, not secrets.
+vector_data/*.log
 
 # Logs
 *.log
