@@ -1,0 +1,1716 @@
+[
+  {
+    "id": "seed-1c5ca77a",
+    "content": "Colombo, Sri Lanka faces significant flood risk during the southwest monsoon season from May to September. Urban flooding is exacerbated by inadequate drainage systems and rapid urbanization. The Kelani River basin is particularly vulnerable to overflow during heavy rainfall events.",
+    "metadata": {
+      "source": "Sri Lanka Disaster Management Centre",
+      "topic": "flood",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-06-15"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-047e4c06",
+    "content": "The Dry Zone of Sri Lanka, covering the north-central and southeastern regions, experiences periodic drought conditions. Climate projections suggest increasing drought frequency due to changing monsoon patterns. Agriculture in these areas, particularly rice cultivation, is highly vulnerable to water scarcity.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "drought",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-03-10"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-bf92f6b2",
+    "content": "Global sea surface temperatures reached record highs in 2024, contributing to intensified tropical cyclone activity in the Indian Ocean. Coastal communities in South Asia face elevated storm surge risk. Early warning systems and coastal protection infrastructure are critical for preparedness.",
+    "metadata": {
+      "source": "NOAA Climate Report",
+      "topic": "sea-level-rise",
+      "location": "Indian Ocean, South Asia",
+      "date": "2024-08-01"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-a8da2a05",
+    "content": "Heat waves in South Asia are becoming more frequent and intense due to climate change. Urban heat island effects in cities like Colombo amplify temperatures by 2-4 degrees Celsius compared to surrounding rural areas. Vulnerable populations including outdoor workers, elderly, and children face heightened health risks.",
+    "metadata": {
+      "source": "World Meteorological Organization",
+      "topic": "heat-wave",
+      "location": "South Asia",
+      "date": "2024-05-20"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-ed3c65b2",
+    "content": "Landslide risk in Sri Lanka's central highlands increases significantly during both monsoon seasons. Districts including Badulla, Nuwara Eliya, and Ratnapura have experienced deadly landslides triggered by prolonged heavy rainfall saturating hillside soils. Deforestation and unplanned development contribute to slope instability.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Central Highlands, Sri Lanka",
+      "date": "2024-07-05"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-127ce9cf",
+    "content": "Coral bleaching events in Sri Lanka's coastal waters have intensified due to rising ocean temperatures. The marine ecosystems around Hikkaduwa and Pigeon Island are particularly affected. Loss of coral reefs impacts fisheries, tourism, and coastal protection from wave action.",
+    "metadata": {
+      "source": "Marine Environment Protection Authority",
+      "topic": "ocean-warming",
+      "location": "Coastal Sri Lanka",
+      "date": "2024-04-12"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-a01c7c5a",
+    "content": "Agricultural adaptation to climate change in Sri Lanka includes shifting planting calendars, adopting drought-resistant rice varieties, and improving irrigation efficiency. The Mahaweli river system provides critical water resources for cultivation, but changing rainfall patterns threaten reliable water supply.",
+    "metadata": {
+      "source": "Ministry of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Sri Lanka",
+      "date": "2024-02-28"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-2fd71247",
+    "content": "Air quality in Colombo deteriorates during dry seasons and periods of low wind, with particulate matter PM2.5 exceeding WHO guidelines. Vehicle emissions, industrial activity, and construction dust are primary contributors. Respiratory health impacts are concentrated in high-traffic urban corridors.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "air-quality",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-01-15"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-290d0d96",
+    "content": "Tropical cyclone Michaung in December 2023 caused severe flooding in southern India and Sri Lanka's northern coast. Over 200mm of rainfall was recorded in 24 hours, displacing thousands. Climate models project increasing intensity of Indian Ocean cyclones due to warmer sea surface temperatures, with a 10-15% increase in peak wind speeds expected by 2050.",
+    "metadata": {
+      "source": "India Meteorological Department",
+      "topic": "cyclone",
+      "location": "Northern Sri Lanka, Southern India",
+      "date": "2024-01-20"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-889c4dd9",
+    "content": "Groundwater levels in Sri Lanka's Jaffna Peninsula have declined by 2-3 meters over the past decade due to over-extraction and reduced recharge from irregular rainfall. Saltwater intrusion threatens freshwater aquifers in coastal areas. The Water Supply and Drainage Board recommends rainwater harvesting and managed aquifer recharge as adaptation strategies.",
+    "metadata": {
+      "source": "Water Supply and Drainage Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Jaffna Peninsula, Sri Lanka",
+      "date": "2024-04-22"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-a17077d4",
+    "content": "Dengue fever outbreaks in Sri Lanka correlate strongly with monsoon rainfall patterns and temperature. Colombo, Gampaha, and Kalutara districts report the highest case counts. Standing water from flooding creates breeding grounds for Aedes mosquitoes. Climate change is expanding the geographic range and seasonal duration of dengue transmission.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Western Province, Sri Lanka",
+      "date": "2024-06-30"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-9b58edbe",
+    "content": "Sri Lanka's tea plantation sector faces declining yields due to shifting rainfall patterns and rising temperatures in hill country. Nuwara Eliya and Badulla districts report 15-20% yield reduction in drought years. Tea requires consistent rainfall of 1200-1400mm annually and temperatures between 18-25 degrees Celsius. Prolonged dry spells and extreme rainfall events both damage crops.",
+    "metadata": {
+      "source": "Tea Research Institute of Sri Lanka",
+      "topic": "agriculture",
+      "location": "Hill Country, Sri Lanka",
+      "date": "2024-03-18"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-0072926d",
+    "content": "Mangrove ecosystems along Sri Lanka's western and northwestern coasts provide critical natural protection against storm surges and coastal erosion. An estimated 60% of original mangrove cover has been lost to shrimp farming, urban development, and pollution. Restoration programs in Puttalam and Negombo lagoons aim to rebuild this natural coastal defense.",
+    "metadata": {
+      "source": "IUCN Sri Lanka",
+      "topic": "coastal-protection",
+      "location": "Western Coast, Sri Lanka",
+      "date": "2024-05-10"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-93e28e01",
+    "content": "The Northeast monsoon from December to February brings heavy rainfall to Sri Lanka's eastern and northern provinces. Batticaloa and Trincomalee districts are prone to flooding during this season. Flash floods in river basins like the Kalu Ganga and Nilwala Ganga can develop within hours of heavy rainfall onset, leaving limited evacuation time for downstream communities.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Eastern Province, Sri Lanka",
+      "date": "2024-12-05"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-7a9ff837",
+    "content": "Solar radiation levels in Sri Lanka's dry zone are among the highest in South Asia, with annual averages exceeding 5.5 kWh/m2/day. While this presents opportunities for renewable energy, it also intensifies evapotranspiration rates, accelerating soil moisture loss during drought periods. Farmers in Anuradhapura and Polonnaruwa face compounding water stress from both reduced rainfall and increased evaporation.",
+    "metadata": {
+      "source": "Sustainable Energy Authority Sri Lanka",
+      "topic": "drought",
+      "location": "North Central Province, Sri Lanka",
+      "date": "2024-08-15"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-b8a2fa74",
+    "content": "Sea level around Sri Lanka has risen approximately 3.5mm per year over the past three decades, higher than the global average. Coastal erosion affects over 65% of the western and southern coastlines. Low-lying areas in Galle, Matara, and Hambantota face increasing inundation risk during storm surges combined with high tides. Coastal communities are being relocated in the most severely affected areas.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Southern Coast, Sri Lanka",
+      "date": "2024-07-20"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-368de9c9",
+    "content": "Climate change threatens Sri Lanka's biodiversity hotspots including the Sinharaja rainforest and Knuckles mountain range. Rising temperatures are shifting species distribution upward in elevation, compressing habitat for endemic species. The country has over 900 endemic plant species and 240 endemic vertebrate species at risk from habitat loss and changing climate conditions.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "biodiversity",
+      "location": "Sinharaja, Knuckles Range, Sri Lanka",
+      "date": "2024-09-01"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-23f5fda6",
+    "content": "Colombo's urban drainage system was designed for rainfall intensities of 50mm/hour but extreme events now regularly exceed 75-100mm/hour due to climate change. The city's rapid development has reduced permeable surfaces by 40% since 2000, increasing surface runoff. The Metro Colombo Urban Development Project is investing in improved storm water drainage and retention ponds to mitigate urban flooding.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "flood",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-10-12"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-6dfcb1ed",
+    "content": "Sri Lanka's fisheries sector is heavily impacted by climate variability. Shifting ocean currents and warmer waters are altering fish migration patterns. Small-scale fishers report declining catches of traditional species like tuna and sardines. Extreme weather events also reduce the number of safe fishing days, with an estimated 30% reduction during monsoon months.",
+    "metadata": {
+      "source": "Department of Fisheries and Aquatic Resources",
+      "topic": "fisheries",
+      "location": "Coastal Sri Lanka",
+      "date": "2024-02-14"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-cdcee3bf",
+    "content": "The Mahaweli River basin, Sri Lanka's largest watershed, supplies water to over 30% of the island's irrigated agriculture. Climate models project a 10-20% reduction in average annual flow by 2050 under moderate emission scenarios. Reservoir storage optimization and demand management are critical to maintaining water security for both agriculture and hydropower generation.",
+    "metadata": {
+      "source": "Mahaweli Authority of Sri Lanka",
+      "topic": "water-resources",
+      "location": "Mahaweli Basin, Sri Lanka",
+      "date": "2024-05-25"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-a696211e",
+    "content": "Microplastic pollution in Sri Lanka's waterways increases during monsoon flooding as runoff carries urban waste into rivers and coastal waters. Studies detected microplastic concentrations of 500-2000 particles per liter in the Kelani River during flood events. This contamination affects water treatment plants and enters the food chain through freshwater fisheries.",
+    "metadata": {
+      "source": "University of Moratuwa Environmental Research",
+      "topic": "pollution",
+      "location": "Kelani River, Sri Lanka",
+      "date": "2024-08-30"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-65753ae3",
+    "content": "Sri Lanka's National Adaptation Plan identifies five priority sectors for climate resilience: food security, water resources, coastal and marine ecosystems, health, and human settlements and infrastructure. The government has committed to reducing climate vulnerability through ecosystem-based adaptation, early warning systems, climate-smart agriculture, and resilient infrastructure development.",
+    "metadata": {
+      "source": "Ministry of Environment, Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-11-01"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "seed-1bf03d56",
+    "content": "Lightning strikes during pre-monsoon thunderstorms (March-April) kill an average of 50-70 people annually in Sri Lanka, one of the highest per-capita lightning fatality rates globally. Agricultural workers and those in open areas are most vulnerable. The Department of Meteorology issues thunderstorm warnings but rural communities often lack access to timely alerts.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "thunderstorm",
+      "location": "Sri Lanka",
+      "date": "2024-03-25"
+    },
+    "added_at": "2026-08-22T01:13:25.491233"
+  },
+  {
+    "id": "0f672fe4-5d96-4568-8fe1-1d426e820816",
+    "content": "Test flood risk document for Kandy.",
+    "metadata": {
+      "source": "Test",
+      "location": "Kandy",
+      "topic": "flood"
+    },
+    "added_at": "2026-08-22T15:19:10.253237"
+  },
+  {
+    "id": "33fad2e2-8634-4e13-a615-0418ff856f1c",
+    "content": "Batticaloa lagoon's salinity levels fluctuate sharply with monsoon rainfall and dry-season evaporation. Reduced freshwater inflow during prolonged dry spells increases salinity, threatening lagoon fisheries that thousands of local families depend on for income.",
+    "metadata": {
+      "source": "National Aquatic Resources Research Agency",
+      "topic": "water-scarcity",
+      "location": "Batticaloa, Sri Lanka",
+      "date": "2024-06-10"
+    },
+    "added_at": "2026-08-22T15:46:50.310008"
+  },
+  {
+    "id": "ea0b6aa7-2460-4b4c-b2ff-edce589dc085",
+    "content": "Paddy cultivation in Ampara district relies heavily on the Gal Oya irrigation system. Erratic monsoon onset in recent years has disrupted traditional planting calendars, forcing farmers to delay or replant, reducing yields in years with delayed rains.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Ampara, Sri Lanka",
+      "date": "2024-04-18"
+    },
+    "added_at": "2026-08-22T15:46:50.945878"
+  },
+  {
+    "id": "fe69b39e-4410-4827-9830-2dad349a38fd",
+    "content": "Salt production in Puttalam's coastal salt pans depends on consistent dry-season heat and low rainfall. Unseasonal rain events in recent years have damaged evaporation ponds and reduced annual salt yields for small-scale producers.",
+    "metadata": {
+      "source": "Ministry of Industries Sri Lanka",
+      "topic": "heat-wave",
+      "location": "Puttalam, Sri Lanka",
+      "date": "2024-02-05"
+    },
+    "added_at": "2026-08-22T15:46:51.289675"
+  },
+  {
+    "id": "19beb772-f843-40b3-b042-1c462dfba659",
+    "content": "Trincomalee's natural harbour area is periodically evacuated during cyclone warnings from the Bay of Bengal. Community cyclone shelters built after the 2004 tsunami are increasingly used for monsoon flood evacuation as well, given rising extreme rainfall frequency.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "cyclone",
+      "location": "Trincomalee, Sri Lanka",
+      "date": "2024-11-15"
+    },
+    "added_at": "2026-08-22T15:46:51.578875"
+  },
+  {
+    "id": "ae7f792f-ca75-49c2-a9ba-fec6ad2680fa",
+    "content": "Coastal erosion near Hambantota port has accelerated due to changed sediment patterns following port construction combined with rising sea levels. Nearby fishing communities report shrinking usable beach area for boat landing over the past decade.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-09-08"
+    },
+    "added_at": "2026-08-22T15:46:51.869264"
+  },
+  {
+    "id": "34c79b6d-8037-4908-a3a4-fb61e1a90995",
+    "content": "Spice cultivation in Matale district, particularly cinnamon and pepper, requires consistent humidity and moderate rainfall. Increasingly erratic rainfall distribution has led to more frequent crop stress periods, affecting yield and quality of export-grade spices.",
+    "metadata": {
+      "source": "Export Development Board Sri Lanka",
+      "topic": "agriculture",
+      "location": "Matale, Sri Lanka",
+      "date": "2024-07-22"
+    },
+    "added_at": "2026-08-22T15:46:52.159175"
+  },
+  {
+    "id": "bd0657cb-f88f-449e-93f0-7b97a9200502",
+    "content": "Coconut cultivation in Kurunegala district shows measurable yield decline during extended dry periods, as coconut palms require consistent soil moisture. Farmers have begun adopting drip irrigation and mulching techniques to reduce drought stress on young palms.",
+    "metadata": {
+      "source": "Coconut Research Institute Sri Lanka",
+      "topic": "drought",
+      "location": "Kurunegala, Sri Lanka",
+      "date": "2024-03-14"
+    },
+    "added_at": "2026-08-22T15:46:52.448790"
+  },
+  {
+    "id": "e4df0fda-c1b1-412c-aa1d-9c7b1f5fe7c4",
+    "content": "Gem mining pits in Ratnapura district become significantly more hazardous during heavy monsoon rainfall, with waterlogged pits increasing landslide and collapse risk for informal miners working in hillside excavation sites.",
+    "metadata": {
+      "source": "National Gem and Jewellery Authority",
+      "topic": "landslide",
+      "location": "Ratnapura, Sri Lanka",
+      "date": "2024-06-25"
+    },
+    "added_at": "2026-08-22T15:46:52.738163"
+  },
+  {
+    "id": "badefb64-c7c4-496e-888d-47a5f9115ab9",
+    "content": "Groundwater extraction in Vavuniya district has increased as farmers supplement irregular rainfall with well water for cultivation. Falling water tables in parts of the district raise concerns about long-term aquifer sustainability under continued dry-season pressure.",
+    "metadata": {
+      "source": "Water Resources Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Vavuniya, Sri Lanka",
+      "date": "2024-05-30"
+    },
+    "added_at": "2026-08-22T15:46:53.025288"
+  },
+  {
+    "id": "f5dba674-5c77-4464-a41f-a9183f17f20d",
+    "content": "Traditional chena (slash-and-burn) cultivation in Monaragala district is highly sensitive to rainfall timing. Farmers report that unpredictable monsoon onset has made it harder to plan the annual chena cycle, pushing some households toward alternative livelihoods.",
+    "metadata": {
+      "source": "Ministry of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Monaragala, Sri Lanka",
+      "date": "2024-08-19"
+    },
+    "added_at": "2026-08-22T15:46:53.316808"
+  },
+  {
+    "id": "d9537bdb-cc08-40a1-a120-b6be04472665",
+    "content": "Human-elephant conflict incidents in dry zone areas correlate with drought severity, as elephants range further from shrinking forest water sources into agricultural land in search of food and water, increasing crop damage and safety incidents.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "drought",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-04-02"
+    },
+    "added_at": "2026-08-22T15:46:53.607098"
+  },
+  {
+    "id": "f6647046-239f-49fd-851e-d69af0af470c",
+    "content": "Kandy city experiences a measurable urban heat island effect during dry months, with paved central areas running several degrees warmer than surrounding hill country vegetation. Tree cover loss from urban development has been linked to rising local temperatures.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "heat-wave",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-01-28"
+    },
+    "added_at": "2026-08-22T15:46:53.897935"
+  },
+  {
+    "id": "34ad18b9-1722-40a6-888b-f657a23a1cc8",
+    "content": "Wind energy potential in Mannar district is among the highest in Sri Lanka, and several wind farm projects have been developed to diversify the national grid away from hydropower, which is increasingly vulnerable to rainfall variability.",
+    "metadata": {
+      "source": "Sustainable Energy Authority Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-10-05"
+    },
+    "added_at": "2026-08-22T15:46:54.188640"
+  },
+  {
+    "id": "a2fcd380-9ab1-47c7-b47c-77763de7cb24",
+    "content": "Reservoir levels at the Victoria hydropower dam fluctuate significantly with monsoon performance, directly affecting national electricity generation capacity. Below-average rainfall years have historically forced increased reliance on costlier thermal power generation.",
+    "metadata": {
+      "source": "Ceylon Electricity Board",
+      "topic": "water-resources",
+      "location": "Victoria Reservoir, Sri Lanka",
+      "date": "2024-09-20"
+    },
+    "added_at": "2026-08-22T15:46:54.479883"
+  },
+  {
+    "id": "e1eda9ac-4b69-47be-95a7-20e29bfbd3ae",
+    "content": "Malaria and other vector-borne diseases, historically rare in Sri Lanka's cooler hill country, are being monitored more closely as warming highland temperatures create conditions more suitable for mosquito breeding at higher elevations than before.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Central Highlands, Sri Lanka",
+      "date": "2024-07-11"
+    },
+    "added_at": "2026-08-22T15:46:54.766461"
+  },
+  {
+    "id": "c3ee33ba-acae-4bb8-a4ee-c992e0389bdc",
+    "content": "Bar Reef in Kalpitiya, one of Sri Lanka's largest coral reef systems, has experienced repeated bleaching events linked to elevated sea surface temperatures. Local dive operators report visibly reduced coral cover compared to a decade ago.",
+    "metadata": {
+      "source": "Marine Environment Protection Authority",
+      "topic": "ocean-warming",
+      "location": "Kalpitiya, Sri Lanka",
+      "date": "2024-05-16"
+    },
+    "added_at": "2026-08-22T15:46:55.119293"
+  },
+  {
+    "id": "9fa30f73-0c23-4377-a459-95499895187c",
+    "content": "Solid waste accumulation in Colombo's Kolonnawa area worsens urban flooding by blocking drainage canals during heavy rainfall. Municipal clean-up efforts before monsoon season are now considered a standard flood-mitigation measure by city authorities.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "flood",
+      "location": "Kolonnawa, Colombo, Sri Lanka",
+      "date": "2024-04-29"
+    },
+    "added_at": "2026-08-22T15:46:55.407693"
+  },
+  {
+    "id": "e1bb719d-5020-4b7e-a312-ed7c2b3df81e",
+    "content": "Sri Lanka's ancient cascading tank (wewa) irrigation systems in the dry zone were engineered centuries ago for drought resilience. Restoration programs are reviving these systems as a low-cost climate adaptation strategy for water storage during erratic rainfall years.",
+    "metadata": {
+      "source": "Department of Agrarian Development",
+      "topic": "climate-policy",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-08-08"
+    },
+    "added_at": "2026-08-22T15:46:55.751540"
+  },
+  {
+    "id": "5f87279e-3a8a-4b2e-b2a6-16f6767fb569",
+    "content": "Coastal households in low-lying parts of Galle district have begun relocating inland as recurring flood and erosion damage makes rebuilding in place increasingly costly, an early example of climate-linked internal displacement in Sri Lanka.",
+    "metadata": {
+      "source": "Ministry of Environment, Sri Lanka",
+      "topic": "sea-level-rise",
+      "location": "Galle, Sri Lanka",
+      "date": "2024-10-22"
+    },
+    "added_at": "2026-08-22T15:46:56.042029"
+  },
+  {
+    "id": "8349ba59-c801-462d-a80e-848ddb8812ea",
+    "content": "School-based climate education programs have expanded across Sri Lanka's Western and Southern provinces, teaching students about flood preparedness, water conservation, and disaster response as part of a national climate resilience awareness initiative.",
+    "metadata": {
+      "source": "Ministry of Education Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-06-01"
+    },
+    "added_at": "2026-08-22T15:46:56.330885"
+  },
+  {
+    "id": "ef5fef76-23bf-43c6-8efe-f30c8913fdad",
+    "content": "Jaffna peninsula experienced low groundwater levels during extreme dry conditions.",
+    "metadata": {
+      "source": "Water Board LK",
+      "topic": "drought",
+      "location": "Jaffna"
+    },
+    "added_at": "2026-08-24T00:23:25.272619"
+  },
+  {
+    "id": "02a05b29-b27c-4992-a74a-6a3ea7d7565a",
+    "content": "Kandy district faces significant flood risk during both southwest (May–September) and northeast (December–February) monsoon seasons. The Mahaweli River and its tributaries overflow during prolonged heavy rainfall, inundating low-lying areas around Peradeniya and Gampola. Flash floods triggered by upstream rainfall in the central highlands can cause rapid river-level rises within 2–3 hours.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-07-10"
+    },
+    "added_at": "2026-09-09T11:21:43.916494"
+  },
+  {
+    "id": "f55609fb-56af-42bb-aa3e-b8313bdf245b",
+    "content": "Landslides are a recurring hazard in Kandy district, especially on steep slopes around Hantana, Kundasale, and Madawala. Prolonged rainfall saturating hillside soils causes soil slippage, road blockages, and property damage. The National Building Research Organisation has identified several high-risk zones in the Kandy hills that require monitoring during monsoon periods.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-08-05"
+    },
+    "added_at": "2026-09-09T11:21:44.577906"
+  },
+  {
+    "id": "1580e256-56c8-432a-9d48-1dfbd8097815",
+    "content": "Urban flooding in Kandy city centre worsens during monsoon months due to inadequate stormwater drainage capacity in older infrastructure. The Kandy Lake overflow has been recorded during extreme rainfall events exceeding 80mm in 24 hours. Central Province authorities issue evacuation advisories for riverside settlements along the Mahaweli corridor during high-alert periods.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-06-20"
+    },
+    "added_at": "2026-09-09T11:21:44.863991"
+  },
+  {
+    "id": "aed53a13-b213-4ad2-a860-9b8ee70c6e17",
+    "content": "The Mahaweli River at Kandy carries significantly elevated discharge during heavy monsoon rainfall in the central highlands. River gauges at Peradeniya have recorded flows exceeding 1500 m³/s during extreme events, compared to a dry-season baseline of approximately 50 m³/s. Downstream communities from Kandy to Mahiyangana are placed on flood watch when upstream rainfall exceeds 100mm in 48 hours.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-09-12"
+    },
+    "added_at": "2026-09-09T11:21:45.150375"
+  },
+  {
+    "id": "6f2bf3be-4abb-4a55-ad6b-4903553a604e",
+    "content": "Central Province districts including Kandy, Matale, and Nuwara Eliya experience elevated landslide and flood risk during both monsoon seasons. The terrain's steep gradients, combined with high annual rainfall averaging 2000–3000mm, creates conditions where even moderate rainfall events can trigger slope failures. Vulnerable communities are mapped and monitored by the District Secretariats.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "flood",
+      "location": "Central Province, Sri Lanka",
+      "date": "2024-07-01"
+    },
+    "added_at": "2026-09-09T11:21:45.443561"
+  },
+  {
+    "id": "13b77f4c-29e1-4211-91ad-d31cdcc185e0",
+    "content": "Batticaloa lagoon's salinity levels fluctuate sharply with monsoon rainfall and dry-season evaporation. Reduced freshwater inflow during prolonged dry spells increases salinity, threatening lagoon fisheries that thousands of local families depend on for income.",
+    "metadata": {
+      "source": "National Aquatic Resources Research Agency",
+      "topic": "water-scarcity",
+      "location": "Batticaloa, Sri Lanka",
+      "date": "2024-06-10"
+    },
+    "added_at": "2026-09-09T11:21:45.729445"
+  },
+  {
+    "id": "0041aa1e-6a21-4b42-be07-9b07be210838",
+    "content": "Paddy cultivation in Ampara district relies heavily on the Gal Oya irrigation system. Erratic monsoon onset in recent years has disrupted traditional planting calendars, forcing farmers to delay or replant, reducing yields in years with delayed rains.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Ampara, Sri Lanka",
+      "date": "2024-04-18"
+    },
+    "added_at": "2026-09-09T11:21:46.017248"
+  },
+  {
+    "id": "2b19b4ba-bfd9-4348-853e-93ea523ebc2a",
+    "content": "Salt production in Puttalam's coastal salt pans depends on consistent dry-season heat and low rainfall. Unseasonal rain events in recent years have damaged evaporation ponds and reduced annual salt yields for small-scale producers.",
+    "metadata": {
+      "source": "Ministry of Industries Sri Lanka",
+      "topic": "heat-wave",
+      "location": "Puttalam, Sri Lanka",
+      "date": "2024-02-05"
+    },
+    "added_at": "2026-09-09T11:21:46.303669"
+  },
+  {
+    "id": "54b69818-2bf9-4fa4-971d-a7fb695c918c",
+    "content": "Trincomalee's natural harbour area is periodically evacuated during cyclone warnings from the Bay of Bengal. Community cyclone shelters built after the 2004 tsunami are increasingly used for monsoon flood evacuation as well, given rising extreme rainfall frequency.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "cyclone",
+      "location": "Trincomalee, Sri Lanka",
+      "date": "2024-11-15"
+    },
+    "added_at": "2026-09-09T11:21:46.588015"
+  },
+  {
+    "id": "9fe919f9-308e-4156-92a9-f7a1ddaf83b4",
+    "content": "Coastal erosion near Hambantota port has accelerated due to changed sediment patterns following port construction combined with rising sea levels. Nearby fishing communities report shrinking usable beach area for boat landing over the past decade.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-09-08"
+    },
+    "added_at": "2026-09-09T11:21:46.883380"
+  },
+  {
+    "id": "bba2e9b8-45c2-4a28-87f0-d64b585a571d",
+    "content": "Spice cultivation in Matale district, particularly cinnamon and pepper, requires consistent humidity and moderate rainfall. Increasingly erratic rainfall distribution has led to more frequent crop stress periods, affecting yield and quality of export-grade spices.",
+    "metadata": {
+      "source": "Export Development Board Sri Lanka",
+      "topic": "agriculture",
+      "location": "Matale, Sri Lanka",
+      "date": "2024-07-22"
+    },
+    "added_at": "2026-09-09T11:21:47.170651"
+  },
+  {
+    "id": "504d8ac9-cc7b-4ed7-a1c1-589f7b8a3c3c",
+    "content": "Coconut cultivation in Kurunegala district shows measurable yield decline during extended dry periods, as coconut palms require consistent soil moisture. Farmers have begun adopting drip irrigation and mulching techniques to reduce drought stress on young palms.",
+    "metadata": {
+      "source": "Coconut Research Institute Sri Lanka",
+      "topic": "drought",
+      "location": "Kurunegala, Sri Lanka",
+      "date": "2024-03-14"
+    },
+    "added_at": "2026-09-09T11:21:47.456545"
+  },
+  {
+    "id": "5533e2ea-d8c2-4e44-b4af-ecb167ec01b2",
+    "content": "Gem mining pits in Ratnapura district become significantly more hazardous during heavy monsoon rainfall, with waterlogged pits increasing landslide and collapse risk for informal miners working in hillside excavation sites.",
+    "metadata": {
+      "source": "National Gem and Jewellery Authority",
+      "topic": "landslide",
+      "location": "Ratnapura, Sri Lanka",
+      "date": "2024-06-25"
+    },
+    "added_at": "2026-09-09T11:21:47.742830"
+  },
+  {
+    "id": "d037ffdc-6819-4094-866a-bf6d9303f996",
+    "content": "Groundwater extraction in Vavuniya district has increased as farmers supplement irregular rainfall with well water for cultivation. Falling water tables in parts of the district raise concerns about long-term aquifer sustainability under continued dry-season pressure.",
+    "metadata": {
+      "source": "Water Resources Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Vavuniya, Sri Lanka",
+      "date": "2024-05-30"
+    },
+    "added_at": "2026-09-09T11:21:48.029178"
+  },
+  {
+    "id": "6eceb650-8071-43c1-a9f6-147fbf676aa7",
+    "content": "Traditional chena (slash-and-burn) cultivation in Monaragala district is highly sensitive to rainfall timing. Farmers report that unpredictable monsoon onset has made it harder to plan the annual chena cycle, pushing some households toward alternative livelihoods.",
+    "metadata": {
+      "source": "Ministry of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Monaragala, Sri Lanka",
+      "date": "2024-08-19"
+    },
+    "added_at": "2026-09-09T11:21:48.315665"
+  },
+  {
+    "id": "b3d12399-cd98-4175-97fe-8127c3158404",
+    "content": "Human-elephant conflict incidents in dry zone areas correlate with drought severity, as elephants range further from shrinking forest water sources into agricultural land in search of food and water, increasing crop damage and safety incidents.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "drought",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-04-02"
+    },
+    "added_at": "2026-09-09T11:21:48.599747"
+  },
+  {
+    "id": "440729f0-3483-446e-9789-dae8d001e1ed",
+    "content": "Kandy city experiences a measurable urban heat island effect during dry months, with paved central areas running several degrees warmer than surrounding hill country vegetation. Tree cover loss from urban development has been linked to rising local temperatures.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "heat-wave",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-01-28"
+    },
+    "added_at": "2026-09-09T11:21:48.919696"
+  },
+  {
+    "id": "d300b67d-a706-48e8-8c20-3ae8b0c242da",
+    "content": "Wind energy potential in Mannar district is among the highest in Sri Lanka, and several wind farm projects have been developed to diversify the national grid away from hydropower, which is increasingly vulnerable to rainfall variability.",
+    "metadata": {
+      "source": "Sustainable Energy Authority Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-10-05"
+    },
+    "added_at": "2026-09-09T11:21:49.220590"
+  },
+  {
+    "id": "682c6693-a251-4a3b-8731-ce178f2e0db5",
+    "content": "Reservoir levels at the Victoria hydropower dam fluctuate significantly with monsoon performance, directly affecting national electricity generation capacity. Below-average rainfall years have historically forced increased reliance on costlier thermal power generation.",
+    "metadata": {
+      "source": "Ceylon Electricity Board",
+      "topic": "water-resources",
+      "location": "Victoria Reservoir, Sri Lanka",
+      "date": "2024-09-20"
+    },
+    "added_at": "2026-09-09T11:21:49.506630"
+  },
+  {
+    "id": "b3201890-f397-4ea1-9cf9-f6749578de5a",
+    "content": "Malaria and other vector-borne diseases, historically rare in Sri Lanka's cooler hill country, are being monitored more closely as warming highland temperatures create conditions more suitable for mosquito breeding at higher elevations than before.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Central Highlands, Sri Lanka",
+      "date": "2024-07-11"
+    },
+    "added_at": "2026-09-09T11:21:49.835826"
+  },
+  {
+    "id": "14374921-3b78-40dd-8405-f2107d1723d2",
+    "content": "Bar Reef in Kalpitiya, one of Sri Lanka's largest coral reef systems, has experienced repeated bleaching events linked to elevated sea surface temperatures. Local dive operators report visibly reduced coral cover compared to a decade ago.",
+    "metadata": {
+      "source": "Marine Environment Protection Authority",
+      "topic": "ocean-warming",
+      "location": "Kalpitiya, Sri Lanka",
+      "date": "2024-05-16"
+    },
+    "added_at": "2026-09-09T11:21:50.122049"
+  },
+  {
+    "id": "7cf75fe3-92de-49f8-b3d9-c9ff9140c2ba",
+    "content": "Solid waste accumulation in Colombo's Kolonnawa area worsens urban flooding by blocking drainage canals during heavy rainfall. Municipal clean-up efforts before monsoon season are now considered a standard flood-mitigation measure by city authorities.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "flood",
+      "location": "Kolonnawa, Colombo, Sri Lanka",
+      "date": "2024-04-29"
+    },
+    "added_at": "2026-09-09T11:21:50.410893"
+  },
+  {
+    "id": "aa28cf3a-790b-4f0c-99a2-855014613669",
+    "content": "Sri Lanka's ancient cascading tank (wewa) irrigation systems in the dry zone were engineered centuries ago for drought resilience. Restoration programs are reviving these systems as a low-cost climate adaptation strategy for water storage during erratic rainfall years.",
+    "metadata": {
+      "source": "Department of Agrarian Development",
+      "topic": "climate-policy",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-08-08"
+    },
+    "added_at": "2026-09-09T11:21:50.695296"
+  },
+  {
+    "id": "65e1a004-5808-4ad5-b8e4-2227f4a6519d",
+    "content": "Coastal households in low-lying parts of Galle district have begun relocating inland as recurring flood and erosion damage makes rebuilding in place increasingly costly, an early example of climate-linked internal displacement in Sri Lanka.",
+    "metadata": {
+      "source": "Ministry of Environment, Sri Lanka",
+      "topic": "sea-level-rise",
+      "location": "Galle, Sri Lanka",
+      "date": "2024-10-22"
+    },
+    "added_at": "2026-09-09T11:21:50.979510"
+  },
+  {
+    "id": "77c2adb2-6223-460a-90a1-fb594b886477",
+    "content": "School-based climate education programs have expanded across Sri Lanka's Western and Southern provinces, teaching students about flood preparedness, water conservation, and disaster response as part of a national climate resilience awareness initiative.",
+    "metadata": {
+      "source": "Ministry of Education Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-06-01"
+    },
+    "added_at": "2026-09-09T11:21:51.268227"
+  },
+  {
+    "id": "ebe95c69-87c6-4b6c-a90b-bdd449e4b061",
+    "content": "Kandy district faces significant flood risk during both southwest (May–September) and northeast (December–February) monsoon seasons. The Mahaweli River and its tributaries overflow during prolonged heavy rainfall, inundating low-lying areas around Peradeniya and Gampola. Flash floods triggered by upstream rainfall in the central highlands can cause rapid river-level rises within 2–3 hours.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-07-10"
+    },
+    "added_at": "2026-09-09T11:27:27.354574"
+  },
+  {
+    "id": "352a8f88-e3ef-4d22-bfe6-ac0ceb2929cb",
+    "content": "Landslides are a recurring hazard in Kandy district, especially on steep slopes around Hantana, Kundasale, and Madawala. Prolonged rainfall saturating hillside soils causes soil slippage, road blockages, and property damage. The National Building Research Organisation has identified several high-risk zones in the Kandy hills that require monitoring during monsoon periods.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-08-05"
+    },
+    "added_at": "2026-09-09T11:27:27.641017"
+  },
+  {
+    "id": "d5a3753f-519d-4662-b1ce-c9e4aa206377",
+    "content": "Urban flooding in Kandy city centre worsens during monsoon months due to inadequate stormwater drainage capacity in older infrastructure. The Kandy Lake overflow has been recorded during extreme rainfall events exceeding 80mm in 24 hours. Central Province authorities issue evacuation advisories for riverside settlements along the Mahaweli corridor during high-alert periods.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-06-20"
+    },
+    "added_at": "2026-09-09T11:27:27.936189"
+  },
+  {
+    "id": "35ddd4f9-3f62-422b-a2fb-3ac4bb992cee",
+    "content": "The Mahaweli River at Kandy carries significantly elevated discharge during heavy monsoon rainfall in the central highlands. River gauges at Peradeniya have recorded flows exceeding 1500 m³/s during extreme events, compared to a dry-season baseline of approximately 50 m³/s. Downstream communities from Kandy to Mahiyangana are placed on flood watch when upstream rainfall exceeds 100mm in 48 hours.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-09-12"
+    },
+    "added_at": "2026-09-09T11:27:28.223596"
+  },
+  {
+    "id": "652a825b-052e-4b2e-960f-b42e79a53ba4",
+    "content": "Central Province districts including Kandy, Matale, and Nuwara Eliya experience elevated landslide and flood risk during both monsoon seasons. The terrain's steep gradients, combined with high annual rainfall averaging 2000–3000mm, creates conditions where even moderate rainfall events can trigger slope failures. Vulnerable communities are mapped and monitored by the District Secretariats.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "flood",
+      "location": "Central Province, Sri Lanka",
+      "date": "2024-07-01"
+    },
+    "added_at": "2026-09-09T11:27:28.580597"
+  },
+  {
+    "id": "4a26522d-bf99-48d0-9b31-2ffc0a70d6cb",
+    "content": "Batticaloa lagoon's salinity levels fluctuate sharply with monsoon rainfall and dry-season evaporation. Reduced freshwater inflow during prolonged dry spells increases salinity, threatening lagoon fisheries that thousands of local families depend on for income.",
+    "metadata": {
+      "source": "National Aquatic Resources Research Agency",
+      "topic": "water-scarcity",
+      "location": "Batticaloa, Sri Lanka",
+      "date": "2024-06-10"
+    },
+    "added_at": "2026-09-09T11:27:28.866930"
+  },
+  {
+    "id": "b31a682c-1aa0-464f-ad3c-a42cf71429b4",
+    "content": "Paddy cultivation in Ampara district relies heavily on the Gal Oya irrigation system. Erratic monsoon onset in recent years has disrupted traditional planting calendars, forcing farmers to delay or replant, reducing yields in years with delayed rains.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Ampara, Sri Lanka",
+      "date": "2024-04-18"
+    },
+    "added_at": "2026-09-09T11:27:29.157815"
+  },
+  {
+    "id": "4354f098-5bcf-4280-9d66-dad97c0dafed",
+    "content": "Salt production in Puttalam's coastal salt pans depends on consistent dry-season heat and low rainfall. Unseasonal rain events in recent years have damaged evaporation ponds and reduced annual salt yields for small-scale producers.",
+    "metadata": {
+      "source": "Ministry of Industries Sri Lanka",
+      "topic": "heat-wave",
+      "location": "Puttalam, Sri Lanka",
+      "date": "2024-02-05"
+    },
+    "added_at": "2026-09-09T11:27:29.451384"
+  },
+  {
+    "id": "b2cb9c5d-617c-4ddc-92ea-7042d575fbe0",
+    "content": "Trincomalee's natural harbour area is periodically evacuated during cyclone warnings from the Bay of Bengal. Community cyclone shelters built after the 2004 tsunami are increasingly used for monsoon flood evacuation as well, given rising extreme rainfall frequency.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "cyclone",
+      "location": "Trincomalee, Sri Lanka",
+      "date": "2024-11-15"
+    },
+    "added_at": "2026-09-09T11:27:29.738248"
+  },
+  {
+    "id": "aae64890-1c3d-443b-ad33-b2b2ac4a01c0",
+    "content": "Coastal erosion near Hambantota port has accelerated due to changed sediment patterns following port construction combined with rising sea levels. Nearby fishing communities report shrinking usable beach area for boat landing over the past decade.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-09-08"
+    },
+    "added_at": "2026-09-09T11:27:30.022218"
+  },
+  {
+    "id": "8e499f17-b7f8-4e55-8435-b086bb29df24",
+    "content": "Spice cultivation in Matale district, particularly cinnamon and pepper, requires consistent humidity and moderate rainfall. Increasingly erratic rainfall distribution has led to more frequent crop stress periods, affecting yield and quality of export-grade spices.",
+    "metadata": {
+      "source": "Export Development Board Sri Lanka",
+      "topic": "agriculture",
+      "location": "Matale, Sri Lanka",
+      "date": "2024-07-22"
+    },
+    "added_at": "2026-09-09T11:27:30.317938"
+  },
+  {
+    "id": "cd30e49b-911e-40b1-aae9-775e7a300e2e",
+    "content": "Coconut cultivation in Kurunegala district shows measurable yield decline during extended dry periods, as coconut palms require consistent soil moisture. Farmers have begun adopting drip irrigation and mulching techniques to reduce drought stress on young palms.",
+    "metadata": {
+      "source": "Coconut Research Institute Sri Lanka",
+      "topic": "drought",
+      "location": "Kurunegala, Sri Lanka",
+      "date": "2024-03-14"
+    },
+    "added_at": "2026-09-09T11:27:30.626793"
+  },
+  {
+    "id": "5ef33348-4f94-4b73-aab7-d8d0f2fdfeeb",
+    "content": "Gem mining pits in Ratnapura district become significantly more hazardous during heavy monsoon rainfall, with waterlogged pits increasing landslide and collapse risk for informal miners working in hillside excavation sites.",
+    "metadata": {
+      "source": "National Gem and Jewellery Authority",
+      "topic": "landslide",
+      "location": "Ratnapura, Sri Lanka",
+      "date": "2024-06-25"
+    },
+    "added_at": "2026-09-09T11:27:30.929686"
+  },
+  {
+    "id": "6857f3cc-3fe1-45f4-a202-4b266d056c4e",
+    "content": "Groundwater extraction in Vavuniya district has increased as farmers supplement irregular rainfall with well water for cultivation. Falling water tables in parts of the district raise concerns about long-term aquifer sustainability under continued dry-season pressure.",
+    "metadata": {
+      "source": "Water Resources Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Vavuniya, Sri Lanka",
+      "date": "2024-05-30"
+    },
+    "added_at": "2026-09-09T11:27:31.215431"
+  },
+  {
+    "id": "575d0be0-eb9a-4a48-8bc6-8e508a2e3e39",
+    "content": "Traditional chena (slash-and-burn) cultivation in Monaragala district is highly sensitive to rainfall timing. Farmers report that unpredictable monsoon onset has made it harder to plan the annual chena cycle, pushing some households toward alternative livelihoods.",
+    "metadata": {
+      "source": "Ministry of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Monaragala, Sri Lanka",
+      "date": "2024-08-19"
+    },
+    "added_at": "2026-09-09T11:27:31.503960"
+  },
+  {
+    "id": "acc843e0-f6cf-423b-ba78-4048ab778e9c",
+    "content": "Human-elephant conflict incidents in dry zone areas correlate with drought severity, as elephants range further from shrinking forest water sources into agricultural land in search of food and water, increasing crop damage and safety incidents.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "drought",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-04-02"
+    },
+    "added_at": "2026-09-09T11:27:31.791572"
+  },
+  {
+    "id": "451629a1-6d9b-4daa-8402-68b9486c1706",
+    "content": "Kandy city experiences a measurable urban heat island effect during dry months, with paved central areas running several degrees warmer than surrounding hill country vegetation. Tree cover loss from urban development has been linked to rising local temperatures.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "heat-wave",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-01-28"
+    },
+    "added_at": "2026-09-09T11:27:32.078398"
+  },
+  {
+    "id": "6cdfe55a-ea43-4b03-aceb-c268de388687",
+    "content": "Wind energy potential in Mannar district is among the highest in Sri Lanka, and several wind farm projects have been developed to diversify the national grid away from hydropower, which is increasingly vulnerable to rainfall variability.",
+    "metadata": {
+      "source": "Sustainable Energy Authority Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-10-05"
+    },
+    "added_at": "2026-09-09T11:27:32.365320"
+  },
+  {
+    "id": "06575966-1c71-4fd3-b134-c4f28953660e",
+    "content": "Reservoir levels at the Victoria hydropower dam fluctuate significantly with monsoon performance, directly affecting national electricity generation capacity. Below-average rainfall years have historically forced increased reliance on costlier thermal power generation.",
+    "metadata": {
+      "source": "Ceylon Electricity Board",
+      "topic": "water-resources",
+      "location": "Victoria Reservoir, Sri Lanka",
+      "date": "2024-09-20"
+    },
+    "added_at": "2026-09-09T11:27:32.650611"
+  },
+  {
+    "id": "df6d90ea-2ecf-49ed-9f1a-c9b4ecede50b",
+    "content": "Malaria and other vector-borne diseases, historically rare in Sri Lanka's cooler hill country, are being monitored more closely as warming highland temperatures create conditions more suitable for mosquito breeding at higher elevations than before.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Central Highlands, Sri Lanka",
+      "date": "2024-07-11"
+    },
+    "added_at": "2026-09-09T11:27:32.935498"
+  },
+  {
+    "id": "de49bb70-87e5-4303-9813-75510b12bf0b",
+    "content": "Bar Reef in Kalpitiya, one of Sri Lanka's largest coral reef systems, has experienced repeated bleaching events linked to elevated sea surface temperatures. Local dive operators report visibly reduced coral cover compared to a decade ago.",
+    "metadata": {
+      "source": "Marine Environment Protection Authority",
+      "topic": "ocean-warming",
+      "location": "Kalpitiya, Sri Lanka",
+      "date": "2024-05-16"
+    },
+    "added_at": "2026-09-09T11:27:33.221908"
+  },
+  {
+    "id": "9c6db0ef-531f-45da-a925-e04965e8dc8a",
+    "content": "Solid waste accumulation in Colombo's Kolonnawa area worsens urban flooding by blocking drainage canals during heavy rainfall. Municipal clean-up efforts before monsoon season are now considered a standard flood-mitigation measure by city authorities.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "flood",
+      "location": "Kolonnawa, Colombo, Sri Lanka",
+      "date": "2024-04-29"
+    },
+    "added_at": "2026-09-09T11:27:33.512851"
+  },
+  {
+    "id": "20313a6f-5fe3-4c3f-8242-acd992d8397d",
+    "content": "Sri Lanka's ancient cascading tank (wewa) irrigation systems in the dry zone were engineered centuries ago for drought resilience. Restoration programs are reviving these systems as a low-cost climate adaptation strategy for water storage during erratic rainfall years.",
+    "metadata": {
+      "source": "Department of Agrarian Development",
+      "topic": "climate-policy",
+      "location": "Dry Zone, Sri Lanka",
+      "date": "2024-08-08"
+    },
+    "added_at": "2026-09-09T11:27:33.839295"
+  },
+  {
+    "id": "fc3b4b5a-d242-4266-9e9e-b8484aa60b73",
+    "content": "Coastal households in low-lying parts of Galle district have begun relocating inland as recurring flood and erosion damage makes rebuilding in place increasingly costly, an early example of climate-linked internal displacement in Sri Lanka.",
+    "metadata": {
+      "source": "Ministry of Environment, Sri Lanka",
+      "topic": "sea-level-rise",
+      "location": "Galle, Sri Lanka",
+      "date": "2024-10-22"
+    },
+    "added_at": "2026-09-09T11:27:34.126914"
+  },
+  {
+    "id": "bced67d9-9533-4232-b9e7-66a4230d6e05",
+    "content": "School-based climate education programs have expanded across Sri Lanka's Western and Southern provinces, teaching students about flood preparedness, water conservation, and disaster response as part of a national climate resilience awareness initiative.",
+    "metadata": {
+      "source": "Ministry of Education Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-06-01"
+    },
+    "added_at": "2026-09-09T11:27:34.410037"
+  },
+  {
+    "id": "5ae31c1a-936e-464e-9256-6f44c7224385",
+    "content": "Anuradhapura district experiences some of the most severe drought conditions in Sri Lanka, with average annual rainfall of 1200–1400mm concentrated in two short monsoon windows. Prolonged dry spells lasting 4–5 months deplete reservoirs and reduce paddy cultivation yields significantly. The ancient tank irrigation network, if fully restored, could buffer drought stress for over 200,000 farming families.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "drought",
+      "location": "Anuradhapura, Sri Lanka",
+      "date": "2024-05-14"
+    },
+    "added_at": "2026-09-09T11:27:34.700752"
+  },
+  {
+    "id": "0c1c50f2-9f45-4902-acf7-f42c6e08dd5b",
+    "content": "Flash floods in Anuradhapura district follow heavy rain events that overwhelm the capacity of ancient irrigation tanks and canal spillways. Low-lying paddy fields adjacent to Nuwara Wewa and Tissawewa reservoirs flood rapidly when reservoir sluice gates are opened during excess inflow. Communities downstream of these tanks are placed on flood watch by the District Secretariat during red-level rainfall alerts.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Anuradhapura, Sri Lanka",
+      "date": "2024-11-20"
+    },
+    "added_at": "2026-09-09T11:27:34.986875"
+  },
+  {
+    "id": "b8d61fba-d79e-441f-ad7c-e1331ce01817",
+    "content": "Dry-season forest fires in Anuradhapura district, particularly around Wilpattu National Park, are increasing in frequency and intensity. Hot, dry conditions from April to September combined with invasive vegetation create high fire-load landscapes. Fires damage wildlife corridors and release stored carbon, worsening local air quality. The Forest Department and Department of Wildlife Conservation coordinate fire-response teams during the fire season.",
+    "metadata": {
+      "source": "Forest Department Sri Lanka",
+      "topic": "wildfire",
+      "location": "Anuradhapura, Sri Lanka",
+      "date": "2024-04-18"
+    },
+    "added_at": "2026-09-09T11:27:35.274826"
+  },
+  {
+    "id": "a21e0807-9f98-426a-9815-593c8c5136a5",
+    "content": "Polonnaruwa district's agricultural economy is highly vulnerable to erratic rainfall. The Minneriya and Kaudulla reservoir systems supply irrigation to over 40,000 hectares of paddy land. Below-normal northeast monsoon performance leaves these tanks at critically low levels, forcing water rationing and reducing the cultivated area in the Maha season.",
+    "metadata": {
+      "source": "Mahaweli Authority of Sri Lanka",
+      "topic": "drought",
+      "location": "Polonnaruwa, Sri Lanka",
+      "date": "2024-02-10"
+    },
+    "added_at": "2026-09-09T11:27:35.564609"
+  },
+  {
+    "id": "d82f91d0-bafe-456a-b2ce-95ddc98b9ce6",
+    "content": "Polonnaruwa district experiences periodic flooding when the Mahaweli River and its distributaries overflow during peak monsoon discharge. The Flood Management Improvement Programme has installed telemetry gauges on major water bodies, enabling 12–18 hour advance warnings for downstream communities. Climate projections indicate a 15–20% increase in extreme rainfall events in the North Central Province by 2050.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Polonnaruwa, Sri Lanka",
+      "date": "2024-10-05"
+    },
+    "added_at": "2026-09-09T11:27:35.854861"
+  },
+  {
+    "id": "2e42bdab-232d-460e-b430-b7926b6b8b15",
+    "content": "Badulla district, situated in the Uva highlands, experiences frequent landslides during the inter-monsoon period from October to November. Steep terrain with thin soils over weathered metamorphic rock is highly susceptible to shallow translational landslides when rainfall exceeds 50mm per day. The Ella and Hali-Ela areas have recorded multiple fatalities from landslides over the past decade.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Badulla, Sri Lanka",
+      "date": "2024-10-30"
+    },
+    "added_at": "2026-09-09T11:27:36.143078"
+  },
+  {
+    "id": "1457cd68-b2b9-4b64-9c81-d4d27cc924c7",
+    "content": "Tea and rubber cultivation in Badulla district are severely impacted by climate variability. Prolonged dry spells reduce flush growth in tea, while excessive rainfall causes root rot in rubber plantations. Average temperatures in Badulla have risen by 0.8°C over the past 30 years, shifting the optimal growing altitude for premium tea upward by approximately 150 metres.",
+    "metadata": {
+      "source": "Tea Research Institute of Sri Lanka",
+      "topic": "agriculture",
+      "location": "Badulla, Sri Lanka",
+      "date": "2024-03-22"
+    },
+    "added_at": "2026-09-09T11:27:36.435815"
+  },
+  {
+    "id": "c907804c-0c8b-4ead-9fd8-026c91f27137",
+    "content": "Badulla district's river systems, including the Uma Oya and Kirindi Oya tributaries, show increasing peak-flow variability. Drought years reduce stream flows to below minimum ecological requirements, affecting both agriculture and domestic water supply for rural communities. Watershed degradation from encroachment on forest reserves accelerates surface runoff and reduces groundwater recharge.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Badulla, Sri Lanka",
+      "date": "2024-07-15"
+    },
+    "added_at": "2026-09-09T11:27:36.723747"
+  },
+  {
+    "id": "1a511813-6892-4e0d-a0fb-fbe0d8729558",
+    "content": "Nuwara Eliya district is one of the wettest areas in Sri Lanka, receiving over 2000mm of rainfall annually from both monsoons. However, the highland terrain and deforested slopes create extreme landslide risk. The Bogawantalawa and Hatton areas have documented over 30 landslide events since 2016, displacing estate workers from line rooms on steep hillside tea estates.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Nuwara Eliya, Sri Lanka",
+      "date": "2024-09-08"
+    },
+    "added_at": "2026-09-09T11:27:37.020175"
+  },
+  {
+    "id": "bdb0160e-1f80-4fbd-9172-f0492866fa6d",
+    "content": "Frost risk in Nuwara Eliya district during December and January affects high-elevation tea estates and vegetable cultivation. As climate change shifts temperature patterns, frost events are becoming less predictable, creating uncertainty for farmers who rely on frost-free growing windows. Conversely, the same warming trend is gradually making the district's cooler microclimates less suitable for varieties that require cool temperatures.",
+    "metadata": {
+      "source": "Tea Research Institute of Sri Lanka",
+      "topic": "heat-wave",
+      "location": "Nuwara Eliya, Sri Lanka",
+      "date": "2024-01-12"
+    },
+    "added_at": "2026-09-09T11:27:37.311692"
+  },
+  {
+    "id": "f377c25d-cb67-4b12-9793-9ce7afb8634d",
+    "content": "Flood risk in Nuwara Eliya district is concentrated along the Kotmale Oya and its tributaries, which drain the Pidurutalagala massif. Intense orographic rainfall events can produce flash floods that damage road infrastructure and isolate highland communities for days. The Kotmale reservoir moderates downstream flooding but cannot fully contain extreme inflow events exceeding its operational capacity.",
+    "metadata": {
+      "source": "Ceylon Electricity Board",
+      "topic": "flood",
+      "location": "Nuwara Eliya, Sri Lanka",
+      "date": "2024-08-25"
+    },
+    "added_at": "2026-09-09T11:27:37.604564"
+  },
+  {
+    "id": "f68b3264-a992-48f3-84d7-fb45d42808d4",
+    "content": "Kegalle district has one of the highest landslide incidence rates in Sri Lanka due to its combination of steep hills, deeply weathered soils, and high rainfall from the southwest monsoon. The 2016 Aranayake landslide killed over 100 people and destroyed an entire village. Early warning systems and community-based evacuation drills have since been expanded across high-risk Grama Niladhari divisions.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "landslide",
+      "location": "Kegalle, Sri Lanka",
+      "date": "2024-06-16"
+    },
+    "added_at": "2026-09-09T11:27:37.895125"
+  },
+  {
+    "id": "4ce99fb9-b9a4-4383-b82e-0041073a9cf9",
+    "content": "Rubber plantations in Kegalle district are increasingly stressed by climate variability. Extended dry spells reduce latex yield, while excessive rainfall promotes Phytophthora root disease and abnormal leaf fall. Smallholder rubber farmers, who make up over 70% of the district's cultivated area, lack resources for climate adaptation and are particularly vulnerable to income losses during adverse weather years.",
+    "metadata": {
+      "source": "Rubber Research Institute of Sri Lanka",
+      "topic": "agriculture",
+      "location": "Kegalle, Sri Lanka",
+      "date": "2024-04-05"
+    },
+    "added_at": "2026-09-09T11:27:38.224549"
+  },
+  {
+    "id": "a796f5a1-5677-4059-9a5c-e37fb687cfbb",
+    "content": "Flooding along the Kelani River in Kegalle district affects low-lying paddy fields and settlements during southwest monsoon peaks. Upstream deforestation in the Sinharaja buffer zone has increased surface runoff and peak discharge, reducing the lead time available for flood evacuation. Kegalle town itself has been partially flooded in three of the past five years.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Kegalle, Sri Lanka",
+      "date": "2024-07-03"
+    },
+    "added_at": "2026-09-09T11:27:38.515118"
+  },
+  {
+    "id": "773f6827-aeaf-475d-a304-0b63f9b4ae1c",
+    "content": "Gampaha district, Sri Lanka's most densely populated district outside Colombo, faces severe urban and peri-urban flooding during the southwest monsoon. Rapid conversion of paddy fields and wetlands to residential and industrial uses has eliminated natural flood retention capacity. The Dandugam Oya and Kelani River tributaries regularly overflow, flooding residential areas in Wattala, Ja-Ela, and Negombo.",
+    "metadata": {
+      "source": "Urban Development Authority",
+      "topic": "flood",
+      "location": "Gampaha, Sri Lanka",
+      "date": "2024-06-12"
+    },
+    "added_at": "2026-09-09T11:27:38.805746"
+  },
+  {
+    "id": "8047fd9d-0d84-4428-a74f-031e09deece5",
+    "content": "Air quality in Gampaha district deteriorates significantly during southwest monsoon onset when wind patterns trap vehicle emissions and industrial pollutants from the Colombo–Katunayake industrial corridor. The Free Trade Zone and surrounding manufacturing areas are major point sources of particulate matter. Residents in Ekala and Ja-Ela report elevated respiratory complaints during low-wind periods.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "air-quality",
+      "location": "Gampaha, Sri Lanka",
+      "date": "2024-03-30"
+    },
+    "added_at": "2026-09-09T11:27:39.096906"
+  },
+  {
+    "id": "1dd4476c-c4fd-4661-9bb6-c480ba6cf151",
+    "content": "Dengue and leptospirosis outbreaks in Gampaha district spike after flooding events, when floodwaters carry pathogens into residential areas and contaminate wells. Gampaha district consistently reports some of the highest dengue case counts in the Western Province. The close proximity of drainage canals, paddy fields, and residential areas creates persistent breeding habitats for Aedes mosquitoes.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Gampaha, Sri Lanka",
+      "date": "2024-07-20"
+    },
+    "added_at": "2026-09-09T11:27:39.388697"
+  },
+  {
+    "id": "5eb6c7e9-0919-4e7c-a200-82cafc8192fd",
+    "content": "Kalutara district's low-lying coastal strip and river delta areas face compounding flood and sea-level-rise risk. The Kalu Ganga river, one of Sri Lanka's highest-discharge rivers, regularly floods riverside paddy land and settlements during southwest monsoon peaks. Flood damage to the coastal road between Panadura and Kalutara town has been recorded multiple times, disrupting the main southern highway.",
+    "metadata": {
+      "source": "Road Development Authority Sri Lanka",
+      "topic": "flood",
+      "location": "Kalutara, Sri Lanka",
+      "date": "2024-08-14"
+    },
+    "added_at": "2026-09-09T11:27:39.679351"
+  },
+  {
+    "id": "e333f037-0456-4f0e-bcec-fccd76af7463",
+    "content": "Coastal erosion in Kalutara district has accelerated over the past two decades due to reduced sediment supply from the Kalu Ganga following upstream sand mining and the construction of small hydropower structures. Several beach resorts and fishing communities between Beruwala and Aluthgama face active erosion affecting their shoreline. The Coast Conservation Department has deployed rock armour groyne structures in the most severely affected sections.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Kalutara, Sri Lanka",
+      "date": "2024-09-25"
+    },
+    "added_at": "2026-09-09T11:27:39.966911"
+  },
+  {
+    "id": "4e14bc91-55a6-4c9d-a789-aa651894d853",
+    "content": "Inland soil erosion in Kalutara district's rubber and cinnamon cultivation areas is a growing concern as intense rainfall events strip topsoil from slopes with inadequate ground cover. Eroded soil loads the Kalu Ganga river system, elevating flood levels downstream and smothering paddy irrigation intakes with sediment. Contour planting and cover cropping are promoted by the Department of Agriculture as low-cost erosion control measures.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "erosion",
+      "location": "Kalutara, Sri Lanka",
+      "date": "2024-05-08"
+    },
+    "added_at": "2026-09-09T11:27:40.256662"
+  },
+  {
+    "id": "1b2daa23-c20f-4232-8e00-c3136a9d5d8f",
+    "content": "Matara district on Sri Lanka's southern coast experiences significant flooding during both southwest monsoon and cyclone-related rainfall events. The Nilwala Ganga river basin is particularly prone to flash floods; water levels can rise by over three metres within six hours of extreme upstream rainfall. Matara city, situated at the river mouth, has invested in a flood bund and pump station system to reduce inundation frequency.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Matara, Sri Lanka",
+      "date": "2024-08-30"
+    },
+    "added_at": "2026-09-09T11:27:40.546739"
+  },
+  {
+    "id": "cacd44ff-b649-4ebd-a76e-8799fdc3617a",
+    "content": "Coastal erosion and storm-surge flooding threaten Matara district's southern shoreline, particularly between Polhena and Mirissa. Sea level rise combined with weakened reef structures reduces the natural wave-energy dissipation that historically protected the coast. Coastal erosion rates of 0.5–1.5 metres per year have been documented, threatening beachside properties and turtle nesting beaches.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Matara, Sri Lanka",
+      "date": "2024-07-18"
+    },
+    "added_at": "2026-09-09T11:27:40.904795"
+  },
+  {
+    "id": "1251ed51-ac38-4c60-b171-388245cd2222",
+    "content": "Cinnamon and tea cultivation in Matara district's hinterland faces increasing stress from erratic rainfall distribution. Prolonged dry spells between December and March — normally the driest period — are becoming more severe, reducing soil moisture below critical thresholds for spice crops. Conversely, intense rain in May and June causes waterlogging and root disease in low-lying cinnamon gardens.",
+    "metadata": {
+      "source": "Export Development Board Sri Lanka",
+      "topic": "agriculture",
+      "location": "Matara, Sri Lanka",
+      "date": "2024-02-28"
+    },
+    "added_at": "2026-09-09T11:27:41.191820"
+  },
+  {
+    "id": "4706c31a-3bca-48af-826d-ff61ce62b740",
+    "content": "Kilinochchi district in the Northern Province is one of the most drought-prone areas in Sri Lanka. Annual rainfall averages below 1000mm, confined mainly to the northeast monsoon from November to January. Extended dry seasons from February to October deplete small tanks and wells that supply drinking water and small-scale agriculture for communities still rebuilding after the conflict period.",
+    "metadata": {
+      "source": "Department of Meteorology Sri Lanka",
+      "topic": "drought",
+      "location": "Kilinochchi, Sri Lanka",
+      "date": "2024-04-25"
+    },
+    "added_at": "2026-09-09T11:27:41.481619"
+  },
+  {
+    "id": "5e9282b5-c532-4889-92f6-6e82582a6c1b",
+    "content": "Flooding in Kilinochchi district occurs during the northeast monsoon when the Iranamadu tank spillway discharges and low-lying agricultural land is inundated. The district's flat terrain means floodwaters spread widely but drain slowly, keeping paddy fields waterlogged for extended periods and damaging standing crops. The Irrigation Department monitors Iranamadu tank levels daily during the monsoon.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Kilinochchi, Sri Lanka",
+      "date": "2024-12-10"
+    },
+    "added_at": "2026-09-09T11:27:41.769988"
+  },
+  {
+    "id": "a0510a06-0fe2-49b0-8127-fb18f480274a",
+    "content": "Food security in Kilinochchi district is directly tied to climate variability. Erratic northeast monsoon performance disrupts the single annual paddy cultivation cycle that most smallholder farmers depend on. When the monsoon fails or is delayed by more than three weeks, crop losses exceed 30%, pushing vulnerable households into debt. Post-conflict rehabilitation of irrigation infrastructure has improved resilience but gaps remain.",
+    "metadata": {
+      "source": "Ministry of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Kilinochchi, Sri Lanka",
+      "date": "2024-09-14"
+    },
+    "added_at": "2026-09-09T11:27:42.060125"
+  },
+  {
+    "id": "e6b4cc93-e0a8-4394-94c6-1676e5c01aa5",
+    "content": "Mullaitivu district on Sri Lanka's northeast coast faces elevated cyclone exposure from Bay of Bengal tropical storms. The low-lying coastal strip, with elevations below 5 metres, has limited natural shelter from storm surge inundation. Community cyclone shelters built after the 2004 tsunami serve dual purpose during extreme weather events, and the district has improved early warning dissemination through village-level alert networks.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "cyclone",
+      "location": "Mullaitivu, Sri Lanka",
+      "date": "2024-11-05"
+    },
+    "added_at": "2026-09-09T11:27:42.351783"
+  },
+  {
+    "id": "770e4a35-ded8-41f6-8521-2bb9f0ea74df",
+    "content": "Coastal fisheries in Mullaitivu district are severely affected by extreme weather events. Cyclone-force winds and elevated seas reduce safe fishing days by approximately 40% during the northeast monsoon season. Fishing boat damage from sudden squalls has been documented repeatedly, with significant economic loss for households that rely on artisanal fishing as their primary income source.",
+    "metadata": {
+      "source": "Department of Fisheries and Aquatic Resources",
+      "topic": "fisheries",
+      "location": "Mullaitivu, Sri Lanka",
+      "date": "2024-10-18"
+    },
+    "added_at": "2026-09-09T11:27:42.640274"
+  },
+  {
+    "id": "ce664e72-4094-43a9-9f5a-fa5e7aadcf6a",
+    "content": "Groundwater availability in Mullaitivu district is under stress from declining recharge due to reduced and erratic rainfall. Shallow dug wells, the primary water source for many rural households, dry up earlier each year during the pre-monsoon dry season. Saltwater intrusion into coastal aquifers is advancing inland as groundwater extraction increases and sea levels rise, reducing available freshwater volume.",
+    "metadata": {
+      "source": "Water Supply and Drainage Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Mullaitivu, Sri Lanka",
+      "date": "2024-06-08"
+    },
+    "added_at": "2026-09-09T11:27:42.932283"
+  },
+  {
+    "id": "232cde67-f9ee-4584-8ab9-8be04fa696da",
+    "content": "Heat stress in Colombo city is intensifying due to the urban heat island effect combined with a long-term warming trend. Average maximum temperatures have increased by approximately 1.2°C since 1990. Densely built commercial districts in Fort and Pettah trap heat overnight, preventing the city from cooling adequately. Outdoor workers, street vendors, and construction labourers face elevated risk of heat exhaustion during April and May.",
+    "metadata": {
+      "source": "World Meteorological Organization",
+      "topic": "heat-wave",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-05-10"
+    },
+    "added_at": "2026-09-09T11:27:43.223754"
+  },
+  {
+    "id": "0203f6ff-83d9-42b9-8a0f-0b96e9cdacde",
+    "content": "Colombo's coastal suburbs including Mount Lavinia, Dehiwala, and Kollupitiya face accelerating shoreline erosion due to sea level rise and reduced natural sediment supply. Beach widths have narrowed by an average of 15 metres over the past 20 years. During high tides combined with south-westerly swell, wave overtopping causes flooding of the coastal road and damage to seafront properties.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "sea-level-rise",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-07-30"
+    },
+    "added_at": "2026-09-09T11:27:43.511337"
+  },
+  {
+    "id": "23fe3613-18f3-481e-a811-8abb4ae44d73",
+    "content": "Water supply resilience in Colombo depends heavily on the Kelani River intake at Ambatale, which faces both drought-year low-flow risk and monsoon-flood turbidity spikes that disrupt treatment. The National Water Supply and Drainage Board has invested in additional storage and treatment capacity, but a severe drought year reducing Kelani flow below 10 m³/s could create supply shortfalls for the capital.",
+    "metadata": {
+      "source": "National Water Supply and Drainage Board Sri Lanka",
+      "topic": "water-scarcity",
+      "location": "Colombo, Sri Lanka",
+      "date": "2024-04-15"
+    },
+    "added_at": "2026-09-09T11:27:43.800812"
+  },
+  {
+    "id": "c831ead8-50b0-485e-bdfe-4223a73ad407",
+    "content": "Jaffna district faces recurring flood risk during the northeast monsoon when heavy rainfall overwhelms the flat, low-lying peninsula's limited drainage capacity. The district's sandy soils absorb water quickly in shallow events, but prolonged rainfall saturates the soil profile, leading to widespread surface flooding. Jaffna town, Nallur, and low-lying agricultural areas are the most frequently affected.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Jaffna, Sri Lanka",
+      "date": "2024-12-15"
+    },
+    "added_at": "2026-09-09T11:27:44.096190"
+  },
+  {
+    "id": "f8a6a84a-d26d-4ff1-8a13-b3167221fb3e",
+    "content": "Agricultural productivity in Jaffna district is critically dependent on the northeast monsoon, which delivers 70–80% of the district's annual rainfall in a two-month window. Onion, chilli, and tobacco — the district's major cash crops — require precise water management. Drought years with below-normal northeast monsoon rainfall force farmers to rely entirely on costly groundwater pumping, reducing farm income margins significantly.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Jaffna, Sri Lanka",
+      "date": "2024-03-05"
+    },
+    "added_at": "2026-09-09T11:27:44.387075"
+  },
+  {
+    "id": "457e14e6-d203-4793-969d-fbda571f5475",
+    "content": "Vector-borne disease risk in Jaffna district elevates after northeast monsoon flooding creates standing water pools in agricultural fields and urban drainage blockages. Dengue, chikungunya, and leptospirosis cases increase sharply in the weeks following major flood events. The peninsular geography limits vector dispersal to some extent, but climate change is extending the transmission season by approximately 3–4 weeks.",
+    "metadata": {
+      "source": "Epidemiology Unit, Ministry of Health",
+      "topic": "climate-health",
+      "location": "Jaffna, Sri Lanka",
+      "date": "2024-01-20"
+    },
+    "added_at": "2026-09-09T11:27:44.676856"
+  },
+  {
+    "id": "73e32e28-7a0b-45c0-85b8-455bc56c8f9b",
+    "content": "Galle district experiences significant flooding during the southwest monsoon season when the Gin Ganga and Nilwala Ganga tributaries overflow into low-lying paddy land and residential areas. The Galle Fort, a UNESCO World Heritage Site, has recorded seawater intrusion through its historic ramparts during storm-surge events combined with monsoon swells. Climate change projections indicate a 20% increase in extreme rainfall events in Southern Province by 2050.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Galle, Sri Lanka",
+      "date": "2024-06-28"
+    },
+    "added_at": "2026-09-09T11:27:44.969268"
+  },
+  {
+    "id": "fd4b8f5f-9d97-4eee-adca-b69fe3af3422",
+    "content": "Galle district's fishing industry faces increasing disruption from cyclone-related bad weather windows originating in the Indian Ocean and Bay of Bengal. Deep-sea fishing boats operating out of Galle Fisheries Harbour are restricted from departing during storm warnings. Annual lost fishing days due to extreme weather have increased from an average of 18 days in the 1990s to over 30 days in the 2020s.",
+    "metadata": {
+      "source": "Department of Fisheries and Aquatic Resources",
+      "topic": "cyclone",
+      "location": "Galle, Sri Lanka",
+      "date": "2024-09-10"
+    },
+    "added_at": "2026-09-09T11:27:45.258712"
+  },
+  {
+    "id": "742941c2-38a3-42b3-a173-4d4ea6de99f1",
+    "content": "Hambantota district is in the rain shadow of the central highlands and receives below-average annual rainfall, making it one of Sri Lanka's most drought-prone southern districts. The Bundala and Lunugamvehera reservoir system is the primary water source for irrigation and domestic supply. In severe drought years both reservoirs drop to critical levels, forcing water rationing and threatening saltpan industries in the coastal zone.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "drought",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-03-18"
+    },
+    "added_at": "2026-09-09T11:27:45.548452"
+  },
+  {
+    "id": "c7a8d473-48a1-4a52-aa3f-a9d78c77f8c3",
+    "content": "Hambantota district lies on a direct cyclone approach path from the Bay of Bengal and Indian Ocean. The 2021 cyclone season and remnants of tropical storm systems regularly bring strong winds and heavy rainfall to the district. Hambantota Port and surrounding industrial zones have cyclone preparedness protocols including asset securing and personnel evacuation plans for wind speeds exceeding 60 knots.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "cyclone",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-11-22"
+    },
+    "added_at": "2026-09-09T11:27:45.840915"
+  },
+  {
+    "id": "6466580c-ac36-450f-b3b9-034bfb16ec3b",
+    "content": "Trincomalee district experiences flooding primarily during the northeast monsoon from November to January, when rivers draining the eastern slopes of the Knuckles and Central Highlands carry high discharge. Low-lying agricultural areas in the Mahaweli flood plain near Mutur and Kinniya are regularly inundated. The Kantale reservoir, when operated at maximum capacity, provides some upstream retention but cannot fully moderate extreme flood events.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Trincomalee, Sri Lanka",
+      "date": "2024-12-20"
+    },
+    "added_at": "2026-09-09T11:27:46.134537"
+  },
+  {
+    "id": "3dd89f14-345e-4839-a5c2-f1dc25b98401",
+    "content": "Paddy cultivation in Trincomalee district relies on the northeast monsoon rains and Mahaweli system irrigation. The district produces significant quantities of rice in the Maha season. Delayed or deficient northeast monsoon years reduce planting by 20–30%, forcing farmers to abandon fields or shift to short-duration drought-tolerant varieties. Rising temperatures are also shortening the effective growing period for some traditional paddy varieties.",
+    "metadata": {
+      "source": "Department of Agriculture Sri Lanka",
+      "topic": "agriculture",
+      "location": "Trincomalee, Sri Lanka",
+      "date": "2024-02-22"
+    },
+    "added_at": "2026-09-09T11:27:46.428506"
+  },
+  {
+    "id": "519866e9-28f0-41af-8dff-c5f7f1f111bb",
+    "content": "Kurunegala district experiences periodic flooding when the Deduru Oya and Mee Oya overflow during southwest monsoon peak flows. Low-lying paddy land in the Kurunegala–Maho corridor is the most frequently inundated area. Several large irrigation tanks in the district act as natural buffers but can spill during sustained heavy rainfall exceeding their design capacity.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Kurunegala, Sri Lanka",
+      "date": "2024-07-08"
+    },
+    "added_at": "2026-09-09T11:27:46.720875"
+  },
+  {
+    "id": "e7ce5b74-99b3-467c-8fc5-a7021619d982",
+    "content": "Heat stress during the pre-monsoon period in Kurunegala district, particularly in April and May, affects outdoor agricultural workers in coconut and rubber estates. Maximum temperatures regularly exceed 34°C during this period, and urban areas in Kurunegala town experience heat island amplification of 1–2°C. Occupational heat illness cases are underreported but known to reduce productivity during the hottest weeks.",
+    "metadata": {
+      "source": "Occupational Health Unit, Ministry of Health Sri Lanka",
+      "topic": "heat-wave",
+      "location": "Kurunegala, Sri Lanka",
+      "date": "2024-04-30"
+    },
+    "added_at": "2026-09-09T11:27:47.011554"
+  },
+  {
+    "id": "017ece9a-ab3d-4d41-9c57-552a039155ce",
+    "content": "Ratnapura district is one of the wettest districts in Sri Lanka, receiving over 3500mm of rainfall annually. The Kalu Ganga originates here and is prone to flash flooding during intense rainfall events. Ratnapura town itself has flooded severely multiple times in the past decade, with 2017 and 2020 events displacing thousands of residents. The terrain's extreme relief means flood-to-evacuation windows can be as short as one to two hours.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Ratnapura, Sri Lanka",
+      "date": "2024-06-05"
+    },
+    "added_at": "2026-09-09T11:27:47.303562"
+  },
+  {
+    "id": "66036e05-2e0d-4944-83c8-10c4a2e5e443",
+    "content": "Rubber and paddy cultivation in Ratnapura district face distinct but overlapping climate challenges. Excessive rainfall during the southwest monsoon causes waterlogging and root disease in rubber, while flooding destroys standing paddy crops. The district's gem mining industry also loses productive days during extreme rainfall events when pits flood. Adaptation strategies include raised paddy varieties and improved rubber drainage systems.",
+    "metadata": {
+      "source": "Rubber Research Institute of Sri Lanka",
+      "topic": "agriculture",
+      "location": "Ratnapura, Sri Lanka",
+      "date": "2024-05-20"
+    },
+    "added_at": "2026-09-09T11:27:47.672336"
+  },
+  {
+    "id": "536d5eb1-dbf9-489f-a44e-4500e66d9f96",
+    "content": "Matale district's hilly terrain and moderate-to-high rainfall create recurring landslide risk, particularly on slopes cleared for vegetable and spice cultivation. The Knuckles Range bordering the district experiences orographic rainfall exceeding 100mm per day during active monsoon periods, triggering shallow landslides that block the Matale–Kandy road corridor. Several fatalities have been recorded from landslide events in Ukuwela and Rattota over the past five years.",
+    "metadata": {
+      "source": "National Building Research Organisation",
+      "topic": "landslide",
+      "location": "Matale, Sri Lanka",
+      "date": "2024-10-12"
+    },
+    "added_at": "2026-09-09T11:27:47.968309"
+  },
+  {
+    "id": "b9cf35d3-df9b-44b3-8980-8e17f0f36607",
+    "content": "Flooding in Matale district affects the Matale valley floor during southwest and northeast monsoon peaks. The Amban Ganga and Rattota Oya regularly overflow into paddy fields and riverside homesteads. Climate change is intensifying peak flows; the Matale valley has recorded three 50-year flood-level events within the past decade, suggesting a shortening of extreme flood return periods.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Matale, Sri Lanka",
+      "date": "2024-09-01"
+    },
+    "added_at": "2026-09-09T11:27:48.259876"
+  },
+  {
+    "id": "43f5fb8b-9728-48c4-84ff-ff14b95e15e2",
+    "content": "Mannar district's flat, dry landscape is vulnerable to flooding when the northeast monsoon delivers concentrated rainfall over a short period. Giant Tank and associated irrigation infrastructure in the district moderate some flood peak flows, but downstream agricultural areas along the Malwathu Oya remain exposed. Post-flood waterlogging damages onion and sesame crops that are major income sources for Mannar farmers.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "flood",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-12-05"
+    },
+    "added_at": "2026-09-09T11:27:48.551566"
+  },
+  {
+    "id": "9d0250f0-cb6f-45df-8ae6-7e231e910991",
+    "content": "Mannar district's fisheries sector, one of the most productive in Northern Province, is increasingly threatened by extreme weather events and warming Gulf of Mannar waters. Coral bleaching in the Gulf of Mannar marine protected area has reduced fish habitat quality. Fishers from Mannar Island report declining catches of high-value species including sea cucumber and prawn, impacting livelihoods that have only recently recovered from the conflict period.",
+    "metadata": {
+      "source": "Department of Fisheries and Aquatic Resources",
+      "topic": "fisheries",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-08-12"
+    },
+    "added_at": "2026-09-09T11:27:48.847190"
+  },
+  {
+    "id": "313d475d-c6e6-41cf-90f3-db63631a5171",
+    "content": "Mannar district receives among the lowest annual rainfall in Sri Lanka — averaging 900–1100mm — and experiences a pronounced dry season lasting 7–8 months. Groundwater is the primary resource for both agriculture and domestic supply, but aquifer levels are declining due to over-extraction and reduced monsoon recharge. The Government's Accelerated Mahaweli Development Programme has extended irrigation canals to Mannar, partially alleviating drought stress for some farming communities.",
+    "metadata": {
+      "source": "Mahaweli Authority of Sri Lanka",
+      "topic": "drought",
+      "location": "Mannar, Sri Lanka",
+      "date": "2024-04-10"
+    },
+    "added_at": "2026-09-09T11:27:49.136265"
+  },
+  {
+    "id": "92e74811-8b25-429c-848c-e39b078624ff",
+    "content": "Puttalam district's coastal lagoon system, including Puttalam Lagoon and Dutch Bay, is highly vulnerable to storm surge inundation during cyclone events. Low-lying salt pans and fishing settlements around the lagoon perimeter have limited natural elevation above sea level. The district's mangrove restoration programme in Kalpitiya aims to rebuild natural coastal buffers that reduce wave energy and erosion.",
+    "metadata": {
+      "source": "Coast Conservation Department",
+      "topic": "coastal-protection",
+      "location": "Puttalam, Sri Lanka",
+      "date": "2024-06-22"
+    },
+    "added_at": "2026-09-09T11:27:49.425093"
+  },
+  {
+    "id": "ed9ad83a-2b0c-4b77-8ce8-5ece6c4480fc",
+    "content": "Flooding in Puttalam district during the northeast monsoon affects low-lying agricultural areas and fishing communities around the lagoon margins. The Kala Oya and Mi Oya systems carry elevated discharge during peak monsoon events, backing up into the coastal plain. Puttalam town has experienced repeated flood events in recent years that have damaged market infrastructure and disrupted the salt-trading economy.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "flood",
+      "location": "Puttalam, Sri Lanka",
+      "date": "2024-12-02"
+    },
+    "added_at": "2026-09-09T11:27:49.714935"
+  },
+  {
+    "id": "2bd563a6-9120-45fa-bc07-f8dcbd6bb6ea",
+    "content": "Yala National Park in Southern Sri Lanka experiences dry-season wildfires from June to September when vegetation moisture content drops to critical levels. Fires driven by strong southwest winds can spread rapidly through dry scrub and grassland, threatening wildlife and burning up to several thousand hectares in severe years. The Department of Wildlife Conservation maintains fire-line clearances and rapid response teams, but climate change is extending the fire season.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "wildfire",
+      "location": "Hambantota, Sri Lanka",
+      "date": "2024-07-14"
+    },
+    "added_at": "2026-09-09T11:27:50.008500"
+  },
+  {
+    "id": "341156c9-c400-454a-836d-1dbc33abb4e3",
+    "content": "Forest fires in Knuckles Conservation Forest in Matale and Kandy districts have increased in frequency since 2018, coinciding with more intense dry seasons. Invasive grass species in cleared areas create high fuel loads that ignite easily during hot, dry pre-monsoon months. Fires damage cloud forest habitats that are critical for watershed protection and are home to numerous endemic species found nowhere else on Earth.",
+    "metadata": {
+      "source": "Forest Department Sri Lanka",
+      "topic": "wildfire",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-03-15"
+    },
+    "added_at": "2026-09-09T11:27:50.300928"
+  },
+  {
+    "id": "9ea6a030-6375-4713-9519-dc8f73b8a6bc",
+    "content": "Horton Plains National Park in Nuwara Eliya district is experiencing increasing wildfire pressure during prolonged dry spells. The montane grasslands, locally called patanas, are fire-adapted but more frequent burning is altering species composition and degrading peat soils that store significant carbon reserves. Fire management balances conservation needs with the reality of climate-driven drying trends in the highland zone.",
+    "metadata": {
+      "source": "Department of Wildlife Conservation",
+      "topic": "wildfire",
+      "location": "Nuwara Eliya, Sri Lanka",
+      "date": "2024-02-18"
+    },
+    "added_at": "2026-09-09T11:27:50.587867"
+  },
+  {
+    "id": "c1cb8d7f-9069-4c17-88d2-05bb3cc69b9a",
+    "content": "Inland soil erosion is a major climate-linked environmental threat in Sri Lanka's hill country, particularly in Nuwara Eliya, Badulla, and Ratnapura districts. Intense rainfall on steep slopes with inadequate ground cover removes topsoil at rates estimated at 20–80 tonnes per hectare per year in the most degraded areas. Eroded sediment reduces the lifespan of downstream reservoirs and irrigation canals, undermining long-term water security.",
+    "metadata": {
+      "source": "Central Environmental Authority",
+      "topic": "erosion",
+      "location": "Central Highlands, Sri Lanka",
+      "date": "2024-05-05"
+    },
+    "added_at": "2026-09-09T11:27:50.875718"
+  },
+  {
+    "id": "5f28bfb9-77c6-4b09-942d-f1967a51f18d",
+    "content": "Streambank erosion along the Kelani and Kalu Ganga river systems has accelerated due to increased peak-flow events driven by changing rainfall patterns and upstream deforestation. Eroding banks threaten riverside homesteads, agricultural land, and rural road infrastructure. The Irrigation Department has prioritised bioengineering interventions — using vetiver grass and native tree planting — as cost-effective bank stabilisation measures.",
+    "metadata": {
+      "source": "Irrigation Department Sri Lanka",
+      "topic": "erosion",
+      "location": "Kegalle, Sri Lanka",
+      "date": "2024-07-29"
+    },
+    "added_at": "2026-09-09T11:27:51.181181"
+  },
+  {
+    "id": "c8d66bd6-2ac6-4b34-9825-8d343ce717e0",
+    "content": "Landslide-generated debris flows in Kandy and Matale districts carry large volumes of eroded soil into the Mahaweli River system. Sedimentation rates in Polgolla reservoir have increased measurably over the past decade, reducing active storage capacity and interfering with intake structures for the trans-basin irrigation tunnel that supplies water to the Dry Zone. Reforestation of critical upper catchment areas is identified as the most effective long-term erosion control strategy.",
+    "metadata": {
+      "source": "Mahaweli Authority of Sri Lanka",
+      "topic": "erosion",
+      "location": "Kandy, Sri Lanka",
+      "date": "2024-08-22"
+    },
+    "added_at": "2026-09-09T11:27:51.473237"
+  },
+  {
+    "id": "a4718a69-ab0e-46bd-af2f-2c96fc1039c7",
+    "content": "Sri Lanka's updated Nationally Determined Contribution under the Paris Agreement commits to reducing greenhouse gas emissions by 14.5% unconditionally and 23% conditionally by 2030 relative to 2010 levels. The adaptation component includes establishing 100% renewable electricity by 2050, expanding climate-smart agriculture to 50% of cultivated area, and embedding climate risk screening into all public infrastructure investment decisions.",
+    "metadata": {
+      "source": "Ministry of Environment, Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-11-10"
+    },
+    "added_at": "2026-09-09T11:27:51.763737"
+  },
+  {
+    "id": "1310ccaa-82b1-45f4-9bc1-082826ab2e84",
+    "content": "Sri Lanka's Multi-Hazard Early Warning System (MHEWS) provides integrated alerts for floods, landslides, cyclones, and drought through SMS, radio, and community siren networks. Coverage has expanded to 90% of high-risk Grama Niladhari divisions since 2020. Response time from hazard detection to community alert dissemination has improved from 6 hours to under 90 minutes for riverine flood events. Continued investment in last-mile communication remains a priority for reaching isolated rural communities.",
+    "metadata": {
+      "source": "Disaster Management Centre Sri Lanka",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-10-28"
+    },
+    "added_at": "2026-09-09T11:27:52.055206"
+  },
+  {
+    "id": "433dbc05-4906-4fea-9029-c21c5351ba76",
+    "content": "Climate-induced internal migration is emerging as a growing challenge in Sri Lanka. Communities in flood-prone coastal areas of Galle and Kalutara, drought-stressed northern districts, and landslide-risk highland settlements are experiencing increasing out-migration. The World Bank estimates that without adaptation investment, 1.2 to 2.5 million Sri Lankans could be forced to relocate due to climate impacts by 2050.",
+    "metadata": {
+      "source": "World Meteorological Organization",
+      "topic": "climate-policy",
+      "location": "Sri Lanka",
+      "date": "2024-09-15"
+    },
+    "added_at": "2026-09-09T11:27:52.343043"
+  }
+]

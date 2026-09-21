@@ -92,13 +92,13 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
           {response.risk_assessment.risk_factors.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-slate-500 mb-1.5">Risk Factors:</p>
-              <div className="flex flex-wrap gap-1.5">
+              <div className="flex flex-wrap gap-2">
                 {response.risk_assessment.risk_factors.map((factor, idx) => (
                   <span
                     key={idx}
-                    className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full"
+                    className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap"
                   >
-                    {factor}
+                    {factor.replace(/-/g, ' ')}
                   </span>
                 ))}
               </div>

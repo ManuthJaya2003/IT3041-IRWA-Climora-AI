@@ -366,17 +366,70 @@ class AnalysisAgent(BaseAgentServer):
         severity = self._score_from_keywords(text_lower, SEVERITY_KEYWORDS, default=2)
         probability = self._score_from_keywords(text_lower, PROBABILITY_KEYWORDS, default=2)
 
-        # Numeric override: very high precipitation probability from live APIs
-        # should lift the probability score even without keyword signals.
+        # Numeric overrides from live API readings.
+        # These signals lift severity/probability when the live data is clearly
+        # significant even if no strong keyword (e.g. "catastrophic") is present.
+
+        # 1. Precipitation probability array — use the MAXIMUM value in the array
+        #    so "[98, 41, 84, 99]" registers as 99%, not just the first value 98%.
+        precip_probs = re.findall(r'\b(\d{1,3})\b', re.sub(
+            r'precipitation prob\w*[^[]*\[([^\]]*)\]',
+            lambda m: m.group(1), text, flags=re.IGNORECASE
+        ))
+        # Simpler fallback: find all numbers after "precipitation prob" keyword
         precip_match = _HIGH_PRECIP_PROB.search(text)
         if precip_match:
+            # Grab all numbers in the vicinity (handles array notation)
+            vicinity = text[precip_match.start():precip_match.start() + 200]
+            all_vals = re.findall(r'\b(\d{1,3})\b', vicinity)
             try:
-                pct = int(precip_match.group(1))
-                if pct >= 80:
+                max_pct = max(int(v) for v in all_vals if int(v) <= 100)
+                if max_pct >= 80:
                     probability = max(probability, 4)
-                elif pct >= 60:
+                    # High probability of heavy precipitation also implies higher severity
+                    severity = max(severity, 3)
+                elif max_pct >= 60:
                     probability = max(probability, 3)
+                    severity = max(severity, 2)
             except ValueError:
+                pass
+
+        # 2. Daily precipitation totals (mm) — high totals raise severity
+        #    e.g. "precipitation totals are [6.8, 5.7, 17.5] mm"
+        precip_total_match = re.search(
+            r'precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]', text_lower
+        )
+        if precip_total_match:
+            try:
+                vals = [float(v) for v in re.findall(r'\d+\.?\d*', precip_total_match.group(1))]
+                if vals:
+                    max_mm = max(vals)
+                    if max_mm >= 30:   # >= 30mm/day → severe rainfall
+                        severity = max(severity, 4)
+                        probability = max(probability, 3)
+                    elif max_mm >= 15:  # >= 15mm/day → significant
+                        severity = max(severity, 3)
+                        probability = max(probability, 3)
+                    elif max_mm >= 5:   # >= 5mm/day → moderate
+                        severity = max(severity, 2)
+                        probability = max(probability, 2)
+            except (ValueError, AttributeError):
+                pass
+
+        # 3. River discharge (flood API) — high discharge raises flood severity
+        discharge_match = re.search(r'river discharge[^:]*:\s*\[([^\]]+)\]', text_lower)
+        if discharge_match:
+            try:
+                vals = [float(v) for v in re.findall(r'\d+\.?\d*', discharge_match.group(1))]
+                if vals:
+                    max_discharge = max(vals)
+                    if max_discharge >= 1000:
+                        severity = max(severity, 4)
+                    elif max_discharge >= 500:
+                        severity = max(severity, 3)
+                    elif max_discharge >= 100:
+                        severity = max(severity, 2)
+            except (ValueError, AttributeError):
                 pass
 
         risk_score = severity * probability

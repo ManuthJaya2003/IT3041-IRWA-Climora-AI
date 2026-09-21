@@ -93,6 +93,13 @@ async def lifespan(app: FastAPI):
         _agent_processes.append(proc)
         print(f"   🤖 Started {name}  [pid {proc.pid}]")
 
+    # Give agents a moment to bind their ports before the first request arrives.
+    # Without this delay the MCP client's initial TCP probe finds all ports closed
+    # and marks every agent as disconnected, forcing fallback for the first query.
+    import asyncio as _asyncio
+    await _asyncio.sleep(3)
+    print("   ✓ Agents ready")
+
     yield
 
     # Shutdown — terminate agent subprocesses cleanly

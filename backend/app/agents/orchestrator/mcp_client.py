@@ -151,8 +151,14 @@ class MCPClientManager:
             print(f"   ✗ MCP Client: Unknown agent '{agent_name}'")
             return None
 
+        # If previously disconnected, re-probe — the agent may have started
+        # after the initial connectivity check (common when agents are spawned
+        # as subprocesses by main.py after the MCP client first initialises).
         if agent.status != "connected":
-            # Agent not available - return None so orchestrator can use fallback
+            connected = await self._connect_to_agent(agent)
+            agent.status = "connected" if connected else "disconnected"
+
+        if agent.status != "connected":
             return None
 
         if tool_name not in agent.tools:

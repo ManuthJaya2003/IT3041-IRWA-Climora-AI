@@ -14,6 +14,7 @@ Communication: Uses MCP (Model Context Protocol) to invoke tools exposed
 by each specialized agent running as an MCP server.
 """
 
+import asyncio
 import uuid
 import time
 from typing import Optional
@@ -72,18 +73,17 @@ class OrchestratorAgent:
             from app.services.language_service import detect_language, get_language_name
             detected_language = detect_language(request.query)
 
-            # --- Step 1: Security Validation ---
-            security_result = await self._invoke_security_agent(request)
-            agents_used.append("security_agent")
+            # --- Steps 1 & 2: Security + NLP in parallel ---
+            # These two are independent — neither depends on the other's output.
+            security_task = asyncio.create_task(self._invoke_security_agent(request))
+            nlp_task = asyncio.create_task(self._invoke_nlp_agent(request))
+            security_result, nlp_result = await asyncio.gather(security_task, nlp_task)
+            agents_used.extend(["security_agent", "nlp_agent"])
 
             if not security_result.get("safe", True):
                 return self._build_blocked_response(
                     session_id, request.query, security_result.get("reason", "Request blocked")
                 )
-
-            # --- Step 2: NLP Processing ---
-            nlp_result = await self._invoke_nlp_agent(request)
-            agents_used.append("nlp_agent")
 
             structured_query = nlp_result.get("structured_query", {})
             intent = nlp_result.get("intent", "general_climate_query")
@@ -96,14 +96,9 @@ class OrchestratorAgent:
                 structured_query["expanded_query"] = expanded_query
 
             # --- Step 2b: Reject non-climate queries at orchestrator level ---
-            # If NLP found no climate topic AND no hazard type, check the query
-            # text directly. This catches cases where a location is detected
-            # (e.g. "Kandy") but the question is unrelated to climate.
-            # Also honour the hard blocklist set by _fallback_nlp (intent="non_climate").
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
                 from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
                 query_lower = request.query.lower()
-                # Whole-word climate term check — avoids "train" matching "rain"
                 import re
                 has_climate_term = any(
                     re.search(r'\b' + re.escape(term) + r'\b', query_lower)
@@ -150,20 +145,26 @@ class OrchestratorAgent:
             )
             agents_used.append("analysis_agent")
 
-            # --- Step 5: Verification ---
-            verification_result = await self._invoke_verification_agent(
-                claims=analysis_result.get("claims", []),
-                sources=retrieved_evidence,
+            # --- Steps 5 & 6: Verification + Recommendations in parallel ---
+            # Both depend only on analysis_result and retrieved_evidence — they
+            # don't need each other, so run them concurrently.
+            verification_task = asyncio.create_task(
+                self._invoke_verification_agent(
+                    claims=analysis_result.get("claims", []),
+                    sources=retrieved_evidence,
+                )
             )
-            agents_used.append("verification_agent")
-
-            # --- Step 6: Recommendations ---
-            recommendation_result = await self._invoke_recommendation_agent(
-                analysis=analysis_result,
-                user_type=request.user_type,
-                location=request.location,
+            recommendation_task = asyncio.create_task(
+                self._invoke_recommendation_agent(
+                    analysis=analysis_result,
+                    user_type=request.user_type,
+                    location=request.location,
+                )
             )
-            agents_used.append("recommendation_agent")
+            verification_result, recommendation_result = await asyncio.gather(
+                verification_task, recommendation_task
+            )
+            agents_used.extend(["verification_agent", "recommendation_agent"])
 
             # --- Step 7: Assemble Final Response ---
             response = await self._assemble_response(

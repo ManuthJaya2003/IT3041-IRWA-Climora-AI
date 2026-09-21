@@ -285,6 +285,30 @@ class IRAgent(BaseAgentServer):
         live_budget = max(1, top_k // 2)
         faiss_budget = top_k - live_budget
 
+        # Topic compatibility map — defines which FAISS document topics are
+        # relevant for a given query climate_topic.  A drought doc should not
+        # appear when the user asks about rain/flood, and vice-versa.
+        # "None" means no query topic detected — allow all topics.
+        TOPIC_COMPATIBILITY: dict[str, set[str]] = {
+            "flood":          {"flood", "rain", "cyclone", "sea-level-rise", "coastal-protection", "water-resources", "climate-health", "climate-policy"},
+            "rain":           {"rain", "flood", "cyclone", "agriculture", "water-resources", "climate-policy"},
+            "drought":        {"drought", "water-scarcity", "agriculture", "water-resources", "climate-policy"},
+            "heat-wave":      {"heat-wave", "agriculture", "climate-health", "climate-policy"},
+            "cyclone":        {"cyclone", "flood", "rain", "sea-level-rise", "coastal-protection", "climate-policy"},
+            "landslide":      {"landslide", "flood", "rain", "erosion", "climate-policy"},
+            "sea-level-rise": {"sea-level-rise", "coastal-protection", "cyclone", "flood", "climate-policy"},
+            "air-quality":    {"air-quality", "pollution", "climate-health", "climate-policy"},
+            "wildfire":       {"wildfire", "drought", "climate-policy"},
+            "erosion":        {"erosion", "landslide", "flood", "agriculture", "climate-policy"},
+            "water-scarcity": {"water-scarcity", "drought", "agriculture", "water-resources", "climate-policy"},
+            "agriculture":    {"agriculture", "drought", "flood", "rain", "water-resources", "climate-policy"},
+            "temperature":    {"heat-wave", "climate-health", "climate-policy"},
+            "storm":          {"cyclone", "flood", "rain", "sea-level-rise", "climate-policy"},
+        }
+
+        query_topic = entities.get("climate_topic") or entities.get("hazard_type") or ""
+        allowed_topics: set[str] | None = TOPIC_COMPATIBILITY.get(query_topic)
+
         # Step 1: Query External APIs (OpenWeatherMap & Open-Meteo) for live readings
         external_results = await self._search_external_sources(query, entities)
         live_results = external_results[:live_budget]
@@ -295,31 +319,37 @@ class IRAgent(BaseAgentServer):
         try:
             faiss_results = await vector_store_service.query_similar(
                 query_text=search_query or "climate risk",
-                top_k=faiss_budget * 3  # Over-fetch to account for location filtering
+                top_k=faiss_budget * 4  # Over-fetch to account for location + topic filtering
             )
 
             for r in faiss_results:
                 if len(faiss_documents) >= faiss_budget:
                     break
                 metadata = r.get("metadata", {})
+                doc_topic = metadata.get("topic", "climate").lower().strip()
                 document = {
                     "source_name": metadata.get("source", "FAISS Local Store"),
                     "url": r.get("url", metadata.get("url", "")),
                     "content": r.get("content", ""),
                     "snippet": r.get("content", "")[:300],
                     "reliability_score": r.get("score", 0.85),
-                    "topic": metadata.get("topic", "climate"),
+                    "topic": doc_topic,
                     "location": metadata.get("location", ""),
                     "date": metadata.get("date", "live")
                 }
                 source_name = document["source_name"].strip().lower()
                 if source_name == "test":
                     continue
-                # Fuzzy location filter — uses alias expansion instead of exact substring
+                # Fuzzy location filter
                 if requested_location and document["location"]:
                     if not _location_matches(requested_location, str(document["location"])):
                         continue
-                # Deduplicate — skip if same content was already included
+                # Topic relevance filter — skip docs whose topic is incompatible
+                # with the query (e.g. drought docs for a rain/flood query).
+                # Only applied when a specific climate topic was detected.
+                if allowed_topics is not None and doc_topic not in allowed_topics:
+                    continue
+                # Deduplicate
                 content_key = document["content"][:120].strip()
                 if content_key in seen_content:
                     continue
