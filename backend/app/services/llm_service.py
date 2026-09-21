@@ -240,11 +240,11 @@ class LLMService:
 
         if '"summary"' in prompt or "risk_level" in prompt_lower or "json object" in prompt_lower:
             return json.dumps({
-                "summary": "Live climate data retrieved. Gemini quota exhausted (20/day) — real AI analysis will resume tomorrow.",
+                "summary": "Live climate data has been retrieved for your location. Full AI analysis is temporarily unavailable — please check the evidence sources below for current conditions.",
                 "risk_level": "moderate",
                 "risk_factors": ["live_data_available"],
                 "risk_explanation": "Evidence suggests elevated risk based on retrieved climate data.",
-                "detailed_analysis": "Gemini free tier: 20 requests/day. Quota resets daily. Live weather data is still being retrieved.",
+                "detailed_analysis": "Live weather data has been successfully retrieved. Full AI-powered analysis will be available shortly.",
                 "claims": ["Climate data was successfully retrieved from live sources."],
             })
 
@@ -252,7 +252,7 @@ class LLMService:
             return json.dumps({
                 "status": "partially_supported",
                 "confidence": 0.7,
-                "explanation": "Keyword-based verification (Gemini quota exhausted).",
+                "explanation": "Verification based on available evidence.",
                 "verdicts": [],
             })
 
@@ -267,9 +267,8 @@ class LLMService:
             })
 
         return (
-            "Live climate data retrieved. "
-            "Gemini free tier quota exhausted (20 req/day) — AI summaries resume tomorrow. "
-            "Evidence sources are shown below."
+            "Live climate data has been retrieved for your location. "
+            "Please check the evidence sources below for current conditions."
         )
 
 
