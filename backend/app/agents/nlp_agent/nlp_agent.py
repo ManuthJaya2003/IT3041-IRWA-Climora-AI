@@ -97,6 +97,10 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
 
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
 TOPIC_KEYWORDS: dict[str, list[str]] = {
+    # General weather — checked first so "weather/forecast/temperature" queries
+    # don't accidentally inherit a hazard topic from document content.
+    "temperature":    ["weather", "forecast", "humidity", "wind speed", "conditions",
+                       "temperature", "hot", "warming", "cold", "climate change"],
     "flood":          ["flood", "flooding", "inundation", "overflow", "waterlog",
                        "flash flood", "river level", "discharge"],
     "drought":        ["drought", "dry spell", "water scarcity", "arid",
@@ -123,7 +127,6 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
                        "farming climate", "climate agriculture", "drought crop",
                        "flood crop", "monsoon farming", "yield decline",
                        "agriculture", "irrigation"],
-    "temperature":    ["temperature", "hot", "warming", "cold", "climate change"],
     "storm":          ["storm", "thunderstorm", "lightning", "gale"],
 }
 
