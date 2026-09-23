@@ -114,6 +114,43 @@ class OrchestratorAgent:
                         agents_used=agents_used,
                     )
 
+            # --- Step 2c: Sri Lanka geo-restriction ---
+            # Climora AI covers Sri Lanka only. If the query mentions a location
+            # that is clearly outside Sri Lanka, reject it with a helpful message.
+            detected_location = entities.get("location", "") or ""
+            if detected_location and "sri lanka" not in detected_location.lower():
+                # Check if the location is one of our known Sri Lanka places
+                from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
+                loc_lower = detected_location.lower()
+                is_sri_lanka = any(
+                    kw in loc_lower or loc_lower in kw
+                    for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka", "ceylon", "lk"]
+                )
+                # Also allow if query text itself contains sri lanka / ceylon
+                query_lower_geo = request.query.lower()
+                if "sri lanka" in query_lower_geo or "ceylon" in query_lower_geo:
+                    is_sri_lanka = True
+                # Known foreign country/city indicators
+                FOREIGN_INDICATORS = [
+                    "india", "pakistan", "bangladesh", "nepal", "myanmar", "thailand",
+                    "singapore", "malaysia", "indonesia", "china", "japan", "korea",
+                    "usa", "united states", "america", "uk", "united kingdom", "england",
+                    "australia", "canada", "france", "germany", "italy", "spain",
+                    "dubai", "uae", "saudi", "maldives", "new york", "london", "paris",
+                    "sydney", "tokyo", "beijing", "mumbai", "delhi", "chennai", "kolkata",
+                    "bangkok", "kuala lumpur", "jakarta", "manila", "karachi", "dhaka",
+                ]
+                is_foreign = any(fi in loc_lower or fi in query_lower_geo for fi in FOREIGN_INDICATORS)
+                if is_foreign or (not is_sri_lanka and len(detected_location) > 3):
+                    return ChatResponse(
+                        session_id=session_id,
+                        query=request.query,
+                        summary=f"Climora AI currently covers Sri Lanka only. I don't have sufficient data to answer climate questions about '{detected_location}'. Please ask about a Sri Lanka location — for example: 'What is the flood risk in Colombo?' or 'What is the weather in Kandy?'",
+                        confidence_score=0.0,
+                        processing_time_ms=(time.time() - start_time) * 1000,
+                        agents_used=agents_used,
+                    )
+
             # --- Step 3: Information Retrieval ---
             ir_result = await self._invoke_ir_agent(structured_query, entities)
             agents_used.append("ir_agent")
@@ -558,6 +595,23 @@ Do not make claims beyond what the evidence supports.
 
         # Fall back to the separate location field if query has no location
         location = detected_location or request.location or None
+
+        # --- Sri Lanka geo-restriction in fallback mode ---
+        # If a location was found but it's a known foreign place, clear it so
+        # the orchestrator's Step 2c check can still fire with the raw query text.
+        if location:
+            FOREIGN_INDICATORS = [
+                "india", "pakistan", "bangladesh", "nepal", "myanmar", "thailand",
+                "singapore", "malaysia", "indonesia", "china", "japan", "korea",
+                "usa", "united states", "america", "uk", "united kingdom", "england",
+                "australia", "canada", "france", "germany", "italy", "spain",
+                "dubai", "uae", "saudi", "maldives", "new york", "london", "paris",
+                "sydney", "tokyo", "beijing", "mumbai", "delhi", "chennai", "kolkata",
+                "bangkok", "kuala lumpur", "jakarta", "manila", "karachi", "dhaka",
+            ]
+            if any(fi in location.lower() for fi in FOREIGN_INDICATORS):
+                # Keep the raw location text so Step 2c can reject it cleanly
+                pass  # location is set — Step 2c will handle the rejection
 
         # ------------------------------------------------------------------
         # Intent detection
