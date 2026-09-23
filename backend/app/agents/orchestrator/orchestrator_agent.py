@@ -95,6 +95,53 @@ class OrchestratorAgent:
             if expanded_query:
                 structured_query["expanded_query"] = expanded_query
 
+            # --- Step 2a: Context-aware follow-up handling ---
+            # If the user replied with just a location name (e.g. "kandy") after
+            # being asked to specify a location, reconstruct their intent from the
+            # previous session message and synthesise a full query.
+            from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
+            query_stripped = request.query.strip().lower()
+            is_location_only = (
+                len(query_stripped.split()) <= 3
+                and not entities.get("climate_topic")
+                and not entities.get("hazard_type")
+                and any(kw in query_stripped for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka"])
+            )
+            if is_location_only and request.session_id:
+                history = self._session_store.get(request.session_id, [])
+                if history:
+                    last_summary = history[-1].get("response_summary", "").lower()
+                    asked_for_location = "please specify a location" in last_summary or "specify a location" in last_summary
+                    if asked_for_location:
+                        # Reconstruct: use previous intent if available, default to weather
+                        last_query = history[-1].get("query", "").lower()
+                        if any(w in last_query for w in ["flood", "flooding"]):
+                            synthesised = f"flood risk in {request.query.strip()}"
+                        elif any(w in last_query for w in ["drought"]):
+                            synthesised = f"drought in {request.query.strip()}"
+                        elif any(w in last_query for w in ["rain", "rainfall"]):
+                            synthesised = f"rainfall in {request.query.strip()}"
+                        elif any(w in last_query for w in ["cyclone", "storm"]):
+                            synthesised = f"cyclone risk in {request.query.strip()}"
+                        else:
+                            synthesised = f"weather in {request.query.strip()}"
+                        # Re-run NLP on the synthesised query
+                        from app.models.schemas import ChatRequest as CR
+                        synthetic_request = CR(
+                            query=synthesised,
+                            location=request.location,
+                            user_type=request.user_type,
+                            session_id=request.session_id,
+                            context=request.context,
+                        )
+                        nlp_result = await self._invoke_nlp_agent(synthetic_request)
+                        structured_query = nlp_result.get("structured_query", {})
+                        intent = nlp_result.get("intent", "general_climate_query")
+                        entities = nlp_result.get("entities", {})
+                        expanded_query = nlp_result.get("expanded_query", "")
+                        if expanded_query:
+                            structured_query["expanded_query"] = expanded_query
+
             # --- Step 2b: Reject non-climate queries at orchestrator level ---
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
                 from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
@@ -113,6 +160,80 @@ class OrchestratorAgent:
                         processing_time_ms=(time.time() - start_time) * 1000,
                         agents_used=agents_used,
                     )
+
+            # --- Step 2c: Sri Lanka geo-restriction + location clarification ---
+            #
+            # Logic:
+            #   1. Query mentions a Sri Lanka location  → proceed normally
+            #   2. Query mentions a foreign location    → reject with geo message
+            #   3. Query has no location at all         → ask user to specify
+            #      (climate queries need a location to retrieve meaningful data)
+            detected_location = entities.get("location", "") or ""
+            query_lower_geo = request.query.lower()
+
+            FOREIGN_INDICATORS = [
+                "india", "indian", "pakistan", "bangladesh", "nepal", "bhutan",
+                "myanmar", "burma", "afghanistan",
+                "thailand", "singapore", "malaysia", "indonesia", "philippines",
+                "vietnam", "cambodia", "laos", "brunei",
+                "china", "japan", "korea", "taiwan", "hong kong", "mongolia",
+                "dubai", "uae", "saudi", "arabia", "qatar", "kuwait", "oman",
+                "bahrain", "iraq", "iran", "turkey", "israel", "jordan",
+                "uk", "united kingdom", "england", "scotland", "wales", "ireland",
+                "france", "germany", "italy", "spain", "portugal", "netherlands",
+                "belgium", "switzerland", "austria", "sweden", "norway", "denmark",
+                "finland", "poland", "greece", "russia",
+                "usa", "united states", "america", "canada", "mexico", "brazil",
+                "argentina", "colombia", "chile", "peru",
+                "australia", "new zealand",
+                "south africa", "nigeria", "kenya", "egypt",
+                "new york", "london", "paris", "berlin", "tokyo", "beijing",
+                "shanghai", "sydney", "toronto", "moscow", "rome", "madrid",
+                "mumbai", "delhi", "chennai", "kolkata", "bangalore", "hyderabad",
+                "karachi", "dhaka", "kathmandu", "islamabad", "bangkok",
+                "kuala lumpur", "jakarta", "manila", "hong kong", "seoul", "cairo",
+            ]
+
+            from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
+
+            # Check if the query text contains a known Sri Lanka location
+            has_sri_lanka_location = bool(detected_location) or any(
+                kw in query_lower_geo
+                for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka", "ceylon"]
+            )
+
+            # Check if the query text mentions a foreign location
+            is_foreign = any(fi in query_lower_geo for fi in FOREIGN_INDICATORS)
+            if not is_foreign and detected_location:
+                is_foreign = any(fi in detected_location.lower() for fi in FOREIGN_INDICATORS)
+
+            if is_foreign:
+                foreign_place = detected_location or next(
+                    (fi for fi in FOREIGN_INDICATORS if fi in query_lower_geo), "that location"
+                )
+                return ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary=f"Climora AI currently covers Sri Lanka only. I don't have sufficient climate data for '{foreign_place}'. Please ask about a location within Sri Lanka — for example: 'What is the weather in Colombo?' or 'What is the flood risk in Kandy?'",
+                    confidence_score=0.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=agents_used,
+                )
+
+            if not has_sri_lanka_location:
+                # Climate query with no location — ask the user to specify.
+                # Store the session entry so the next message (a location reply)
+                # can look back and reconstruct the intent.
+                ask_response = ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary="Please specify a location in Sri Lanka for your query. For example: 'What is the weather in Colombo?', 'Is there a flood risk in Kandy?', or 'What is the drought situation in Jaffna?'",
+                    confidence_score=0.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=agents_used,
+                )
+                self._store_session(session_id, request.query, ask_response)
+                return ask_response
 
             # --- Step 3: Information Retrieval ---
             ir_result = await self._invoke_ir_agent(structured_query, entities)

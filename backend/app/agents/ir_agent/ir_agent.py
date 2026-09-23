@@ -128,35 +128,50 @@ def _location_matches(requested: str, document_location: str) -> bool:
     Fuzzy / hierarchical location match.
 
     Returns True when:
-    - requested name is a substring of document_location (original exact check), OR
+    - requested name is a substring of document_location, OR
     - any alias token for the requested location appears in document_location, OR
     - the document_location tokens appear as aliases of the requested location.
 
-    This prevents a query for "Western Province" from discarding a document
-    tagged "Colombo, Sri Lanka", since Colombo is in the Western Province.
+    District-level queries (e.g. "Colombo") only match documents tagged with
+    that specific district — NOT every document in the same province.
+    Province-level queries (e.g. "Western Province") match all districts within
+    that province.
     """
     req_lower = requested.lower().strip()
     doc_lower = document_location.lower().strip()
 
     if not req_lower or not doc_lower:
-        return True  # No location constraint — include document
+        return True
 
-    # Direct substring match
+    # Direct substring match (e.g. "Colombo" in "Colombo, Sri Lanka")
     req_base = req_lower.split(",")[0].strip()
     if req_base in doc_lower:
         return True
 
-    # Check if requested location expands to aliases that match the document
+    # If the requested location IS a province, expand to all its districts
+    is_province_query = "province" in req_lower or req_lower in {
+        "western", "central", "southern", "northern", "eastern",
+        "north western", "north central", "uva", "sabaragamuwa",
+        "dry zone", "hill country", "central highlands",
+    }
+
+    if is_province_query:
+        for canonical, tokens in LOCATION_ALIASES.items():
+            if req_base in canonical or canonical in req_base:
+                if any(token in doc_lower for token in tokens):
+                    return True
+
+    # If requesting a specific sub-region/feature, map to its parent district
     for canonical, tokens in LOCATION_ALIASES.items():
-        if req_base in canonical or canonical in req_base:
-            if any(token in doc_lower for token in tokens):
+        if req_base == canonical:
+            # req_base is a canonical key (e.g. "kandy") — check direct match only
+            if any(token in doc_lower for token in tokens[:2]):  # first 2 tokens = district names
                 return True
 
-    # Check if document location is an alias of the requested location
-    for canonical, tokens in LOCATION_ALIASES.items():
-        if any(token in doc_lower for token in tokens):
-            if req_base in canonical or any(token in req_base for token in tokens):
-                return True
+    # Document location is a sub-district of the requested district
+    # (e.g. doc says "Kolonnawa, Colombo" and query is "Colombo")
+    if req_base in doc_lower:
+        return True
 
     return False
 
