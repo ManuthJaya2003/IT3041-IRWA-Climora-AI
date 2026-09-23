@@ -95,6 +95,53 @@ class OrchestratorAgent:
             if expanded_query:
                 structured_query["expanded_query"] = expanded_query
 
+            # --- Step 2a: Context-aware follow-up handling ---
+            # If the user replied with just a location name (e.g. "kandy") after
+            # being asked to specify a location, reconstruct their intent from the
+            # previous session message and synthesise a full query.
+            from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
+            query_stripped = request.query.strip().lower()
+            is_location_only = (
+                len(query_stripped.split()) <= 3
+                and not entities.get("climate_topic")
+                and not entities.get("hazard_type")
+                and any(kw in query_stripped for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka"])
+            )
+            if is_location_only and request.session_id:
+                history = self._session_store.get(request.session_id, [])
+                if history:
+                    last_summary = history[-1].get("response_summary", "").lower()
+                    asked_for_location = "please specify a location" in last_summary or "specify a location" in last_summary
+                    if asked_for_location:
+                        # Reconstruct: use previous intent if available, default to weather
+                        last_query = history[-1].get("query", "").lower()
+                        if any(w in last_query for w in ["flood", "flooding"]):
+                            synthesised = f"flood risk in {request.query.strip()}"
+                        elif any(w in last_query for w in ["drought"]):
+                            synthesised = f"drought in {request.query.strip()}"
+                        elif any(w in last_query for w in ["rain", "rainfall"]):
+                            synthesised = f"rainfall in {request.query.strip()}"
+                        elif any(w in last_query for w in ["cyclone", "storm"]):
+                            synthesised = f"cyclone risk in {request.query.strip()}"
+                        else:
+                            synthesised = f"weather in {request.query.strip()}"
+                        # Re-run NLP on the synthesised query
+                        from app.models.schemas import ChatRequest as CR
+                        synthetic_request = CR(
+                            query=synthesised,
+                            location=request.location,
+                            user_type=request.user_type,
+                            session_id=request.session_id,
+                            context=request.context,
+                        )
+                        nlp_result = await self._invoke_nlp_agent(synthetic_request)
+                        structured_query = nlp_result.get("structured_query", {})
+                        intent = nlp_result.get("intent", "general_climate_query")
+                        entities = nlp_result.get("entities", {})
+                        expanded_query = nlp_result.get("expanded_query", "")
+                        if expanded_query:
+                            structured_query["expanded_query"] = expanded_query
+
             # --- Step 2b: Reject non-climate queries at orchestrator level ---
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
                 from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
