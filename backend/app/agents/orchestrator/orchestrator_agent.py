@@ -221,8 +221,10 @@ class OrchestratorAgent:
                 )
 
             if not has_sri_lanka_location:
-                # Climate query with no location — ask the user to specify
-                return ChatResponse(
+                # Climate query with no location — ask the user to specify.
+                # Store the session entry so the next message (a location reply)
+                # can look back and reconstruct the intent.
+                ask_response = ChatResponse(
                     session_id=session_id,
                     query=request.query,
                     summary="Please specify a location in Sri Lanka for your query. For example: 'What is the weather in Colombo?', 'Is there a flood risk in Kandy?', or 'What is the drought situation in Jaffna?'",
@@ -230,6 +232,8 @@ class OrchestratorAgent:
                     processing_time_ms=(time.time() - start_time) * 1000,
                     agents_used=agents_used,
                 )
+                self._store_session(session_id, request.query, ask_response)
+                return ask_response
 
             # --- Step 3: Information Retrieval ---
             ir_result = await self._invoke_ir_agent(structured_query, entities)
