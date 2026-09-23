@@ -43,3 +43,4 @@ tenacity==9.0.0
 gTTS==2.5.1
 
 # CORS already included in fastapi
+gTTS==2.5.1

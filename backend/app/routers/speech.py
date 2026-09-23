@@ -40,8 +40,12 @@ async def text_to_speech(request: SpeakRequest):
     Convert text to speech audio.
     Returns an MP3 audio file.
     """
+    # Lazy initialize if startup hasn't run yet (e.g. first request race condition)
     if not tts_service.is_available():
-        raise HTTPException(status_code=503, detail="TTS service not available. Install gTTS.")
+        await tts_service.initialize()
+
+    if not tts_service.is_available():
+        raise HTTPException(status_code=503, detail="TTS service not available. Install gTTS: pip install gTTS")
 
     # Auto-detect language if not provided
     language = request.language or detect_language(request.text)
@@ -80,6 +84,8 @@ async def voice_query(request: VoiceQueryRequest):
 
     # Generate TTS audio for the summary
     audio_url = None
+    if not tts_service.is_available():
+        await tts_service.initialize()
     if tts_service.is_available():
         audio_path = await tts_service.synthesize(
             text=response.summary,
