@@ -334,7 +334,7 @@ export default function ChatInterface({
                   handleSubmit(e)
                 }
               }}
-              placeholder={isListening ? "Listening..." : "Ask about climate risks, weather patterns, or environmental concerns..."}
+              placeholder={isListening ? "Listening..." : "Ask about weather, floods, drought, cyclones in Sri Lanka..."}
               className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
               rows={1}
               disabled={isLoading || isListening}
@@ -376,8 +376,9 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
         Welcome to Climora AI
       </h2>
       <p className="text-slate-500 max-w-md mb-4">
-        Your AI-powered climate intelligence assistant. Ask about climate risks,
-        weather patterns, environmental concerns, or preparedness guidance.
+        Sri Lanka's AI-powered climate intelligence assistant. Ask about weather conditions,
+        flood and drought risks, cyclones, landslides, and climate preparedness
+        for any location in Sri Lanka.
       </p>
 
       {/* Location prompt on welcome screen */}
@@ -396,19 +397,27 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg">
         <SuggestionCard
-          text="What are the flood risks in Colombo?"
+          text="What is the current weather in Colombo?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="How is climate change affecting agriculture in South Asia?"
+          text="Is there a flood risk in Kandy right now?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="What should I prepare for during monsoon season?"
+          text="What should I prepare for during monsoon season in Sri Lanka?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
           text="Assess drought risk for the Dry Zone in Sri Lanka"
+          onClick={onSuggestionClick}
+        />
+        <SuggestionCard
+          text="Are there landslide risks in Nuwara Eliya?"
+          onClick={onSuggestionClick}
+        />
+        <SuggestionCard
+          text="What is the cyclone risk in Trincomalee?"
           onClick={onSuggestionClick}
         />
       </div>
