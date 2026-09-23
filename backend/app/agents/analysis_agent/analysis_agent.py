@@ -74,10 +74,10 @@ SEVERITY_KEYWORDS: list[tuple[int, list[str]]] = [
 ]
 
 PROBABILITY_KEYWORDS: list[tuple[int, list[str]]] = [
-    (5, ["imminent", "currently", "ongoing", "active", "in progress", "now",
-         "happening", "underway", "already"]),
+    (5, ["imminent", "ongoing", "active", "in progress", "happening", "underway",
+         "already flooding", "already burning", "already displaced"]),
     (4, ["very likely", "high probability", "expected", "forecast", "warning issued",
-         "will occur", "highly likely", "alert"]),
+         "will occur", "highly likely", "alert issued", "advisory"]),
     (3, ["likely", "moderate probability", "possible", "may occur", "could occur",
          "probable", "anticipated"]),
     (2, ["unlikely", "low probability", "rare", "not expected", "slight chance"]),
@@ -468,10 +468,25 @@ class AnalysisAgent(BaseAgentServer):
 
     @staticmethod
     def _dominant_hazard(text_lower: str, entities: dict) -> str:
-        """Pick the most relevant hazard name from entities or evidence text."""
+        """
+        Pick the most relevant hazard name from entities or evidence text.
+
+        "temperature" is a general weather topic (not a hazard) — return empty
+        so routine weather queries don't get mapped to "extreme heat".
+        Only map to extreme heat when the evidence actually contains heat-specific
+        language (heat wave, heat stress, etc.) or an explicit high temperature.
+        """
         topic = entities.get("climate_topic") or entities.get("hazard_type")
         if topic:
-            # Normalise the NLP topic slug (e.g. "sea-level-rise") to a label.
+            # "temperature" is a general weather topic — not a hazard label.
+            # Let the keyword scan below decide if actual hazard signals exist.
+            if topic.lower() in ("temperature", "weather", "forecast"):
+                # Only return a hazard if strong hazard signals are actually present
+                for label, keywords in HAZARD_KEYWORDS.items():
+                    if any(kw in text_lower for kw in keywords):
+                        return label
+                return ""
+            # Normalise NLP topic slug (e.g. "sea-level-rise") to a hazard label.
             for label, keywords in HAZARD_KEYWORDS.items():
                 if topic.replace("-", " ") in label or any(
                     topic.replace("-", " ") in kw for kw in keywords
@@ -486,10 +501,24 @@ class AnalysisAgent(BaseAgentServer):
 
     @staticmethod
     def _extract_risk_factors(text_lower_source: str, entities: dict) -> list[str]:
-        """List every hazard whose keywords appear in the evidence."""
+        """
+        List every hazard whose keywords appear in the evidence.
+
+        Skips "extreme heat" detection when the query topic is general weather
+        so that 'Temperature: 28.92°C' in OWM output doesn't trigger a false
+        heat-wave risk factor.
+        """
         text_lower = text_lower_source.lower()
+        topic = (entities.get("climate_topic") or "").lower()
+        is_weather_query = topic in ("temperature", "weather", "forecast", "")
         factors: list[str] = []
         for label, keywords in HAZARD_KEYWORDS.items():
+            # Skip heat wave detection for routine weather queries
+            if is_weather_query and label == "extreme heat":
+                # Only flag extreme heat if truly heat-specific terms are present
+                heat_terms = {"heat wave", "heatwave", "extreme heat", "heat stress", "heat index"}
+                if not any(kw in text_lower for kw in heat_terms):
+                    continue
             if any(kw in text_lower for kw in keywords):
                 factors.append(label)
         return factors
