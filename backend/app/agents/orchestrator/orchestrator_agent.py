@@ -18,7 +18,7 @@ import asyncio
 import uuid
 import time
 from typing import Optional
-from datetime import datetime
+from datetime import datetime, timezone
 
 from app.models.schemas import (
     ChatRequest,
@@ -142,36 +142,10 @@ class OrchestratorAgent:
                         if expanded_query:
                             structured_query["expanded_query"] = expanded_query
 
-            # --- Step 2b: Reject non-climate queries at orchestrator level ---
-            if not entities.get("climate_topic") and not entities.get("hazard_type"):
-                from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
-                query_lower = request.query.lower()
-                import re
-                has_climate_term = any(
-                    re.search(r'\b' + re.escape(term) + r'\b', query_lower)
-                    for term in CLIMATE_QUERY_TERMS
-                )
-                if not has_climate_term or intent == "non_climate":
-                    return ChatResponse(
-                        session_id=session_id,
-                        query=request.query,
-                        summary="I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, flood, drought, or preparedness.",
-                        confidence_score=0.0,
-                        processing_time_ms=(time.time() - start_time) * 1000,
-                        agents_used=agents_used,
-                    )
-
-            # --- Step 2c: Sri Lanka geo-restriction + location clarification ---
-            #
-            # Logic:
-            #   1. Query mentions a Sri Lanka location  → proceed normally
-            #   2. Query mentions a foreign location    → reject with geo message
-            #   3. Query has no location at all         → ask user to specify
-            #      (climate queries need a location to retrieve meaningful data)
-            detected_location = entities.get("location", "") or ""
-            query_lower_geo = request.query.lower()
-
-            FOREIGN_INDICATORS = [
+            # --- Step 2b: Sri Lanka geo-restriction (runs BEFORE non-climate check) ---
+            # If the user mentions a foreign country/city, tell them the system
+            # only covers Sri Lanka — regardless of whether a climate term is present.
+            FOREIGN_INDICATORS_EARLY = [
                 "india", "indian", "pakistan", "bangladesh", "nepal", "bhutan",
                 "myanmar", "burma", "afghanistan",
                 "thailand", "singapore", "malaysia", "indonesia", "philippines",
@@ -193,6 +167,63 @@ class OrchestratorAgent:
                 "karachi", "dhaka", "kathmandu", "islamabad", "bangkok",
                 "kuala lumpur", "jakarta", "manila", "hong kong", "seoul", "cairo",
             ]
+            import re as _re
+            _query_lower_early = request.query.lower()
+            _detected_location_early = entities.get("location", "") or ""
+            _is_foreign_early = any(
+                _re.search(r'\b' + _re.escape(fi) + r'\b', _query_lower_early)
+                for fi in FOREIGN_INDICATORS_EARLY
+            )
+            if not _is_foreign_early and _detected_location_early:
+                _is_foreign_early = any(
+                    fi in _detected_location_early.lower() for fi in FOREIGN_INDICATORS_EARLY
+                )
+            if _is_foreign_early:
+                _foreign_place = _detected_location_early or next(
+                    (fi for fi in FOREIGN_INDICATORS_EARLY if fi in _query_lower_early), "that location"
+                )
+                return ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary=(
+                        f"Climora AI currently covers Sri Lanka only. "
+                        f"Climate data for '{_foreign_place}' is not available in this system. "
+                        "Please ask about a location within Sri Lanka — for example: "
+                        "'What is the weather in Colombo?' or 'What is the flood risk in Kandy?'"
+                    ),
+                    confidence_score=0.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=agents_used,
+                )
+
+            # --- Step 2c: Reject non-climate queries at orchestrator level ---
+            if not entities.get("climate_topic") and not entities.get("hazard_type"):
+                from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
+                query_lower = request.query.lower()
+                import re
+                has_climate_term = any(
+                    re.search(r'\b' + re.escape(term) + r'\b', query_lower)
+                    for term in CLIMATE_QUERY_TERMS
+                )
+                if not has_climate_term or intent == "non_climate":
+                    return ChatResponse(
+                        session_id=session_id,
+                        query=request.query,
+                        summary="I can only answer climate and environmental questions for locations in Sri Lanka. Please ask about weather, hazards, climate risks, flood, drought, or preparedness for a Sri Lankan location.",
+                        confidence_score=0.0,
+                        processing_time_ms=(time.time() - start_time) * 1000,
+                        agents_used=agents_used,
+                    )
+
+            # --- Step 2d: Sri Lanka location clarification ---
+            #
+            # Logic:
+            #   1. Query mentions a Sri Lanka location  → proceed normally
+            #   2. Query has no location at all         → ask user to specify
+            #      (climate queries need a location to retrieve meaningful data)
+            # Note: Foreign location check is already done in Step 2b above.
+            detected_location = entities.get("location", "") or ""
+            query_lower_geo = request.query.lower()
 
             from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
 
@@ -201,24 +232,6 @@ class OrchestratorAgent:
                 kw in query_lower_geo
                 for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka", "ceylon"]
             )
-
-            # Check if the query text mentions a foreign location
-            is_foreign = any(fi in query_lower_geo for fi in FOREIGN_INDICATORS)
-            if not is_foreign and detected_location:
-                is_foreign = any(fi in detected_location.lower() for fi in FOREIGN_INDICATORS)
-
-            if is_foreign:
-                foreign_place = detected_location or next(
-                    (fi for fi in FOREIGN_INDICATORS if fi in query_lower_geo), "that location"
-                )
-                return ChatResponse(
-                    session_id=session_id,
-                    query=request.query,
-                    summary=f"Climora AI currently covers Sri Lanka only. I don't have sufficient climate data for '{foreign_place}'. Please ask about a location within Sri Lanka — for example: 'What is the weather in Colombo?' or 'What is the flood risk in Kandy?'",
-                    confidence_score=0.0,
-                    processing_time_ms=(time.time() - start_time) * 1000,
-                    agents_used=agents_used,
-                )
 
             if not has_sri_lanka_location:
                 # Climate query with no location — ask the user to specify.
@@ -342,7 +355,9 @@ class OrchestratorAgent:
             arguments=task.payload,
         )
 
-        return result if result else {"safe": True, "reason": "Security agent unavailable - allowing request"}
+        if result and "error" not in result:
+            return result
+        return {"safe": True, "reason": "Security agent unavailable - allowing request"}
 
     async def _invoke_nlp_agent(self, request: ChatRequest) -> dict:
         """Invoke the NLP Agent for intent detection and entity extraction."""
@@ -359,7 +374,7 @@ class OrchestratorAgent:
             arguments=task_payload,
         )
 
-        if result:
+        if result and "error" not in result:
             return result
 
         # Fallback: use LLM directly for basic NLP if agent is unavailable
@@ -379,7 +394,7 @@ class OrchestratorAgent:
             arguments=task_payload,
         )
 
-        if result:
+        if result and "error" not in result:
             return result
 
         # Fallback: query FAISS directly when IR agent isn't running
@@ -402,7 +417,7 @@ class OrchestratorAgent:
             arguments=task_payload,
         )
 
-        if result:
+        if result and "error" not in result:
             return result
 
         # Fallback: use LLM directly
@@ -421,7 +436,7 @@ class OrchestratorAgent:
             arguments=task_payload,
         )
 
-        if result:
+        if result and "error" not in result:
             return result
 
         return {"verified": True, "confidence": 0.5, "message": "Verification agent unavailable"}
@@ -442,7 +457,7 @@ class OrchestratorAgent:
             arguments=task_payload,
         )
 
-        if result:
+        if result and "error" not in result:
             return result
 
         # Fallback: generate recommendations using LLM
@@ -990,7 +1005,7 @@ Return ONLY the JSON object."""
         self._session_store[session_id].append({
             "query": query,
             "response_summary": response.summary,
-            "timestamp": datetime.utcnow().isoformat(),
+            "timestamp": datetime.now(timezone.utc).isoformat(),
         })
 
     async def get_agents_status(self) -> dict:
