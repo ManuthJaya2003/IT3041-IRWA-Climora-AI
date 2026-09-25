@@ -399,7 +399,14 @@ Respond ONLY in valid raw JSON with the following structure:
             - not_mentioned_in (list): Sources that don't cover it
             - consensus_score (float): Agreement ratio across sources (0-1)
         """
-        claim = arguments.get("claim", "")
+        claim = arguments.get("claim")
+        if not claim and "claims" in arguments:
+            claims_arg = arguments["claims"]
+            if isinstance(claims_arg, list) and claims_arg:
+                claim = claims_arg[0]
+            elif isinstance(claims_arg, str):
+                claim = claims_arg
+        claim = str(claim or "").strip()
         sources = arguments.get("sources", [])
 
         supported_by: list[str] = []
@@ -493,6 +500,7 @@ Include one entry per source in order."""
             "contradicted_by": contradicted_by,
             "not_mentioned_in": not_mentioned_in,
             "consensus_score": consensus_score,
+            "consensus": consensus_score >= 0.5 if total_checked > 0 else False,
         }
 
 
