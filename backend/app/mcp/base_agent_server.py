@@ -113,12 +113,13 @@ class BaseAgentServer:
             }
 
         @self._app.post("/tools/{tool_name}")
-        async def call_tool(tool_name: str, arguments: dict = {}):
+        async def call_tool(tool_name: str, arguments: Optional[dict] = None):
             """
             Call a specific tool (MCP CallTool equivalent).
 
             This endpoint mirrors the MCP CallToolRequest/CallToolResult flow.
             """
+            args = arguments if isinstance(arguments, dict) else {}
             if tool_name not in self._tools:
                 return {
                     "error": f"Tool '{tool_name}' not found",
@@ -128,7 +129,11 @@ class BaseAgentServer:
             tool = self._tools[tool_name]
 
             try:
-                result = await tool.handler(arguments)
+                import inspect
+                if inspect.iscoroutinefunction(tool.handler):
+                    result = await tool.handler(args)
+                else:
+                    result = tool.handler(args)
                 return result
             except Exception as e:
                 return {
