@@ -84,19 +84,20 @@ class MCPClientManager:
 
         self._initialized = False
 
+    async def _init_agent(self, agent: AgentConnection):
+        try:
+            connected = await self._connect_to_agent(agent)
+            agent.status = "connected" if connected else "disconnected"
+        except Exception as e:
+            agent.status = "error"
+            print(f"   [!] MCP Client: Failed to connect to {agent.name}: {e}")
+
     async def initialize(self):
         """
         Initialize connections to all agent MCP servers.
-        Attempts to connect to each agent and records their status.
+        Attempts to connect to each agent in parallel and records their status.
         """
-        for agent_name, agent in self._agents.items():
-            try:
-                connected = await self._connect_to_agent(agent)
-                agent.status = "connected" if connected else "disconnected"
-            except Exception as e:
-                agent.status = "error"
-                print(f"   ⚠ MCP Client: Failed to connect to {agent_name}: {e}")
-
+        await asyncio.gather(*(self._init_agent(agent) for agent in self._agents.values()))
         self._initialized = True
 
     async def _connect_to_agent(self, agent: AgentConnection) -> bool:

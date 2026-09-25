@@ -36,7 +36,7 @@ User → React Frontend → FastAPI Backend → Orchestrator Agent (MCP Client)
                                                     │
                     ┌───────────────────────────────┼───────────────────────┐
                     │                               │                       │
-             AWS Bedrock (LLM)             Pinecone (Vectors)        PostgreSQL
+             AWS Bedrock (LLM)               FAISS (Local Vectors)     PostgreSQL
 ```
 
 ## Agent Pipeline Flow
@@ -45,7 +45,7 @@ User → React Frontend → FastAPI Backend → Orchestrator Agent (MCP Client)
 User Query
     → Security Agent (validate input)
     → NLP Agent (intent detection, entity extraction)
-    → IR Agent (retrieve evidence from sources + Pinecone)
+    → IR Agent (retrieve evidence from sources + FAISS)
     → Analysis Agent (assess risk, identify patterns)
     → Verification Agent (check claims, validate sources)
     → Recommendation Agent (generate actionable guidance)
@@ -91,13 +91,17 @@ IT3041-IRWA-Climora-AI/
 │   │   │   └── schemas.py             # Pydantic request/response models
 │   │   ├── routers/
 │   │   │   ├── chat.py                # Chat API endpoints
-│   │   │   ├── agents.py              # Agent status endpoints
+│   │   │   ├── agents.py              # Agent status and listing endpoints
 │   │   │   ├── health.py              # Health check endpoints
-│   │   │   └── vector_store.py        # Vector store management API
+│   │   │   ├── vector_store.py        # Vector store management API
+│   │   │   └── speech.py              # Text-to-Speech & voice query API
 │   │   └── services/
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
-│   │       └── vector_store_service.py # FAISS local vector store
+│   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
+│   │       ├── vector_store_service.py # FAISS local vector store
+│   │       ├── language_service.py    # Language detection (English/Sinhala/Tamil)
+│   │       └── tts_service.py         # Text-to-Speech audio service
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
@@ -171,9 +175,12 @@ npm run dev
 
 The frontend will be at `http://localhost:5173` and proxies API calls to the backend at `http://localhost:8000`.
 
-#### Running Agent Servers (Optional)
+#### Running Agent Servers
 
-Agent servers only need to run once teammates have implemented their agents:
+All 6 specialized agents (Security, NLP, IR, Analysis, Verification, Recommendation) are fully implemented. 
+
+- **Automatic Start (Default):** When you run `uvicorn app.main:app --reload --port 8000`, the FastAPI server automatically spawns all 6 agent MCP servers on their designated ports (8100–8105) in background subprocesses.
+- **Manual Start (Optional/Testing):** You can also run the agent MCP servers independently:
 
 ```bash
 cd backend
@@ -181,8 +188,11 @@ cd backend
 # Run all agents
 python -m app.mcp.run_agents
 
-# Or run specific agents
+# Or run specific agents (e.g., nlp, ir, security)
 python -m app.mcp.run_agents nlp ir
+
+# Or run an agent standalone
+python -m app.agents.nlp_agent.nlp_agent
 ```
 
 ### Option 2: Docker Compose
@@ -216,11 +226,15 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/chat/query` | Send a climate query |
-| GET | `/api/v1/agents/list` | List all agents |
-| GET | `/api/v1/agents/status` | Agent connection status |
-| GET | `/health` | Health check |
-| GET | `/health/detailed` | Detailed health with service status |
+| POST | `/api/v1/chat/query` | Send a climate query through the multi-agent pipeline |
+| GET | `/api/v1/agents/list` | List all active agents, roles, and ports |
+| GET | `/api/v1/agents/status` | Real-time agent MCP connection status |
+| POST | `/api/v1/speech/speak` | Synthesize speech audio from text (TTS) |
+| POST | `/api/v1/speech/query` | Voice query processing with audio response |
+| GET | `/api/v1/vectors/stats` | Vector store document count and stats |
+| POST | `/api/v1/vectors/search` | Direct semantic search in FAISS |
+| GET | `/health` | Basic health check |
+| GET | `/health/detailed` | Detailed health with individual service status |
 
 ### Example Query
 
@@ -267,10 +281,11 @@ class MyAgent(BaseAgentServer):
 
 ## Development Notes
 
-- The orchestrator has **fallback logic** — if an agent server isn't running, it falls back to direct LLM calls. This means you can develop and test independently.
-- Each agent stub file has detailed documentation about what to implement, expected inputs/outputs, and suggested technologies.
-- All agents can be run standalone: `python -m app.agents.nlp_agent.nlp_agent`
-- The frontend works with the backend in mock mode (no external services needed for basic testing).
+- **Multi-Agent Pipeline**: All 6 specialized agents (Security :8100, NLP :8101, IR :8102, Analysis :8103, Verification :8104, Recommendation :8105) are fully implemented with both deterministic rule engines and LLM enrichment.
+- **Resilience & Fallback**: The orchestrator has built-in fallback logic — if an agent server is temporarily unreachable, it seamlessly falls back to direct services or LLM calls.
+- **Unified Startup**: Running `uvicorn app.main:app --reload --port 8000` automatically manages the lifecycle of all agent servers in background subprocesses.
+- **Standalone Mode**: All agents can also be run standalone for isolated debugging (e.g. `python -m app.agents.nlp_agent.nlp_agent`).
+- **Offline / Mock Capable**: The backend and frontend function end-to-end even without external API keys or cloud credentials.
 
 ## Responsible AI
 

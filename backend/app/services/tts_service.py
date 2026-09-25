@@ -1,19 +1,9 @@
-"""
-Text-to-Speech Service using gTTS.
-
-Converts text responses into audio files in English, Sinhala, or Tamil.
-Uses Google Translate's TTS engine (free, no API key needed).
-
-Supported languages:
-- 'en' → English
-- 'si' → Sinhala
-- 'ta' → Tamil
-"""
-
-import os
-import uuid
+import asyncio
 import hashlib
-from pathlib import Path
+import os
+import re
+import time
+from typing import Optional
 
 
 # Directory to store generated audio files
@@ -24,26 +14,59 @@ AUDIO_DIR = os.path.join(
 
 
 class TTSService:
-    """Text-to-Speech service using gTTS."""
+    """Text-to-Speech service supporting gTTS (online) and pyttsx3 (offline)."""
 
     def __init__(self):
         self._available = False
+        self._has_gtts = False
+        self._has_pyttsx3 = False
         os.makedirs(AUDIO_DIR, exist_ok=True)
 
     async def initialize(self):
-        """Check if gTTS is available."""
+        """Check for available TTS engines."""
         try:
             from gtts import gTTS
-            self._available = True
-            print(f"   ✓ TTS service initialized (engine: gTTS, cache: {AUDIO_DIR})")
+            self._has_gtts = True
         except ImportError:
-            self._available = False
-            print("   ⚠ TTS service: gTTS not installed - run: pip install gTTS")
+            self._has_gtts = False
+
+        try:
+            import importlib
+            importlib.import_module("pyttsx3")
+            self._has_pyttsx3 = True
+        except Exception:
+            self._has_pyttsx3 = False
+
+        self._available = self._has_gtts or self._has_pyttsx3
+
+        if self._has_gtts:
+            print(f"   [OK] TTS service initialized (engine: gTTS, cache: {AUDIO_DIR})")
+        elif self._has_pyttsx3:
+            print(f"   [OK] TTS service initialized (engine: pyttsx3 offline fallback, cache: {AUDIO_DIR})")
+        else:
+            print("   [!] TTS service: Neither gTTS nor pyttsx3 installed - run: pip install gTTS")
 
     def is_available(self) -> bool:
         return self._available
 
-    async def synthesize(self, text: str, language: str = "en") -> str | None:
+    @staticmethod
+    def _clean_text_for_speech(text: str) -> str:
+        """Strip markdown syntax and formatting so TTS speaks naturally."""
+        if not text:
+            return ""
+        # Remove URLs: [label](http...) -> label
+        cleaned = re.sub(r'\[([^\]]+)\]\([^\)]+\)', r'\1', text)
+        # Remove raw URLs
+        cleaned = re.sub(r'https?://\S+', '', cleaned)
+        # Remove bold / italic markers
+        cleaned = re.sub(r'[*_~`#>]', '', cleaned)
+        # Remove bullet markers at line start
+        cleaned = re.sub(r'^\s*[-+*]\s+', '', cleaned, flags=re.MULTILINE)
+        # Normalize whitespace
+        cleaned = re.sub(r'\s+', ' ', cleaned).strip()
+        return cleaned
+
+    async def synthesize(self, text: str, language: str = "en") -> Optional[str]:
         """
         Convert text to speech and save as MP3 file.
 
@@ -54,74 +77,90 @@ class TTSService:
         Returns:
             Path to the generated audio file, or None if failed.
         """
-        if not self._available:
+        if not self._available or not text.strip():
             return None
 
-        # Clean text for TTS (remove markdown bold markers, etc.)
-        clean_text = text.replace("**", "").replace("*", "")
+        # Clean text for TTS
+        clean_text = self._clean_text_for_speech(text)
+        if not clean_text:
+            return None
 
-        # Limit text length
+        # Limit text length to prevent giant generation requests
         if len(clean_text) > 3000:
             clean_text = clean_text[:3000] + "..."
 
-        # Generate a cache key based on text + language
-        import hashlib
-        cache_key = hashlib.md5(f"{language}:{clean_text}".encode()).hexdigest()
+        # Generate a cache key based on language + content hash
+        cache_key = hashlib.md5(f"{language}:{clean_text}".encode("utf-8")).hexdigest()
         filename = f"{cache_key}.mp3"
         filepath = os.path.join(AUDIO_DIR, filename)
 
-        # Check cache
-        if os.path.exists(filepath):
+        # Check existing cache
+        if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
             return filepath
 
-        # Try gTTS first (better quality, needs internet)
-        try:
-            from gtts import gTTS
-            lang_map = {"en": "en", "si": "si", "ta": "ta"}
-            gtts_lang = lang_map.get(language, "en")
+        # 1. Try gTTS first (higher quality, multilingual support)
+        if self._has_gtts:
+            try:
+                from gtts import gTTS
+                lang_map = {"en": "en", "si": "si", "ta": "ta"}
+                gtts_lang = lang_map.get(language, "en")
 
-            tts = gTTS(text=clean_text, lang=gtts_lang, slow=False)
-            tts.save(filepath)
-            return filepath
-        except Exception as e:
-            print(f"   ⚠ gTTS failed ({e}), trying offline fallback...")
+                def _generate_gtts():
+                    tts = gTTS(text=clean_text, lang=gtts_lang, slow=False)
+                    tts.save(filepath)
 
-        # Fallback: pyttsx3 (offline, English only but always works)
-        try:
-            import pyttsx3
-            wav_path = filepath.replace(".mp3", ".wav")
-            engine = pyttsx3.init()
-            engine.setProperty('rate', 160)
-            engine.save_to_file(clean_text, wav_path)
-            engine.runAndWait()
+                await asyncio.to_thread(_generate_gtts)
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    return filepath
+            except Exception as e:
+                print(f"   [!] gTTS failed ({e}), trying offline fallback...")
 
-            # pyttsx3 saves as WAV — rename to serve
-            os.rename(wav_path, filepath)
-            return filepath
-        except Exception as e2:
-            print(f"   ✗ Offline TTS also failed: {e2}")
-            return None
+        # 2. Offline fallback: pyttsx3
+        if self._has_pyttsx3:
+            try:
+                def _generate_pyttsx3():
+                    import importlib
+                    pyttsx3 = importlib.import_module("pyttsx3")
+                    wav_path = filepath.replace(".mp3", ".wav")
+                    engine = pyttsx3.init()
+                    engine.setProperty("rate", 160)
+                    engine.save_to_file(clean_text, wav_path)
+                    engine.runAndWait()
+                    if os.path.exists(wav_path):
+                        os.replace(wav_path, filepath)
 
-    async def get_audio_path(self, filename: str) -> str | None:
+                await asyncio.to_thread(_generate_pyttsx3)
+                if os.path.exists(filepath) and os.path.getsize(filepath) > 0:
+                    return filepath
+            except Exception as e2:
+                print(f"   [!] Offline TTS also failed: {e2}")
+
+        return None
+
+    async def get_audio_path(self, filename: str) -> Optional[str]:
         """Get full path to a cached audio file."""
         filepath = os.path.join(AUDIO_DIR, filename)
-        if os.path.exists(filepath):
+        if os.path.exists(filepath) and os.path.isfile(filepath):
             return filepath
         return None
 
     async def cleanup_old_files(self, max_age_hours: int = 24):
         """Remove audio files older than max_age_hours."""
-        import time
-
         now = time.time()
         max_age_seconds = max_age_hours * 3600
 
-        for filename in os.listdir(AUDIO_DIR):
-            filepath = os.path.join(AUDIO_DIR, filename)
-            if os.path.isfile(filepath):
-                file_age = now - os.path.getmtime(filepath)
-                if file_age > max_age_seconds:
-                    os.remove(filepath)
+        try:
+            for filename in os.listdir(AUDIO_DIR):
+                filepath = os.path.join(AUDIO_DIR, filename)
+                if os.path.isfile(filepath):
+                    file_age = now - os.path.getmtime(filepath)
+                    if file_age > max_age_seconds:
+                        try:
+                            os.remove(filepath)
+                        except OSError:
+                            pass
+        except OSError:
+            pass
 
 
 # Singleton instance

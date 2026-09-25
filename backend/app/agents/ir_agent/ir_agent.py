@@ -220,9 +220,14 @@ class IRAgent(BaseAgentServer):
         from app.services.embedding_service import embedding_service
         from app.services.vector_store_service import vector_store_service
 
+        await embedding_service.initialize()
+        await vector_store_service.initialize()
+
         # Attempt to upgrade to sentence-transformers for better semantic quality
         try:
-            from sentence_transformers import SentenceTransformer
+            import importlib
+            st_module = importlib.import_module("sentence_transformers")
+            SentenceTransformer = getattr(st_module, "SentenceTransformer")
             _st_model = SentenceTransformer("all-MiniLM-L6-v2")
 
             # Monkey-patch embed_text so the vector store uses real neural embeddings
@@ -233,14 +238,12 @@ class IRAgent(BaseAgentServer):
             embedding_service._available = True
             embedding_service._use_bedrock = False
             logger.info("Embedding service upgraded to sentence-transformers (all-MiniLM-L6-v2)")
-        except ImportError:
+        except Exception as exc:
             logger.info(
-                "sentence-transformers not installed — using configured EmbeddingService "
-                "(Bedrock Titan or TF-IDF fallback)"
+                "sentence-transformers not available (%s) — using configured EmbeddingService "
+                "(Bedrock Titan or TF-IDF fallback)",
+                exc,
             )
-
-        await embedding_service.initialize()
-        await vector_store_service.initialize()
 
     async def retrieve_documents(self, arguments: dict) -> dict:
         """
@@ -256,6 +259,9 @@ class IRAgent(BaseAgentServer):
               Each doc: {source_name, url, snippet, content, reliability_score, retrieved_at}
         """
         from app.services.vector_store_service import vector_store_service
+
+        if not vector_store_service.is_available():
+            await self._initialize_services()
 
         # Extract structured parameters from incoming payload
         structured_query = arguments.get("structured_query", {})
@@ -389,7 +395,10 @@ class IRAgent(BaseAgentServer):
         Output:
             - results (list): Search results from specified sources
         """
-        sources = arguments.get("sources", ["open_weather", "open_meteo"])
+        sources_arg = arguments.get("sources") or arguments.get("source") or ["open_weather", "open_meteo"]
+        if isinstance(sources_arg, str):
+            sources_arg = [sources_arg]
+        sources = [s.lower().replace("-", "_") for s in sources_arg]
         location = arguments.get("location", DEFAULT_LOCATION_NAME)
         query = arguments.get("query", "")
 
@@ -430,8 +439,13 @@ class IRAgent(BaseAgentServer):
         """
         from app.services.vector_store_service import vector_store_service
 
+        if not vector_store_service.is_available():
+            await self._initialize_services()
+
         content = arguments.get("content", "")
         metadata = arguments.get("metadata", {})
+        if not metadata:
+            metadata = {k: v for k, v in arguments.items() if k != "content"}
 
         if not content:
             return {"indexed": False, "error": "Content is required for indexing"}
@@ -538,10 +552,12 @@ class IRAgent(BaseAgentServer):
             return None
 
         data = resp.json()
-        weather_desc = data["weather"][0]["description"]
-        temp = data["main"]["temp"]
-        humidity = data["main"]["humidity"]
-        wind_speed = data["wind"]["speed"]
+        weather_list = data.get("weather", [])
+        weather_desc = weather_list[0].get("description", "clear") if weather_list else "clear"
+        main_data = data.get("main", {})
+        temp = main_data.get("temp", "N/A")
+        humidity = main_data.get("humidity", "N/A")
+        wind_speed = data.get("wind", {}).get("speed", "N/A")
 
         content_str = (
             f"Current weather in {location}: {weather_desc}, Temperature: {temp}°C, "

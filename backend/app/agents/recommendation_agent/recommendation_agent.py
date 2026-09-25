@@ -311,7 +311,11 @@ class RecommendationAgent(BaseAgentServer):
         ):
             normalized[0]["priority"] = "immediate"
 
-        return {"prioritized": self._sort_by_priority(normalized)}
+        sorted_recs = self._sort_by_priority(normalized)
+        return {
+            "prioritized": sorted_recs,
+            "recommendations": sorted_recs,
+        }
 
     # =========================================================================
     # Tool: personalize_advice
@@ -337,20 +341,22 @@ class RecommendationAgent(BaseAgentServer):
         location = arguments.get("location")
 
         if not recommendations:
-            return {"personalized": []}
+            return {"personalized": [], "recommendations": []}
 
         # Try LLM personalization; fall back to lightweight rule-based tailoring.
         llm_personalized = await self._llm_personalize(
             recommendations, user_type, location
         )
         if llm_personalized:
-            return {"personalized": self._sort_by_priority(llm_personalized)}
+            sorted_p = self._sort_by_priority(llm_personalized)
+            return {"personalized": sorted_p, "recommendations": sorted_p}
 
         # Rule-based tailoring: append location context to the explanation.
         for rec in recommendations:
             if location and location.lower() not in (rec["explanation"] or "").lower():
                 rec["explanation"] = (rec["explanation"] or "").rstrip(".") + f" (relevant for {location})."
-        return {"personalized": self._sort_by_priority(recommendations)}
+        sorted_p = self._sort_by_priority(recommendations)
+        return {"personalized": sorted_p, "recommendations": sorted_p}
 
     # =========================================================================
     # Rule-based recommendation engine

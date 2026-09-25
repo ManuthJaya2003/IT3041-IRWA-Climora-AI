@@ -73,8 +73,11 @@ AGENT_RUNNERS = {
 
 def main():
     """Start agent servers as separate processes."""
+    multiprocessing.freeze_support()
+
     # Determine which agents to start
-    requested = sys.argv[1:] if len(sys.argv) > 1 else list(AGENT_RUNNERS.keys())
+    raw_requested = sys.argv[1:] if len(sys.argv) > 1 else list(AGENT_RUNNERS.keys())
+    requested = [name.lower().replace("_agent", "") for name in raw_requested]
 
     processes = []
 
@@ -84,8 +87,8 @@ def main():
 
     for agent_name in requested:
         if agent_name not in AGENT_RUNNERS:
-            print(f"  ✗ Unknown agent: {agent_name}")
-            print(f"    Available: {', '.join(AGENT_RUNNERS.keys())}")
+            print(f"  [!] Unknown agent: {agent_name}")
+            print(f"      Available: {', '.join(AGENT_RUNNERS.keys())}")
             continue
 
         print(f"  Starting: {agent_name} agent...")
@@ -109,9 +112,10 @@ def main():
         print("\n  Stopping all agents...")
         for name, process in processes:
             process.terminate()
-            print(f"  ✓ {name} stopped")
+            print(f"  [OK] {name} stopped")
         print("  All agents stopped.")
 
 
 if __name__ == "__main__":
+    multiprocessing.freeze_support()
     main()
