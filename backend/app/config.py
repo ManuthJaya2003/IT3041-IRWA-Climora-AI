@@ -3,6 +3,20 @@ Application configuration and environment settings.
 Loads from .env file and provides typed access to all config values.
 """
 
+import sys
+
+# Ensure UTF-8 output encoding on Windows consoles
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 from pydantic_settings import BaseSettings
 from pydantic import Field
 from typing import Optional
