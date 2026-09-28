@@ -112,6 +112,32 @@ HAZARD_KEYWORDS: dict[str, list[str]] = {
 # influence the assessment even when no strong probability keyword is present.
 _HIGH_PRECIP_PROB = re.compile(r"precipitation prob\w*[^0-9]*\[?([0-9]{1,3})", re.IGNORECASE)
 
+# Topics that describe routine weather rather than a specific hazard. For these
+# queries the risk is judged from LIVE readings, not from background documents.
+GENERAL_WEATHER_TOPICS = {"", "temperature", "weather", "forecast", "climate", "climate change"}
+
+# Hazards for which rainfall readings say nothing about (or even oppose) the risk.
+RAIN_IRRELEVANT_TOPICS = {"drought", "water-scarcity", "heat-wave", "wildfire", "air-quality"}
+
+# For a hazard-specific query, only hazards related to that topic may be taken
+# from background documents (stops stray words like "monsoon" or "high temperature"
+# in a document from creating unrelated factors, e.g. "heavy rainfall" on a drought query).
+HAZARD_TOPIC_FACTORS: dict[str, set[str]] = {
+    "flood":          {"flooding", "heavy rainfall", "landslide", "coastal / sea-level risk", "cyclone / storm"},
+    "rain":           {"flooding", "heavy rainfall", "landslide", "cyclone / storm"},
+    "drought":        {"drought", "crop / agricultural risk", "wildfire", "extreme heat"},
+    "water-scarcity": {"drought", "crop / agricultural risk"},
+    "heat-wave":      {"extreme heat", "drought", "wildfire"},
+    "cyclone":        {"cyclone / storm", "flooding", "heavy rainfall", "coastal / sea-level risk"},
+    "storm":          {"cyclone / storm", "flooding", "heavy rainfall", "coastal / sea-level risk"},
+    "landslide":      {"landslide", "heavy rainfall", "flooding", "soil erosion"},
+    "sea-level-rise": {"coastal / sea-level risk", "flooding", "cyclone / storm", "soil erosion"},
+    "air-quality":    {"poor air quality"},
+    "wildfire":       {"wildfire", "drought", "extreme heat"},
+    "erosion":        {"soil erosion", "landslide", "flooding"},
+    "agriculture":    {"crop / agricultural risk", "drought", "flooding", "heavy rainfall"},
+}
+
 # Score band boundaries -> risk level label.
 RISK_BANDS: list[tuple[int, str]] = [
     (6, "low"),
@@ -197,13 +223,42 @@ class AnalysisAgent(BaseAgentServer):
             }
 
         # 1. Deterministic risk assessment from the evidence text.
-        combined_text = self._combine_evidence_text(evidence)
-        rule_assessment = self._assess_risk_from_text(combined_text, entities)
+        #    Live readings drive CURRENT risk (numeric thresholds). Background
+        #    documents describe long-term regional patterns, so they only drive the
+        #    assessment when the question is about a specific hazard - or when
+        #    there are no live readings at all (e.g. a question with no location).
+        live_docs, background_docs = self._split_evidence(evidence)
+        topic = str(entities.get("climate_topic") or entities.get("hazard_type") or "").lower()
+        hazard_specific = topic not in GENERAL_WEATHER_TOPICS
+        scan_docs = background_docs if (hazard_specific or not live_docs) else []
+        if not scan_docs and not live_docs:
+            scan_docs = evidence   # nothing labelled: fall back to all evidence
+        use_rain = topic not in RAIN_IRRELEVANT_TOPICS
 
-        # 2. Extract concrete risk factors (hazards present in the evidence).
-        risk_factors = self._extract_risk_factors(combined_text, entities)
+        scan_text = self._combine_evidence_text(scan_docs)
+        live_text = self._combine_evidence_text(live_docs, limit=8)
+        rule_assessment = self._assess_risk_from_text(
+            scan_text, entities, live_text=live_text, use_rain=use_rain
+        )
+
+        # 2. Extract concrete risk factors: numeric live signals first, then
+        #    hazards named in on-topic background documents.
+        risk_factors = self._live_risk_factors(live_docs, include_rain=use_rain)
+        background_factors = self._extract_risk_factors(scan_text, entities) if scan_text else []
+        allowed_factors = HAZARD_TOPIC_FACTORS.get(topic)
+        if allowed_factors:
+            background_factors = [f for f in background_factors if f in allowed_factors]
+        for factor in background_factors:
+            if factor not in risk_factors:
+                risk_factors.append(factor)
         if not risk_factors and rule_assessment["hazard"]:
             risk_factors = [rule_assessment["hazard"]]
+        if risk_factors and not rule_assessment["hazard"]:
+            rule_assessment["hazard"] = risk_factors[0]
+            rule_assessment["explanation"] = rule_assessment["explanation"].replace(
+                " based on the retrieved climate evidence.",
+                f" driven primarily by {risk_factors[0]}.",
+            )
 
         # 3. Optional LLM enrichment (summary, detailed analysis, claims, risk view).
         llm_result = await self._llm_enrich(query, evidence, rule_assessment)
@@ -354,7 +409,9 @@ class AnalysisAgent(BaseAgentServer):
     # Rule-based risk engine
     # =========================================================================
 
-    def _assess_risk_from_text(self, text: str, entities: dict) -> dict:
+    def _assess_risk_from_text(
+        self, text: str, entities: dict, live_text: str = "", use_rain: bool = True
+    ) -> dict:
         """
         Run the severity x probability risk matrix over the evidence text.
 
@@ -366,14 +423,31 @@ class AnalysisAgent(BaseAgentServer):
         severity = self._score_from_keywords(text_lower, SEVERITY_KEYWORDS, default=2)
         probability = self._score_from_keywords(text_lower, PROBABILITY_KEYWORDS, default=2)
 
+        # Numeric signals come from live readings (plus any text passed in).
+        # Keyword scanning above uses `text` only, so live-API boilerplate such as
+        # "forecast" or "air quality" can no longer inflate the score.
+        numeric_text = (live_text + "\n" + text) if live_text else text
+        numeric_lower = numeric_text.lower()
+
+        # AQI: only a genuinely poor reading counts (>100 = unhealthy for sensitive groups).
+        aqi_match = re.search(r"us aqi is (\d+)", numeric_lower)
+        if aqi_match:
+            aqi = int(aqi_match.group(1))
+            if aqi >= 201:
+                severity, probability = max(severity, 4), max(probability, 4)
+            elif aqi >= 151:
+                severity, probability = max(severity, 3), max(probability, 4)
+            elif aqi >= 101:
+                severity, probability = max(severity, 2), max(probability, 4)
+
         # Numeric overrides from live API readings.
         # These signals lift severity/probability when live data is clearly
         # significant. Capped conservatively so routine rain doesn't score "critical".
 
         # 1. Precipitation probability — use the maximum value in the array
-        precip_match = _HIGH_PRECIP_PROB.search(text)
+        precip_match = _HIGH_PRECIP_PROB.search(numeric_text) if use_rain else None
         if precip_match:
-            vicinity = text[precip_match.start():precip_match.start() + 200]
+            vicinity = numeric_text[precip_match.start():precip_match.start() + 200]
             all_vals = re.findall(r'\b(\d{1,3})\b', vicinity)
             try:
                 max_pct = max(int(v) for v in all_vals if int(v) <= 100)
@@ -390,11 +464,16 @@ class AnalysisAgent(BaseAgentServer):
 
         # 2. Daily precipitation totals (mm) — high totals raise severity
         precip_total_match = re.search(
-            r'precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]', text_lower
+            r'precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]', numeric_lower
+        ) if use_rain else None
+        owm_rain_vals = (
+            [float(v) for v in re.findall(r"rain (\d+\.?\d*) mm", numeric_lower)] if use_rain else []
         )
-        if precip_total_match:
+        if precip_total_match or owm_rain_vals:
             try:
-                vals = [float(v) for v in re.findall(r'\d+\.?\d*', precip_total_match.group(1))]
+                vals = list(owm_rain_vals)
+                if precip_total_match:
+                    vals += [float(v) for v in re.findall(r'\d+\.?\d*', precip_total_match.group(1))]
                 if vals:
                     max_mm = max(vals)
                     if max_mm >= 50:     # ≥50mm/day → genuinely severe
@@ -410,7 +489,7 @@ class AnalysisAgent(BaseAgentServer):
                 pass
 
         # 3. River discharge (flood API) — high discharge raises flood severity
-        discharge_match = re.search(r'river discharge[^:]*:\s*\[([^\]]+)\]', text_lower)
+        discharge_match = re.search(r'river discharge[^:]*:\s*\[([^\]]+)\]', numeric_lower)
         if discharge_match:
             try:
                 vals = [float(v) for v in re.findall(r'\d+\.?\d*', discharge_match.group(1))]
@@ -498,6 +577,63 @@ class AnalysisAgent(BaseAgentServer):
             if any(kw in text_lower for kw in keywords):
                 return label
         return ""
+
+    @staticmethod
+    def _live_risk_factors(live_docs: list, include_rain: bool = True) -> list[str]:
+        """
+        Name hazards from live NUMERIC readings only, using real thresholds
+        (so "Current air quality ... AQI is 42" is NOT reported as poor air quality).
+        """
+        factors: list[str] = []
+
+        def add(label: str) -> None:
+            if label not in factors:
+                factors.append(label)
+
+        for doc in live_docs:
+            text = (doc.get("content") or doc.get("snippet") or "").lower()
+
+            aqi = re.search(r"us aqi is (\d+)", text)
+            pm25 = re.search(r"pm2\.5 is ([\d.]+)", text)
+            if (aqi and int(aqi.group(1)) >= 101) or (pm25 and float(pm25.group(1)) >= 35.5):
+                add("poor air quality")
+
+            if include_rain:
+                mm_vals = [float(v) for v in re.findall(r"rain (\d+\.?\d*) mm", text)]
+                totals = re.search(r"precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]", text)
+                if totals:
+                    mm_vals += [float(v) for v in re.findall(r"\d+\.?\d*", totals.group(1))]
+                if mm_vals and max(mm_vals) >= 50:
+                    add("heavy rainfall")
+
+            discharge = re.search(r"river discharge[^:]*:\s*\[([^\]]+)\]", text)
+            if discharge:
+                vals = [float(v) for v in re.findall(r"\d+\.?\d*", discharge.group(1))]
+                if vals and max(vals) >= 500:
+                    add("flooding")
+
+            temp = re.search(r"temperature(?: is|:)\s*(-?\d+\.?\d*)", text)
+            if temp and float(temp.group(1)) >= 35:
+                add("extreme heat")
+
+            waves = re.search(r"maximum wave heights\s*\[([^\]]+)\]", text)
+            if waves:
+                vals = [float(v) for v in re.findall(r"\d+\.?\d*", waves.group(1))]
+                if vals and max(vals) >= 3.5:
+                    add("coastal / sea-level risk")
+        return factors
+
+    @staticmethod
+    def _split_evidence(evidence: list) -> tuple[list, list]:
+        """Split evidence into (live readings, on-topic background documents)."""
+        live, background = [], []
+        for doc in evidence:
+            etype = doc.get("evidence_type")
+            if etype == "live" or (etype is None and doc.get("date") == "live"):
+                live.append(doc)
+            elif doc.get("topic_match", True):
+                background.append(doc)
+        return live, background
 
     @staticmethod
     def _extract_risk_factors(text_lower_source: str, entities: dict) -> list[str]:
@@ -637,7 +773,11 @@ class AnalysisAgent(BaseAgentServer):
             if not llm_service.is_available() or llm_service.get_provider() == "mock":
                 return None
 
-            evidence_text = self._combine_evidence_text(evidence, limit=5, per_doc=500)
+            live_docs, background_docs = self._split_evidence(evidence)
+            ordered = live_docs[:4] + background_docs[:4] or evidence[:5]
+            evidence_text = self._combine_evidence_text(
+                ordered, limit=8, per_doc=500, label=True
+            )
 
             prompt = f"""You are a climate risk analyst. Analyze the query using ONLY the evidence.
 
@@ -656,6 +796,10 @@ Return ONLY a valid JSON object with these keys:
 - "detailed_analysis": one detailed paragraph
 - "claims": list of key factual claims (each independently checkable)
 
+Evidence marked LIVE is a current measurement. Evidence marked BACKGROUND describes
+long-term regional patterns, NOT current conditions: judge the current risk level from
+LIVE readings, and use BACKGROUND only for context or when the query asks about a
+specific hazard in general. Do not report a hazard as present unless the evidence supports it.
 Do not invent data not present in the evidence."""
 
             response = await llm_service.invoke_model(
@@ -728,13 +872,22 @@ Do not invent data not present in the evidence."""
         return round(min(max(confidence, 0.0), 1.0), 2)
 
     @staticmethod
-    def _combine_evidence_text(evidence: list, limit: int = 8, per_doc: int = 600) -> str:
+    def _combine_evidence_text(
+        evidence: list, limit: int = 8, per_doc: int = 600, label: bool = False
+    ) -> str:
         """Concatenate evidence content into a single text block for scanning."""
         parts: list[str] = []
         for doc in evidence[:limit]:
             name = doc.get("source_name", doc.get("source", "source"))
             content = doc.get("content") or doc.get("snippet") or ""
-            parts.append(f"[{name}]: {content[:per_doc]}")
+            tag = ""
+            if label:
+                is_live = doc.get("evidence_type") == "live" or (
+                    doc.get("evidence_type") is None and doc.get("date") == "live"
+                )
+                tag = "LIVE" if is_live else "BACKGROUND"
+                tag = f"{tag} - "
+            parts.append(f"[{tag}{name}]: {content[:per_doc]}")
         return "\n".join(parts)
 
     @staticmethod
