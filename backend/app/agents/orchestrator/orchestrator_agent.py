@@ -385,7 +385,7 @@ class OrchestratorAgent:
         task_payload = {
             "structured_query": structured_query,
             "entities": entities,
-            "top_k": 5,
+            "top_k": 10,
         }
 
         result = await self.mcp_client.call_agent_tool(
@@ -825,7 +825,7 @@ Do not make claims beyond what the evidence supports.
         # Format evidence for the LLM
         evidence_text = ""
         if evidence:
-            for i, doc in enumerate(evidence[:5], 1):
+            for i, doc in enumerate(evidence[:8], 1):
                 source = doc.get("source_name", "Unknown")
                 content = doc.get("content", doc.get("snippet", ""))[:500]
                 location = doc.get("location", "")

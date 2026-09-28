@@ -176,6 +176,25 @@ def _location_matches(requested: str, document_location: str) -> bool:
     return False
 
 
+def _is_sri_lankan(location: str) -> bool:
+    """True unless the location string explicitly names another country."""
+    loc = location.lower()
+    if "sri lanka" in loc or "," not in loc:
+        return True
+    return False
+
+
+def _base_place_name(location: str) -> str:
+    """'Jaffna, Sri Lanka' -> 'Jaffna'."""
+    return location.split(",")[0].strip()
+
+
+# Evidence budgets (live API results and FAISS documents are budgeted separately)
+MAX_LIVE_SOURCES = 6     # max live API evidence items per query
+MIN_FAISS_DOCS = 3       # try to return at least this many knowledge-base docs
+                         # (backfilled from same-location / country-wide docs)
+
+
 class IRAgent(BaseAgentServer):
     """Information Retrieval Agent for searching and retrieving climate evidence."""
 
@@ -252,7 +271,8 @@ class IRAgent(BaseAgentServer):
         Input:
             - structured_query (dict): Structured query from NLP agent
             - entities (dict): Extracted entities (location, topic, etc.)
-            - top_k (int): Number of results to return (default 5)
+            - top_k (int): Max knowledge-base documents to return (default 10).
+              Live API results are returned in addition to this.
 
         Output:
             - documents (list): Retrieved documents with metadata
@@ -270,7 +290,7 @@ class IRAgent(BaseAgentServer):
             or arguments.get("query", "")
         )
         entities = arguments.get("entities", {})
-        top_k = arguments.get("top_k", 5)
+        top_k = arguments.get("top_k", 10)
 
         if not self._is_climate_query(query, entities):
             return {
@@ -303,8 +323,11 @@ class IRAgent(BaseAgentServer):
 
         # Budget split: reserve half the slots for live API data, half for FAISS.
         # This ensures current readings are always represented alongside indexed docs.
-        live_budget = max(1, top_k // 2)
-        faiss_budget = top_k - live_budget
+        # Live API evidence and knowledge-base evidence have SEPARATE budgets so
+        # live readings can never crowd out indexed documents (previously they
+        # shared top_k=5, leaving only ~3 FAISS slots that were then filtered away).
+        live_budget = MAX_LIVE_SOURCES
+        faiss_budget = max(top_k, MIN_FAISS_DOCS)
 
         # Topic compatibility map — defines which FAISS document topics are
         # relevant for a given query climate_topic.  A drought doc should not
@@ -323,29 +346,40 @@ class IRAgent(BaseAgentServer):
             "erosion":        {"erosion", "landslide", "flood", "agriculture", "climate-policy"},
             "water-scarcity": {"water-scarcity", "drought", "agriculture", "water-resources", "climate-policy"},
             "agriculture":    {"agriculture", "drought", "flood", "rain", "water-resources", "climate-policy"},
-            "temperature":    {"heat-wave", "climate-health", "climate-policy"},
+            # General weather / "now" queries: allow the full set of local
+            # climate context (this used to exclude "temperature" itself).
+            "temperature":    {"temperature", "heat-wave", "rain", "flood", "drought", "cyclone",
+                               "thunderstorm", "agriculture", "water-scarcity", "water-resources",
+                               "climate-health", "climate-policy"},
             "storm":          {"cyclone", "flood", "rain", "sea-level-rise", "climate-policy"},
         }
 
         query_topic = entities.get("climate_topic") or entities.get("hazard_type") or ""
         allowed_topics: set[str] | None = TOPIC_COMPATIBILITY.get(query_topic)
+        if allowed_topics is not None:
+            allowed_topics = allowed_topics | {query_topic}   # a topic always matches itself
 
         # Step 1: Query External APIs (OpenWeatherMap & Open-Meteo) for live readings
         external_results = await self._search_external_sources(query, entities)
         live_results = external_results[:live_budget]
+        for _doc in live_results:
+            _doc["evidence_type"] = "live"
 
-        # Step 2: Query FAISS Local Vector Store for semantically similar documents
+        # Step 2: Query FAISS Local Vector Store for semantically similar documents.
+        # Two-pass selection so a strict topic filter can't leave the answer empty:
+        #   pass 1 - location match AND topic-compatible (best evidence)
+        #   pass 2 - location match, any topic (local context backfill)
+        #   pass 3 - country-wide documents (regional backfill)
         faiss_documents = []
         seen_content: set[str] = set()   # dedup key: first 120 chars of content
         try:
             faiss_results = await vector_store_service.query_similar(
                 query_text=search_query or "climate risk",
-                top_k=faiss_budget * 4  # Over-fetch to account for location + topic filtering
+                top_k=faiss_budget * 8  # Over-fetch: location/topic filters discard many hits
             )
 
+            candidates = []
             for r in faiss_results:
-                if len(faiss_documents) >= faiss_budget:
-                    break
                 metadata = r.get("metadata", {})
                 doc_topic = metadata.get("topic", "climate").lower().strip()
                 document = {
@@ -358,30 +392,70 @@ class IRAgent(BaseAgentServer):
                     "location": metadata.get("location", ""),
                     "date": metadata.get("date", "live")
                 }
-                source_name = document["source_name"].strip().lower()
-                if source_name == "test":
+                if document["source_name"].strip().lower() == "test":
                     continue
-                # Fuzzy location filter
-                if requested_location and document["location"]:
-                    if not _location_matches(requested_location, str(document["location"])):
-                        continue
-                # Topic relevance filter — skip docs whose topic is incompatible
-                # with the query (e.g. drought docs for a rain/flood query).
-                # Only applied when a specific climate topic was detected.
-                if allowed_topics is not None and doc_topic not in allowed_topics:
-                    continue
-                # Deduplicate
-                content_key = document["content"][:120].strip()
+                candidates.append(document)
+
+            def _take(doc: dict, topic_match: bool = False) -> None:
+                content_key = doc["content"][:120].strip()
                 if content_key in seen_content:
-                    continue
+                    return
                 seen_content.add(content_key)
-                faiss_documents.append(document)
+                # evidence_type / topic_match let the Analysis agent tell live
+                # readings from background documents, and on-topic from context-only ones.
+                doc["evidence_type"] = "knowledge_base"
+                doc["topic_match"] = topic_match
+                faiss_documents.append(doc)
+
+            def _loc_ok(doc: dict) -> bool:
+                if not (requested_location and doc["location"]):
+                    return True
+                return _location_matches(requested_location, str(doc["location"]))
+
+            def _is_country_wide(doc: dict) -> bool:
+                return str(doc["location"]).strip().lower() in ("sri lanka", "")
+
+            # Pass 1: location + topic
+            for doc in candidates:
+                if len(faiss_documents) >= faiss_budget:
+                    break
+                if not _loc_ok(doc):
+                    continue
+                if allowed_topics is not None and doc["topic"] not in allowed_topics:
+                    continue
+                _take(doc, topic_match=True)
+
+            # Pass 2: same location, any topic (only if still short of the minimum)
+            if len(faiss_documents) < MIN_FAISS_DOCS:
+                for doc in candidates:
+                    if len(faiss_documents) >= faiss_budget:
+                        break
+                    if requested_location and doc["location"] and _loc_ok(doc) and not _is_country_wide(doc):
+                        _take(doc)
+
+            # Pass 3: country-wide documents on a compatible topic
+            if len(faiss_documents) < MIN_FAISS_DOCS:
+                for doc in candidates:
+                    if len(faiss_documents) >= faiss_budget:
+                        break
+                    # Skip generic policy/education documents as padding: they are
+                    # rarely relevant to a live weather or hazard question.
+                    if doc["topic"] == "climate-policy" and not any(
+                        w in query.lower() for w in ("policy", "plan", "adaptation", "government")
+                    ):
+                        continue
+                    if _is_country_wide(doc) and (allowed_topics is None or doc["topic"] in allowed_topics):
+                        _take(doc, topic_match=True)
         except Exception as exc:
             logger.warning("FAISS query failed: %s", exc)
 
         # Combine: live results first (higher priority), then FAISS
         documents = live_results + faiss_documents
-        return {"documents": documents[:top_k] if documents else []}
+        logger.info(
+            "IR retrieval for %r: %d live + %d knowledge-base documents",
+            query, len(live_results), len(faiss_documents),
+        )
+        return {"documents": documents if documents else []}
 
     async def search_sources(self, arguments: dict) -> dict:
         """
@@ -490,12 +564,21 @@ class IRAgent(BaseAgentServer):
         if cached is not None:
             return cached
 
-        resp = await _http_get_with_retry(
-            "https://geocoding-api.open-meteo.com/v1/search",
-            params={"name": location_name, "count": 1},
-        )
+        # Prefer a Sri Lankan match so ambiguous names can't resolve abroad;
+        # fall back to an unrestricted search only if nothing is found in LK.
+        results: list = []
+        attempts = []
+        if _is_sri_lankan(location_name):
+            attempts.append({"name": _base_place_name(location_name), "count": 1, "countryCode": "LK"})
+        attempts.append({"name": _base_place_name(location_name) or location_name, "count": 1})
+        resp = None
+        for params in attempts:
+            resp = await _http_get_with_retry("https://geocoding-api.open-meteo.com/v1/search", params=params)
+            if resp is not None:
+                results = resp.json().get("results") or []
+                if results:
+                    break
         if resp is not None:
-            results = resp.json().get("results") or []
             if results:
                 place = results[0]
                 resolved_name = ", ".join(
@@ -528,6 +611,22 @@ class IRAgent(BaseAgentServer):
         query_lower = query.lower()
         return any(term in query_lower for term in CLIMATE_QUERY_TERMS)
 
+    async def _owm_get(self, endpoint: str, location: str, api_key: str):
+        """Call an OpenWeatherMap endpoint, trying a Sri Lanka-qualified name first
+        (avoids same-named places abroad) then the plain name as a fallback."""
+        queries = []
+        if _is_sri_lankan(location):
+            queries.append(f"{_base_place_name(location)},LK")
+        queries.append(location)
+        for q in queries:
+            resp = await _http_get_with_retry(
+                f"https://api.openweathermap.org/data/2.5/{endpoint}",
+                params={"q": q, "appid": api_key, "units": "metric"},
+            )
+            if resp is not None:
+                return resp
+        return None
+
     async def _query_open_weather(self, location: str) -> dict | None:
         """
         Fetch current weather details from OpenWeatherMap API with caching.
@@ -543,10 +642,7 @@ class IRAgent(BaseAgentServer):
         if cached is not None:
             return cached
 
-        resp = await _http_get_with_retry(
-            "https://api.openweathermap.org/data/2.5/weather",
-            params={"q": location, "appid": api_key, "units": "metric"},
-        )
+        resp = await self._owm_get("weather", location, api_key)
         if resp is None:
             logger.warning("OpenWeatherMap API returned no response for location '%s'", location)
             return None
@@ -600,6 +696,18 @@ class IRAgent(BaseAgentServer):
         #    returning Colombo's weather.
         latitude, longitude, resolved_name = await self._geocode_location(loc_str)
 
+        # If geocoding failed it falls back to Colombo. Never present Colombo's
+        # readings as evidence for a different place: keep OWM (already fetched
+        # by name) and skip the coordinate-based sources instead.
+        if (
+            resolved_name == DEFAULT_LOCATION_NAME
+            and _base_place_name(loc_str).lower() != _base_place_name(DEFAULT_LOCATION_NAME).lower()
+            and "sri lanka" != loc_str.lower().strip()
+            and "province" not in loc_str.lower()
+        ):
+            logger.warning("Geocoding failed for %r - skipping coordinate-based sources", loc_str)
+            return results
+
         # 3. Fetch live data from Open-Meteo API as reliable free fallback
         cache_key = f"open_meteo_forecast:{latitude:.4f},{longitude:.4f}"
         cached = _cache_get(cache_key)
@@ -649,6 +757,23 @@ class IRAgent(BaseAgentServer):
             else:
                 logger.warning("Open-Meteo forecast API returned no response for %s", resolved_name)
 
+        # 3b. Extra live context so every weather answer has richer evidence:
+        #     OpenWeatherMap 5-day outlook, 30-day observed history, current air quality.
+        owm_forecast = await self._query_owm_forecast(loc_str)
+        if owm_forecast:
+            results.append(owm_forecast)
+
+        history = await self._query_open_meteo_history(latitude, longitude, resolved_name)
+        if history:
+            results.append(history)
+
+        q_lower = query.lower()
+        air_already = any(t in q_lower for t in ("air quality", "pollution", "pm2.5", "smog"))
+        if not air_already:
+            air = await self._query_open_meteo_air_quality(latitude, longitude, resolved_name)
+            if air:
+                results.append(air)
+
         # 4. Add topic-specific public data products when the query needs them.
         if any(term in query.lower() for term in ("flood", "flooding", "river", "overflow")):
             flood_result = await self._query_open_meteo_flood(
@@ -672,6 +797,118 @@ class IRAgent(BaseAgentServer):
                 results.append(marine_result)
 
         return results
+
+    async def _query_owm_forecast(self, location: str) -> dict | None:
+        """Summarise OpenWeatherMap's 5-day / 3-hour forecast into daily min/max + rain."""
+        api_key = settings.openweather_api_key
+        if not api_key:
+            return None
+        cache_key = f"owm_forecast:{location.lower().strip()}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        resp = await self._owm_get("forecast", location, api_key)
+        if resp is None:
+            logger.warning("OpenWeatherMap forecast returned no response for '%s'", location)
+            return None
+        data = resp.json()
+        slots = data.get("list", [])
+        if not slots:
+            return None
+
+        days: dict[str, dict] = {}
+        for slot in slots:
+            day = str(slot.get("dt_txt", ""))[:10]
+            if not day:
+                continue
+            temp = slot.get("main", {}).get("temp")
+            rain = slot.get("rain", {}).get("3h", 0.0) or 0.0
+            pop = slot.get("pop", 0.0) or 0.0
+            d = days.setdefault(day, {"tmin": temp, "tmax": temp, "rain": 0.0, "pop": 0.0})
+            if temp is not None:
+                d["tmin"] = temp if d["tmin"] is None else min(d["tmin"], temp)
+                d["tmax"] = temp if d["tmax"] is None else max(d["tmax"], temp)
+            d["rain"] += rain
+            d["pop"] = max(d["pop"], pop)
+
+        parts = [
+            f"{day}: {d['tmin']:.0f}-{d['tmax']:.0f}°C, rain {d['rain']:.1f} mm, "
+            f"chance of rain up to {d['pop'] * 100:.0f}%"
+            for day, d in list(days.items())[:5]
+        ]
+        content_str = f"Five-day forecast outlook for {location} (OpenWeatherMap): " + "; ".join(parts) + "."
+        city_id = data.get("city", {}).get("id", "")
+        result = {
+            "source_name": "OpenWeatherMap 5-Day Forecast",
+            "url": f"https://openweathermap.org/city/{city_id}",
+            "content": content_str,
+            "snippet": content_str,
+            "reliability_score": 0.90,
+            "topic": "weather_forecast",
+            "location": location,
+            "date": "live",
+        }
+        _cache_set(cache_key, result)
+        return result
+
+    async def _query_open_meteo_history(
+        self, latitude: float, longitude: float, location: str
+    ) -> dict | None:
+        """Observed last-30-day temperature and rainfall (Open-Meteo archive / ERA5)."""
+        from datetime import date, timedelta
+
+        endpoint = "https://archive-api.open-meteo.com/v1/archive"
+        end = date.today() - timedelta(days=2)      # archive lags a couple of days
+        start = end - timedelta(days=29)
+        params = {
+            "latitude": latitude,
+            "longitude": longitude,
+            "start_date": start.isoformat(),
+            "end_date": end.isoformat(),
+            "daily": "temperature_2m_mean,precipitation_sum",
+            "timezone": "auto",
+        }
+        cache_key = f"open_meteo_history:{latitude:.4f},{longitude:.4f}:{end.isoformat()}"
+        cached = _cache_get(cache_key)
+        if cached is not None:
+            return cached
+
+        resp = await _http_get_with_retry(endpoint, params)
+        if resp is None:
+            logger.warning("Open-Meteo archive API returned no response for %s", location)
+            return None
+        daily = resp.json().get("daily", {})
+        temps = [t for t in daily.get("temperature_2m_mean", []) if t is not None]
+        rain = [r for r in daily.get("precipitation_sum", []) if r is not None]
+        if not temps and not rain:
+            return None
+
+        rainy_days = sum(1 for r in rain if r >= 1.0)
+        parts = []
+        if temps:
+            parts.append(
+                f"average temperature {sum(temps) / len(temps):.1f}°C "
+                f"(range {min(temps):.1f}-{max(temps):.1f}°C)"
+            )
+        if rain:
+            parts.append(f"total rainfall {sum(rain):.1f} mm over {rainy_days} rainy days")
+        content_str = (
+            f"Observed conditions for {location} over the last 30 days "
+            f"({start.isoformat()} to {end.isoformat()}): " + ", ".join(parts) + "."
+        )
+        result = {
+            "source_name": "Open-Meteo Historical Weather (ERA5)",
+            "url": f"{endpoint}?{httpx.QueryParams(params)}",
+            "content": content_str,
+            "snippet": content_str,
+            "reliability_score": 0.88,
+            "topic": "weather_history",
+            "location": location,
+            "date": end.isoformat(),
+        }
+        _cache_set(cache_key, result)
+        return result
 
     async def _query_open_meteo_flood(
         self, latitude: float, longitude: float, location: str
