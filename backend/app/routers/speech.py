@@ -30,6 +30,7 @@ class VoiceQueryRequest(BaseModel):
     query: str = Field(..., description="Transcribed text from user's voice input")
     location: Optional[str] = Field(None, description="User's location")
     session_id: Optional[str] = Field(None, description="Session ID for continuity")
+    language: Optional[str] = Field(None, description="Preferred response language (en, si, ta)")
 
 
 # --- Endpoints ---
@@ -78,6 +79,7 @@ async def voice_query(request: VoiceQueryRequest):
         query=request.query,
         location=request.location,
         session_id=request.session_id,
+        language=request.language,
     )
 
     response = await orchestrator.process_user_query(chat_request)

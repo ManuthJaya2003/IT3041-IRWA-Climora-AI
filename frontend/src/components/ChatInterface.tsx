@@ -86,6 +86,7 @@ export default function ChatInterface({
         query,
         location: location || undefined,
         session_id: sessionId || undefined,
+        language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
       })
 
       setSessionId(response.session_id)
@@ -144,6 +145,7 @@ export default function ChatInterface({
         query,
         location: location || undefined,
         session_id: sessionId || undefined,
+        language: speechLang,
       })
 
       const response = result.response
@@ -303,7 +305,8 @@ export default function ChatInterface({
                   onChange={e => setSpeechLang(e.target.value)}
                   className="text-xs bg-slate-100 border-none rounded-l-xl px-2 py-3 text-slate-600 focus:outline-none cursor-pointer h-[48px]"
                   disabled={isLoading || isListening}
-                  aria-label="Select speech language"
+                  aria-label="Select language (speech input and answers)"
+                  title="Language for voice input and answers"
                 >
                   <option value="en">EN</option>
                   <option value="si">සි</option>

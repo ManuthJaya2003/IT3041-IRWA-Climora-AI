@@ -71,7 +71,9 @@ class OrchestratorAgent:
         try:
             # --- Step 0: Language Detection ---
             from app.services.language_service import detect_language, get_language_name
-            detected_language = detect_language(request.query)
+            from app.services import i18n_service as i18n
+            # Sinhala/Tamil query -> that language; otherwise the language chosen in the UI.
+            detected_language = i18n.resolve_language(request.query, getattr(request, "language", None))
 
             # --- Steps 1 & 2: Security + NLP in parallel ---
             # These two are independent — neither depends on the other's output.
@@ -185,12 +187,8 @@ class OrchestratorAgent:
                 return ChatResponse(
                     session_id=session_id,
                     query=request.query,
-                    summary=(
-                        f"Climora AI currently covers Sri Lanka only. "
-                        f"Climate data for '{_foreign_place}' is not available in this system. "
-                        "Please ask about a location within Sri Lanka — for example: "
-                        "'What is the weather in Colombo?' or 'What is the flood risk in Kandy?'"
-                    ),
+                    summary=i18n.foreign_message(detected_language, _foreign_place),
+                    language=detected_language,
                     confidence_score=0.0,
                     processing_time_ms=(time.time() - start_time) * 1000,
                     agents_used=agents_used,
@@ -198,18 +196,19 @@ class OrchestratorAgent:
 
             # --- Step 2c: Reject non-climate queries at orchestrator level ---
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
-                from app.agents.ir_agent.ir_agent import CLIMATE_QUERY_TERMS
-                query_lower = request.query.lower()
-                import re
-                has_climate_term = any(
-                    re.search(r'\b' + re.escape(term) + r'\b', query_lower)
-                    for term in CLIMATE_QUERY_TERMS
-                )
+                from app.agents.ir_agent.ir_agent import query_has_climate_term
+                # Handles English, Sinhala and Tamil (\b word boundaries don't work
+                # for the latter two scripts).
+                has_climate_term = query_has_climate_term(request.query)
                 if not has_climate_term or intent == "non_climate":
                     return ChatResponse(
                         session_id=session_id,
                         query=request.query,
-                        summary="I can only answer climate and environmental questions for locations in Sri Lanka. Please ask about weather, hazards, climate risks, flood, drought, or preparedness for a Sri Lankan location.",
+                        summary=i18n.localize_static(
+                            "I can only answer climate and environmental questions for locations in Sri Lanka. Please ask about weather, hazards, climate risks, flood, drought, or preparedness for a Sri Lankan location.",
+                            detected_language,
+                        ),
+                        language=detected_language,
                         confidence_score=0.0,
                         processing_time_ms=(time.time() - start_time) * 1000,
                         agents_used=agents_used,
@@ -240,7 +239,11 @@ class OrchestratorAgent:
                 ask_response = ChatResponse(
                     session_id=session_id,
                     query=request.query,
-                    summary="Please specify a location in Sri Lanka for your query. For example: 'What is the weather in Colombo?', 'Is there a flood risk in Kandy?', or 'What is the drought situation in Jaffna?'",
+                    summary=i18n.localize_static(
+                        "Please specify a location in Sri Lanka for your query. For example: 'What is the weather in Colombo?', 'Is there a flood risk in Kandy?', or 'What is the drought situation in Jaffna?'",
+                        detected_language,
+                    ),
+                    language=detected_language,
                     confidence_score=0.0,
                     processing_time_ms=(time.time() - start_time) * 1000,
                     agents_used=agents_used,
@@ -263,7 +266,11 @@ class OrchestratorAgent:
                 return ChatResponse(
                     session_id=session_id,
                     query=request.query,
-                    summary="I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, or preparedness.",
+                    summary=i18n.localize_static(
+                        "I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, or preparedness.",
+                        detected_language,
+                    ),
+                    language=detected_language,
                     verification_results=verification_result,
                     confidence_score=0.0,
                     processing_time_ms=(time.time() - start_time) * 1000,
@@ -530,11 +537,51 @@ class OrchestratorAgent:
         # Overall confidence
         confidence = verification_result.get("confidence", 0.5)
 
+        # --- Language handling -------------------------------------------------
+        from app.services import i18n_service as i18n
+        entities = nlp_result.get("entities", {}) or {}
+        live_docs = [
+            d for d in ir_result.get("documents", [])
+            if d.get("evidence_type") == "live" or d.get("date") == "live"
+        ]
+
+        # No LLM (mock mode), or the LLM did not answer in the requested language:
+        # build a data-based summary from the live readings instead of a canned line.
+        if (not llm_service.is_available()) or not summary or (
+            language != "en" and not i18n.is_in_language(summary, language)
+        ):
+            summary = i18n.build_summary(
+                language,
+                entities.get("location") or request.location or "",
+                live_docs,
+                analysis_result.get("risk_level", "unknown"),
+                analysis_result.get("risk_factors", []),
+            )
+
+        detailed_analysis = analysis_result.get("detailed_analysis")
+        disclaimer = ChatResponse.model_fields["disclaimer"].default
+        if language in ("si", "ta"):
+            if risk_assessment:
+                risk_assessment.explanation = await i18n.localize_text(
+                    risk_assessment.explanation or "", language, "explanation"
+                )
+                risk_assessment.risk_factors = i18n.localize_factors(
+                    risk_assessment.risk_factors, language
+                )
+            if detailed_analysis:
+                detailed_analysis = await i18n.localize_text(detailed_analysis, language, "detailed")
+            for rec in recommendations:
+                rec.action = await i18n.localize_text(rec.action, language, "recommendation")
+                if rec.explanation:
+                    rec.explanation = await i18n.localize_text(rec.explanation, language, "recommendation")
+            disclaimer = i18n.localize_static(disclaimer, language)
+
         return ChatResponse(
             session_id=session_id,
             query=request.query,
             summary=summary,
-            detailed_analysis=analysis_result.get("detailed_analysis"),
+            detailed_analysis=detailed_analysis,
+            disclaimer=disclaimer,
             risk_assessment=risk_assessment,
             recommendations=recommendations,
             sources=sources,
