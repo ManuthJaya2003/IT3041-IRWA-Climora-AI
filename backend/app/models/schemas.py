@@ -47,6 +47,10 @@ class ChatRequest(BaseModel):
     user_type: Optional[UserType] = Field(None, description="Type of user for tailored responses")
     session_id: Optional[str] = Field(None, description="Session ID for conversation continuity")
     context: Optional[dict] = Field(None, description="Additional context (time period, specific concerns)")
+    language: Optional[str] = Field(
+        None,
+        description="Preferred response language (en, si, ta). A Sinhala/Tamil query is always answered in that language.",
+    )
 
 
 # --- Response Models ---

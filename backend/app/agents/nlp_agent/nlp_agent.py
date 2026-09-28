@@ -181,6 +181,7 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
 ]
 
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
+# Sinhala/Tamil triggers are appended right after this dict (see below).
 TOPIC_KEYWORDS: dict[str, list[str]] = {
     # General weather — checked first so "weather/forecast/temperature" queries
     # don't accidentally inherit a hazard topic from document content.
@@ -229,6 +230,29 @@ INTENT_KEYWORDS: list[tuple[str, list[str]]] = [
 
 # Off-topic terms that should never be treated as climate questions even if
 # a Sri Lanka place name is present (e.g. "Kandy train timetable").
+# --- Sinhala / Tamil topic keywords (matching is by substring, so inflected forms
+# such as "යාපනයේ" still match). Please have a native speaker review these lists.
+_MULTILINGUAL_TOPIC_KEYWORDS: dict[str, list[str]] = {
+    "temperature":    ["කාලගුණ", "උෂ්ණත්ව", "දේශගුණ", "ආර්ද්‍රතා",            # Sinhala: weather, temperature, climate, humidity
+                       "வானிலை", "வெப்பநிலை", "காலநிலை", "ஈரப்பதம்", "முன்னறிவிப்பு"],  # Tamil: weather, temperature, climate, humidity, forecast
+    "flood":          ["ගංවතුර", "ගං වතුර", "ජල ගැලීම",
+                       "வெள்ள",   # stem: வெள்ளம், வெள்ளப்பெருக்கு, வெள்ள அபாயம் (final "ம்" drops before a noun)
+                       ],
+    "drought":        ["නියඟ", "නියග", "ජල හිඟ",
+                       "வறட்சி", "தண்ணீர் பற்றாக்குறை"],
+    "heat-wave":      ["අධික රස්නය", "රස්නය", "வெப்ப அலை", "கடும் வெப்பம்"],
+    "cyclone":        ["සුළි සුළං", "සුළිසුළං", "සුළිසුළඟ", "சூறாவளி"],
+    "landslide":      ["නායයෑම", "නායයාම", "නායයෑ", "நிலச்சரிவு", "மண்சரிவு"],
+    "sea-level-rise": ["මුහුදු මට්ටම", "கடல் மட்டம்"],
+    "rain":           ["වැස්ස", "වර්ෂා", "மழை"],
+    "air-quality":    ["වායු දූෂණ", "වායු ගුණාත්මක", "காற்று மாசு", "காற்றின் தரம்"],
+    "storm":          ["කුණාටු", "புயல்"],
+    "agriculture":    ["කෘෂිකර්ම", "ගොවි", "விவசாய"],
+}
+for _topic, _kws in _MULTILINGUAL_TOPIC_KEYWORDS.items():
+    if _topic in TOPIC_KEYWORDS:
+        TOPIC_KEYWORDS[_topic].extend(_kws)
+
 NON_CLIMATE_TERMS: list[str] = [
     "price of", "cost of", "how much does", "how much is",
     "train", "bus", "flight", "timetable", "schedule", "ticket",
@@ -272,6 +296,10 @@ DATE_KEYWORDS: tuple[str, ...] = (
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday",
     "january", "february", "march", "april", "may", "june", "july", "august",
     "september", "october", "november", "december",
+    # Sinhala: now, today, tomorrow, yesterday
+    "දැන්", "අද", "හෙට", "ඊයේ",
+    # Tamil: now, today, tomorrow, yesterday
+    "இப்போது", "இன்று", "நாளை", "நேற்று",
 )
 
 

@@ -17,6 +17,8 @@ export interface ChatRequest {
   user_type?: string
   session_id?: string
   context?: Record<string, unknown>
+  /** Preferred answer language: 'en' | 'si' | 'ta'. A Sinhala/Tamil query is always answered in that language. */
+  language?: string
 }
 
 export interface SourceEvidence {
@@ -96,6 +98,7 @@ export async function sendVoiceQuery(request: {
   query: string
   location?: string
   session_id?: string
+  language?: string
 }): Promise<VoiceQueryResponse> {
   const response = await api.post<VoiceQueryResponse>('/speech/voice-query', request)
   return response.data

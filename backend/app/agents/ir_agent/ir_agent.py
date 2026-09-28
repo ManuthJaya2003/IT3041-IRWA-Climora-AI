@@ -48,7 +48,34 @@ CLIMATE_QUERY_TERMS = (
     "storm", "cyclone", "heat", "temperature", "humidity", "wind", "agriculture",
     "environment", "pollution", "landslide", "water", "irrigation", "sea level",
     "forecast", "disaster", "preparedness", "risk",
+    # Sinhala
+    "කාලගුණ", "දේශගුණ", "උෂ්ණත්ව", "වැස්ස", "වර්ෂා", "ගංවතුර", "නියඟ", "නියග",
+    "නායයෑ", "කුණාටු", "සුළි සුළං", "සුළඟ", "සුළං", "රස්නය", "ආපදා", "අවදානම",
+    "පරිසර", "ජලය", "කෘෂිකර්ම", "මුහුදු මට්ටම", "වායු දූෂණ",
+    # Tamil
+    "வானிலை", "காலநிலை", "வெப்பநிலை", "வெப்பம்", "மழை", "வெள்ள", "வறட்சி",
+    "புயல்", "சூறாவளி", "நிலச்சரிவு", "மண்சரிவு", "காற்று", "பேரிடர்", "அனர்த்தம்",
+    "ஆபத்து", "சுற்றுச்சூழல்", "நீர்", "விவசாய", "கடல் மட்டம்", "முன்னறிவிப்பு",
 )
+
+
+def query_has_climate_term(query: str) -> bool:
+    """
+    True if the query contains a climate term in English, Sinhala or Tamil.
+
+    ASCII terms are matched on word boundaries (so "rain" doesn't match "train");
+    Sinhala/Tamil terms are matched as substrings because \\b is unreliable for
+    those scripts (their vowel signs are not treated as word characters).
+    """
+    import re as _re
+    q = query.lower()
+    for term in CLIMATE_QUERY_TERMS:
+        if term.isascii():
+            if _re.search(r"\b" + _re.escape(term) + r"\b", q):
+                return True
+        elif term in q:
+            return True
+    return False
 
 # Approximate location aliases used for fuzzy matching during FAISS result filtering.
 # Maps canonical names / provinces to their constituent place tokens.
@@ -608,8 +635,7 @@ class IRAgent(BaseAgentServer):
         """Reject unrelated questions before semantic search returns arbitrary climate data."""
         if entities.get("climate_topic") or entities.get("hazard_type"):
             return True
-        query_lower = query.lower()
-        return any(term in query_lower for term in CLIMATE_QUERY_TERMS)
+        return query_has_climate_term(query)
 
     async def _owm_get(self, endpoint: str, location: str, api_key: str):
         """Call an OpenWeatherMap endpoint, trying a Sri Lanka-qualified name first
