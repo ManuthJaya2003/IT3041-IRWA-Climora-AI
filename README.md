@@ -109,6 +109,7 @@ IT3041-IRWA-Climora-AI/
 │   │   │   └── deps.py                # Admin auth, rate limit, quota dependencies
 │   │   └── services/
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
+│   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
 │   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
 │   │       ├── vector_store_service.py # FAISS local vector store
 │   │       ├── language_service.py    # Language detection (English/Sinhala/Tamil)
