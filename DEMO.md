@@ -40,7 +40,7 @@ Say: "Language is auto-detected by script — no manual toggle needed."
 
 ## 4. Engineering depth (2 min, if asked)
 
-- `EVALUATION.md`: 100% location/topic accuracy, 68.8% TF-IDF retrieval —
+- `EVALUATION.md`: 100% location/topic accuracy, 81.2% retrieval (TF-IDF + cross-lingual bridge) —
   and the eval caught 2 real bugs we fixed (Tamil Colombo inflection,
   heat-wave topic ordering).
 - `backend/tests/`: 12 regression tests (auth, quotas, rate limits).
@@ -54,7 +54,7 @@ Say: "Language is auto-detected by script — no manual toggle needed."
 - *"What is genuinely agentic?"* — 6 MCP agent servers + orchestrator with
   structured task messages, retries, and fallbacks (kill an agent port and
   the pipeline still answers).
-- *"Biggest limitation?"* — lexical retrieval for Sinhala/Tamil (68.8%);
+- *"Biggest limitation?"* — lexical retrieval where the corpus is thin (81.2% top-3);
   mitigation is live data + LLM synthesis; multilingual embeddings are next.
 - *"Payments/teams/dashboards?"* — scoped out; quotas, saved locations,
   retention caps and alerts are the enforced subset. Stated, not hidden.

@@ -232,7 +232,7 @@ curl -X POST http://localhost:8000/api/v1/chat/query \
 Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
-- FAISS top-3 retrieval hit rate **68.8%** (TF-IDF baseline; live APIs + LLM synthesis compensate in production)
+- FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
 - 12 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
