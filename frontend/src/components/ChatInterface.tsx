@@ -3,6 +3,7 @@ import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import { sendQuery, sendVoiceQuery, getAudioUrl, ChatResponse } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { notifyUsageChanged } from '../usageBus'
 
 export interface Message {
   id: string
@@ -174,6 +175,7 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      notifyUsageChanged()
     }
   }
 
@@ -243,6 +245,7 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      notifyUsageChanged()
     }
   }
 
@@ -388,7 +391,7 @@ export default function ChatInterface({
               value={location}
               onChange={e => setLocation(e.target.value)}
               placeholder="Your location (optional, e.g. Colombo, Sri Lanka)"
-              className="text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
+              className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
             />
           </div>
 
@@ -435,7 +438,7 @@ export default function ChatInterface({
                 }
               }}
               placeholder={isListening ? "Listening..." : "Ask about weather, floods, drought, cyclones in Sri Lanka..."}
-              className="flex-1 min-w-0 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
+              className="flex-1 min-w-0 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent px-4 py-3 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
               rows={1}
               disabled={isLoading || isListening}
             />
@@ -490,7 +493,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
           value={location}
           onChange={e => onLocationChange(e.target.value)}
           placeholder="Enter your location first..."
-          className="text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
+          className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
         />
       </div>
 

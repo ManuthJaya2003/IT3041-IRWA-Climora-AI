@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Sparkles } from 'lucide-react'
 import { getPlans, getUsage, UsageDto } from '../api/climoraApi'
+import { onUsageChanged } from '../usageBus'
 import { FALLBACK_PLANS, Plan, formatPrice, priceSubtext } from '../plans'
 
 interface PlansModalProps {
@@ -16,11 +17,21 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onClose }:
   const [annual, setAnnual] = useState(false)
   const [notice, setNotice] = useState<string | null>(null)
 
-  // Load plans + usage from the backend every time the modal opens.
+  // Load plans + usage from the backend every time the modal opens,
+  // and refresh usage the moment any query completes.
   useEffect(() => {
     if (!open) return
     setNotice(null)
     let cancelled = false
+    const loadUsage = () => {
+      getUsage()
+        .then(data => {
+          if (!cancelled) setUsage(data)
+        })
+        .catch(() => {
+          // Usage unavailable offline — hide the quota bar.
+        })
+    }
     getPlans()
       .then(data => {
         if (!cancelled && Array.isArray(data.plans) && data.plans.length > 0) {
@@ -30,17 +41,13 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onClose }:
       .catch(() => {
         // Backend unreachable — fall back to bundled plan data.
       })
-    getUsage()
-      .then(data => {
-        if (!cancelled) setUsage(data)
-      })
-      .catch(() => {
-        // Usage unavailable offline — hide the quota bar.
-      })
+    loadUsage()
+    const off = onUsageChanged(loadUsage)
     return () => {
       cancelled = true
+      off()
     }
-  }, [open ])
+  }, [open])
 
   // Close on Escape.
   useEffect(() => {

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { MessageSquare, Plus, Clock, Trash2, Crown, X } from 'lucide-react'
 import { getUsage } from '../api/climoraApi'
+import { onUsageChanged } from '../usageBus'
 
 export interface Conversation {
   id: string
@@ -32,8 +33,9 @@ export default function Sidebar({
   const [used, setUsed] = useState<number | null>(null)
   const [limit, setLimit] = useState<number | null>(null)
 
-  // Live daily quota from the backend — refreshes when the plan changes
-  // and every minute while the sidebar is visible. Hidden when offline.
+  // Live daily quota from the backend — refreshes when the plan changes,
+  // the moment any query completes, and every minute as a fallback.
+  // Hidden when offline.
   useEffect(() => {
     let cancelled = false
     const load = () => {
@@ -52,9 +54,11 @@ export default function Sidebar({
         })
     }
     load()
+    const off = onUsageChanged(load)
     const timer = setInterval(load, 60000)
     return () => {
       cancelled = true
+      off()
       clearInterval(timer)
     }
   }, [currentPlan])
