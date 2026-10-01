@@ -1,47 +1,46 @@
 # CLIMORA AI
 
-**Agentic AI-Powered Climate Intelligence & Decision Support System**
+**Agentic AI-Powered Climate Intelligence & Decision Support System — v1.0**
 
-IT 3041 – Information Retrieval and Web Analytics | Group Assignment
+IT 3041 – Information Retrieval and Web Analytics · Group Assignment · Final Product
 
 ---
 
 ## Overview
 
-Climora AI is a multi-agent climate intelligence platform that combines LLMs, NLP, Information Retrieval, security, and agent-to-agent communication (MCP) to transform climate and environmental information into understandable, evidence-based, and actionable guidance.
+Climora AI is a multi-agent climate intelligence platform for Sri Lanka. A user asks a
+climate question in **English, Sinhala, or Tamil** → an orchestrator coordinates **7 specialized
+agents** (security, NLP, retrieval, analysis, verification, recommendation) → the user gets an
+evidence-grounded answer with a risk assessment, recommendations, sources, and confidence score.
 
-A user asks a climate-related question → the system coordinates multiple specialized agents to retrieve, analyze, verify, and explain climate-related information → returns a response with evidence, risk assessment, and practical recommendations.
-
-## Architecture
-
-```
+```text
 User → React Frontend → FastAPI Backend → Orchestrator Agent (MCP Client)
-                                                    │
-                              ┌──────────────────────┴──────────────────────┐
-                              │         MCP Agent Servers                    │
-                              │                                              │
-                              │  ┌─────────────┐  ┌─────────────────────┐   │
-                              │  │ Security    │  │ NLP Agent           │   │
-                              │  │ Agent :8100 │  │ (Intent/NER) :8101  │   │
-                              │  └─────────────┘  └─────────────────────┘   │
-                              │  ┌─────────────┐  ┌─────────────────────┐   │
-                              │  │ IR Agent    │  │ Analysis Agent      │   │
-                              │  │ :8102       │  │ (Risk) :8103        │   │
-                              │  └─────────────┘  └─────────────────────┘   │
-                              │  ┌─────────────┐  ┌─────────────────────┐   │
-                              │  │ Verification│  │ Recommendation      │   │
-                              │  │ Agent :8104 │  │ Agent :8105         │   │
-                              │  └─────────────┘  └─────────────────────┘   │
-                              └──────────────────────────────────────────────┘
-                                                    │
-                    ┌───────────────────────────────┼───────────────────────┐
-                    │                               │                       │
-             AWS Bedrock (LLM)               FAISS (Local Vectors)     PostgreSQL
+                                                     │
+                               ┌──────────────────────┴──────────────────────┐
+                               │         MCP Agent Servers                    │
+                               │                                              │
+                               │  ┌─────────────┐  ┌─────────────────────┐   │
+                               │  │ Security    │  │ NLP Agent           │   │
+                               │  │ Agent :8100 │  │ (Intent/NER) :8101  │   │
+                               │  └─────────────┘  └─────────────────────┘   │
+                               │  ┌─────────────┐  ┌─────────────────────┐   │
+                               │  │ IR Agent    │  │ Analysis Agent      │   │
+                               │  │ :8102       │  │ (Risk) :8103        │   │
+                               │  └─────────────┘  └─────────────────────┘   │
+                               │  ┌─────────────┐  ┌─────────────────────┐   │
+                               │  │ Verification│  │ Recommendation      │   │
+                               │  │ Agent :8104 │  │ Agent :8105         │   │
+                               │  └─────────────┘  └─────────────────────┘   │
+                               └──────────────────────────────────────────────┘
+                                                     │
+                     ┌───────────────────────────────┼───────────────────────┐
+                     │                               │                       │
+              AWS Bedrock (LLM)               FAISS (Local Vectors)     PostgreSQL
 ```
 
-## Agent Pipeline Flow
+### Agent pipeline
 
-```
+```text
 User Query
     → Security Agent (validate input)
     → NLP Agent (intent detection, entity extraction)
@@ -53,22 +52,32 @@ User Query
     → User
 ```
 
-## Tech Stack
+## Key features
+
+- **Trilingual** — language auto-detected by script; answers in English, Sinhala, or Tamil, with voice input + audio answers
+- **Evidence-grounded** — every answer cites sources with reliability scores and confidence
+- **Risk-aware** — transparent risk levels with explanations, plus opt-in severe-weather browser alerts
+- **Commercial tiers that actually enforce** — Free / Premium / Business / Enterprise with live daily quotas, plan-limited saved locations, history retention caps, and Premium-gated alerts
+- **Real settings system** — appearance (light/dark/system), personalization, notifications, data export & retention, subscription management
+- **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, no internal errors leaked
+- **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; runs fully offline in mock mode
+
+## Tech stack
 
 | Layer | Technology |
 |-------|-----------|
-| Frontend | React, TypeScript, Vite, Tailwind CSS |
-| Backend | Python, FastAPI, Pydantic |
-| LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) |
-| Vector DB | FAISS (local) |
-| Database | PostgreSQL |
-| Agent Communication | MCP (Model Context Protocol) |
-| Containerization | Docker, Docker Compose |
-| Cloud | AWS (Bedrock, optionally ECS/Lambda) |
+| Frontend | React 18, TypeScript, Vite, Tailwind CSS |
+| Backend | Python 3.12, FastAPI, Pydantic |
+| LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) / offline mock |
+| Vector DB | FAISS (local, 187 seeded climate documents) |
+| Database | PostgreSQL (dockerized, for future persistence) |
+| Agent communication | MCP (Model Context Protocol) |
+| Speech | Web Speech API (input) + gTTS (audio answers) |
+| Deployment | Docker, Docker Compose, Nginx |
 
-## Project Structure
+## Project structure
 
-```
+```text
 IT3041-IRWA-Climora-AI/
 ├── backend/
 │   ├── app/
@@ -77,13 +86,14 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── agents/
 │   │   │   ├── orchestrator/          # Orchestrator Agent (MCP Client)
 │   │   │   │   ├── orchestrator_agent.py
-│   │   │   │   └── mcp_client.py
-│   │   │   ├── nlp_agent/             # NLP Agent (MCP Server)
-│   │   │   ├── ir_agent/              # IR Agent (MCP Server)
-│   │   │   ├── analysis_agent/        # Analysis Agent (MCP Server)
-│   │   │   ├── verification_agent/    # Verification Agent (MCP Server)
-│   │   │   ├── recommendation_agent/  # Recommendation Agent (MCP Server)
-│   │   │   └── security_agent/        # Security Agent (MCP Server)
+│   │   │   │   ├── mcp_client.py
+│   │   │   │   └── shared.py          # Shared singleton across routers
+│   │   │   ├── nlp_agent/             # NLP Agent (MCP Server :8101)
+│   │   │   ├── ir_agent/              # IR Agent (MCP Server :8102)
+│   │   │   ├── analysis_agent/        # Analysis Agent (MCP Server :8103)
+│   │   │   ├── verification_agent/    # Verification Agent (MCP Server :8104)
+│   │   │   ├── recommendation_agent/  # Recommendation Agent (MCP Server :8105)
+│   │   │   └── security_agent/        # Security Agent (MCP Server :8100)
 │   │   ├── mcp/
 │   │   │   ├── base_agent_server.py   # Base class for agent MCP servers
 │   │   │   └── run_agents.py          # Start all agent servers
@@ -135,207 +145,129 @@ IT3041-IRWA-Climora-AI/
 │   ├── Dockerfile
 │   └── nginx.conf
 ├── docker-compose.yml
-├── .gitignore
+├── DEPLOYMENT.md                      # Local / Docker / production guide
+├── EVALUATION.md                      # Measured results + limitations
+├── DEMO.md                            # Viva demo script
 └── README.md
 ```
 
-## Getting Started
+## Getting started
 
 ### Prerequisites
 
-- Python 3.12+ 
-- Node.js 20+
-- Google Gemini API key (free) OR AWS Bedrock access
-- Docker & Docker Compose (optional, for containerized setup)
+- Python 3.12+, Node.js 20+
+- Google Gemini API key (free) **or** AWS Bedrock access (optional — mock mode works without either)
+- Docker & Docker Compose (optional)
 
-### Option 1: Local Development (Recommended for now)
-
-#### Backend Setup
+### Option 1 — Local development
 
 ```bash
-# Navigate to backend
+# Backend (terminal 1)
 cd backend
-
-# Create virtual environment
 python -m venv venv
-
-# Activate virtual environment
-# Windows:
-venv\Scripts\activate
-# macOS/Linux:
-# source venv/bin/activate
-
-# Install dependencies
+venv\Scripts\activate        # Windows  (macOS/Linux: source venv/bin/activate)
 pip install -r requirements.txt
-
-# Copy environment config
-copy .env.example .env
-# Edit .env with your actual credentials
-
-# Run the backend server
-uvicorn app.main:app --reload --port 8000
+copy .env.example .env       # then set GEMINI_API_KEY if you have one
+uvicorn app.main:app --port 8000
 ```
 
-#### Frontend Setup
-
 ```bash
-# Navigate to frontend
+# Frontend (terminal 2)
 cd frontend
-
-# Install dependencies
 npm install
-
-# Run the development server
-npm run dev
+npm run dev                  # http://localhost:5173 (proxies /api → :8000)
 ```
 
-The frontend will be at `http://localhost:5173` and proxies API calls to the backend at `http://localhost:8000`.
+The backend auto-starts all 6 agent MCP servers (ports 8100–8105) on launch.
+Agents can also run standalone for debugging: `python -m app.mcp.run_agents`.
 
-#### Running Agent Servers
-
-All 6 specialized agents (Security, NLP, IR, Analysis, Verification, Recommendation) are fully implemented. 
-
-- **Automatic Start (Default):** When you run `uvicorn app.main:app --reload --port 8000`, the FastAPI server automatically spawns all 6 agent MCP servers on their designated ports (8100–8105) in background subprocesses.
-- **Manual Start (Optional/Testing):** You can also run the agent MCP servers independently:
+### Option 2 — Docker Compose
 
 ```bash
-cd backend
-
-# Run all agents
-python -m app.mcp.run_agents
-
-# Or run specific agents (e.g., nlp, ir, security)
-python -m app.mcp.run_agents nlp ir
-
-# Or run an agent standalone
-python -m app.agents.nlp_agent.nlp_agent
+copy backend\.env.example backend\.env
+docker compose up --build
+# Frontend: http://localhost:3000 · Backend: http://localhost:8000 · DB: localhost:5432
 ```
 
-### Option 2: Docker Compose
+See [DEPLOYMENT.md](./DEPLOYMENT.md) for the production checklist and cloud sketch.
 
-```bash
-# Start all services (backend + frontend + database)
-docker-compose up --build
-
-# Frontend: http://localhost:3000
-# Backend:  http://localhost:8000
-# Database: localhost:5432
-```
-
-## Environment Configuration
-
-Copy `backend/.env.example` to `backend/.env` and fill in:
+## Environment configuration
 
 | Variable | Description | Required |
 |----------|-------------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key (free) | For LLM (recommended) |
-| `AWS_ACCESS_KEY_ID` | AWS access key | For Bedrock (alternative) |
-| `AWS_SECRET_ACCESS_KEY` | AWS secret key | For Bedrock (alternative) |
-| `AWS_REGION` | AWS region (default: us-east-1) | For Bedrock |
-| `BEDROCK_MODEL_ID` | Bedrock model ID | For Bedrock |
-| `DATABASE_URL` | PostgreSQL connection string | For persistence |
-| `SECRET_KEY` | App secret key | For security |
+| `GEMINI_API_KEY` | Google Gemini key (free tier, recommended for dev) | No (mock mode otherwise) |
+| `AWS_ACCESS_KEY_ID` / `AWS_SECRET_ACCESS_KEY` / `AWS_REGION` | Bedrock credentials (production LLM) | No |
+| `OPENWEATHER_API_KEY` | Live weather readings | No |
+| `DATABASE_URL` | PostgreSQL connection string | No (FAISS files used) |
+| `SECRET_KEY` | App secret — change in production | Yes for prod |
+| `ADMIN_TOKEN` | Guards mutating vector endpoints (`X-Admin-Token`) | Yes for prod |
+| `RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS` | Per-IP rate limiting (default 100/min) | No |
+| `CORS_ORIGINS` | Allowed frontend origins | Yes for prod |
 
-**Note:** The system runs in **mock mode** if credentials are not provided. This means the full pipeline works end-to-end with placeholder responses — useful for development and testing.
-
-## API Endpoints
+## API endpoints
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
-| POST | `/api/v1/chat/query` | Send a climate query through the multi-agent pipeline |
-| GET | `/api/v1/chat/history?session_id=...` | Stored conversation turns for a session |
-| GET | `/api/v1/billing/plans` | Commercial plans, pricing, quotas, features |
-| GET | `/api/v1/billing/usage` | Caller's plan + daily quota usage |
-| GET | `/api/v1/agents/list` | List all active agents, roles, and ports |
-| GET | `/api/v1/agents/status` | Real-time agent MCP connection status |
-| POST | `/api/v1/speech/speak` | Synthesize speech audio from text (TTS) |
-| POST | `/api/v1/speech/query` | Voice query processing with audio response |
-| GET | `/api/v1/vectors/stats` | Vector store document count and stats |
-| POST | `/api/v1/vectors/search` | Direct semantic search in FAISS |
-| GET | `/health` | Basic health check |
-| GET | `/health/detailed` | Detailed health with individual service status |
+| POST | `/api/v1/chat/query` | Full multi-agent pipeline (rate-limited + quota-enforced) |
+| GET | `/api/v1/chat/history?session_id=…` | Stored conversation turns |
+| POST | `/api/v1/speech/voice-query` | Voice query + TTS audio response |
+| POST | `/api/v1/speech/speak` | Text-to-speech synthesis |
+| GET | `/api/v1/billing/plans` | Tiers, pricing, quotas, features |
+| GET | `/api/v1/billing/usage` | Caller plan + daily quota state |
+| GET | `/api/v1/agents/list` · `/api/v1/agents/status` | Agent catalogue + live MCP status |
+| GET | `/api/v1/vectors/stats` · `/search` · `/documents` | Read-only vector store access |
+| POST/DELETE | `/api/v1/vectors/…` | Mutations — require `X-Admin-Token` when configured |
+| GET | `/health` · `/health/detailed` | Health checks |
 
-### Example Query
+Example:
 
 ```bash
 curl -X POST http://localhost:8000/api/v1/chat/query \
-  -H "Content-Type: application/json" \
-  -d '{
-    "query": "What are the flood risks in Colombo this week?",
-    "location": "Colombo, Sri Lanka",
-    "user_type": "individual"
-  }'
+  -H "Content-Type: application/json" -H "X-Plan: premium" \
+  -d '{"query": "Is there a flood risk in Kandy right now?", "user_type": "farmer"}'
 ```
-
-## Agent Communication (MCP)
-
-Agents communicate via **Model Context Protocol (MCP)**:
-
-- **Orchestrator** = MCP Client (calls tools on other agents)
-- **All other agents** = MCP Servers (expose tools for the orchestrator)
-
-Each agent inherits from `BaseAgentServer` and registers tools:
-
-```python
-from app.mcp.base_agent_server import BaseAgentServer
-
-class MyAgent(BaseAgentServer):
-    def __init__(self):
-        super().__init__(name="my_agent", port=8101)
-        self.register_tool("my_tool", self.my_tool_handler, "Description")
-
-    async def my_tool_handler(self, arguments: dict) -> dict:
-        # Process the task
-        return {"result": "done"}
-```
-
-## Team Responsibilities
-
-| Member | Component | Files |
-|--------|-----------|-------|
-| Member 1 | Orchestrator Agent, Backend Infrastructure, MCP Setup | `orchestrator/`, `mcp/`, `services/`, `config.py`, `main.py` |
-| Member 2 | NLP Agent + Security Agent | `nlp_agent/`, `security_agent/` |
-| Member 3 | IR Agent + Verification Agent | `ir_agent/`, `verification_agent/` |
-| Member 4 | Analysis Agent + Recommendation Agent | `analysis_agent/`, `recommendation_agent/` |
-
-## Development Notes
-
-- **Multi-Agent Pipeline**: All 6 specialized agents (Security :8100, NLP :8101, IR :8102, Analysis :8103, Verification :8104, Recommendation :8105) are fully implemented with both deterministic rule engines and LLM enrichment.
-- **Resilience & Fallback**: The orchestrator has built-in fallback logic — if an agent server is temporarily unreachable, it seamlessly falls back to direct services or LLM calls.
-- **Unified Startup**: Running `uvicorn app.main:app --reload --port 8000` automatically manages the lifecycle of all agent servers in background subprocesses.
-- **Standalone Mode**: All agents can also be run standalone for isolated debugging (e.g. `python -m app.agents.nlp_agent.nlp_agent`).
-- **Offline / Mock Capable**: The backend and frontend function end-to-end even without external API keys or cloud credentials.
-
-## Commercialization
-
-Four tiers (Free / Premium / Business / Enterprise) with LKR pricing,
-served by `GET /api/v1/billing/plans` and rendered in-app (sidebar →
-**Upgrade plan**). Daily per-plan query quotas are enforced via the
-`X-Plan` request header; see `GET /api/v1/billing/usage`. Deployment
-options and the production checklist live in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Evaluation
 
-Measured, re-runnable results live in [EVALUATION.md](./EVALUATION.md):
+Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
-- Location extraction: **100%** (16/16, EN/SI/TA) · Topic detection: **100%**
-- FAISS top-3 retrieval hit rate: **68.8%** (TF-IDF baseline; live APIs + LLM compensate in production)
-- Backend regression suite: 12 tests (`backend/tests/`) · Frontend: strict `tsc` + production build
+- Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
+- FAISS top-3 retrieval hit rate **68.8%** (TF-IDF baseline; live APIs + LLM synthesis compensate in production)
+- 12 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
-python scripts/evaluate_ir.py   # IR accuracy + retrieval hit rate
+python scripts/evaluate_ir.py
 python tests/test_billing.py && python tests/test_api_guards.py
 ```
 
+## Commercialization
+
+| Plan | Price (LKR) | Daily queries | Enforced limits |
+|------|-------------|---------------|-----------------|
+| Free | 0 | 100 | 1 saved location · 7-day history |
+| Premium | 1,490/mo · 14,900/yr | 1,000 | Alerts · 5 locations · 90-day history |
+| Business | 9,900/mo · 99,000/yr | 10,000 | 25 locations · 1-year history · API access |
+| Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |
+
+Quotas and limits are enforced in code, not just displayed. Annual billing = 10× monthly.
+
 ## Responsible AI
 
-- Responses are grounded in retrieved evidence (not pure LLM generation)
-- Verification Agent checks claims before they reach users
-- Sources and confidence scores are shown to users
-- Disclaimers are included for all responses
-- Input validation and security checks on all queries
-- Uncertainty is communicated clearly
+- Answers grounded in retrieved evidence, never pure LLM generation
+- Verification agent checks claims; confidence scores and sources shown
+- Transparent risk criteria with explanations; uncertainty communicated
+- Disclaimers on every response; no internal errors leaked to users
+- Minimal data collection; conversations stay in the browser unless exported
+
+## Team
+
+| # | Name | Student ID | GitHub | Responsibility |
+|---|------|------------|--------|----------------|
+| Member 1 | JAYASEKARA M. E. | IT23728776 | [@ManuthJaya2003](https://github.com/ManuthJaya2003) | Orchestrator Agent, backend infrastructure, MCP setup |
+| Member 2 | SASRA M. H. F. | IT23693586 | [@shazraHallaj12](https://github.com/shazraHallaj12) | Analysis Agent, Recommendation Agent |
+| Member 3 | GUNATHILAKE L. L. S. W. | IT23744066 | [@lashi10976-git](https://github.com/lashi10976-git) | NLP Agent, Security Agent |
+| Member 4 | MADUGALLE K. J. W. R. E. W. N. M. R. O. D. | IT23555594 | [@OsandaMadugalle](https://github.com/OsandaMadugalle) | IR Agent, Verification Agent, frontend, billing & settings |
 
 ## License
 
