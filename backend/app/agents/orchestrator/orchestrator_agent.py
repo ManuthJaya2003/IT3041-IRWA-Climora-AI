@@ -1063,11 +1063,18 @@ Return ONLY the JSON object."""
         """Store query/response in session history."""
         if session_id not in self._session_store:
             self._session_store[session_id] = []
+        # Bound per-session history so long conversations cannot grow memory
+        # without limit (keeps the last 50 turns).
         self._session_store[session_id].append({
             "query": query,
             "response_summary": response.summary,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
+        del self._session_store[session_id][:-50]
+
+    def get_session_history(self, session_id: str) -> list[dict]:
+        """Return the stored query/response turns for a session."""
+        return list(self._session_store.get(session_id, []))
 
     async def get_agents_status(self) -> dict:
         """Get the status of all connected agents."""

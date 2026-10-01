@@ -9,12 +9,11 @@ from typing import Optional
 
 from app.services.tts_service import tts_service
 from app.services.language_service import detect_language
-from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
+from app.agents.orchestrator.shared import get_orchestrator
 from app.models.schemas import ChatRequest, UserType
+from app.routers.deps import RateLimit
 
 router = APIRouter()
-
-orchestrator = OrchestratorAgent()
 
 
 # --- Request Models ---
@@ -64,7 +63,7 @@ async def text_to_speech(request: SpeakRequest):
     )
 
 
-@router.post("/voice-query")
+@router.post("/voice-query", dependencies=[RateLimit])
 async def voice_query(request: VoiceQueryRequest):
     """
     Process a voice query: runs through the full pipeline and returns
@@ -84,7 +83,7 @@ async def voice_query(request: VoiceQueryRequest):
         language=request.language,
     )
 
-    response = await orchestrator.process_user_query(chat_request)
+    response = await get_orchestrator().process_user_query(chat_request)
 
     # Generate TTS audio for the summary
     audio_url = None
