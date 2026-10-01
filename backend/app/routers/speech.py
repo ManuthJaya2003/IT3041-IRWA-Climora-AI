@@ -11,7 +11,7 @@ from app.services.tts_service import tts_service
 from app.services.language_service import detect_language
 from app.agents.orchestrator.shared import get_orchestrator
 from app.models.schemas import ChatRequest, UserType
-from app.routers.deps import RateLimit
+from app.routers.deps import QuotaLimit, RateLimit
 
 router = APIRouter()
 
@@ -63,7 +63,7 @@ async def text_to_speech(request: SpeakRequest):
     )
 
 
-@router.post("/voice-query", dependencies=[RateLimit])
+@router.post("/voice-query", dependencies=[RateLimit, QuotaLimit])
 async def voice_query(request: VoiceQueryRequest):
     """
     Process a voice query: runs through the full pipeline and returns

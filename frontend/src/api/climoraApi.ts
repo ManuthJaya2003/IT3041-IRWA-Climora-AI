@@ -10,6 +10,20 @@ const api = axios.create({
   timeout: 120000,
 })
 
+// Commercial plan sent with every request so the backend can enforce the
+// correct daily quota (X-Plan header; unknown values fall back to Free).
+let apiPlan = 'free'
+
+export function setApiPlan(planId: string): void {
+  apiPlan = planId
+}
+
+api.interceptors.request.use(config => {
+  config.headers = config.headers ?? {}
+  config.headers['X-Plan'] = apiPlan
+  return config
+})
+
 // --- Types ---
 
 export interface ChatRequest {
@@ -117,4 +131,43 @@ export async function textToSpeech(text: string, language?: string): Promise<str
   // Create a blob URL for audio playback
   const blob = new Blob([response.data], { type: 'audio/mpeg' })
   return URL.createObjectURL(blob)
+}
+
+// --- Plans & Usage API Functions ---
+
+export interface PlanDto {
+  id: string
+  name: string
+  audience: string
+  tagline: string
+  monthly_lkr: number | null
+  annual_lkr: number | null
+  monthly_usd: number | null
+  annual_usd: number | null
+  cta: string
+  highlighted: boolean
+  queries_per_day: number
+  max_saved_locations: number
+  history_days: number
+  features: string[]
+  limits_note: string
+}
+
+export interface UsageDto {
+  plan: string
+  plan_name: string
+  used_today: number
+  remaining_today: number
+  daily_limit: number
+  day: string
+}
+
+export async function getPlans(): Promise<{ plans: PlanDto[] }> {
+  const response = await api.get('/billing/plans')
+  return response.data
+}
+
+export async function getUsage(): Promise<UsageDto> {
+  const response = await api.get('/billing/usage')
+  return response.data
 }

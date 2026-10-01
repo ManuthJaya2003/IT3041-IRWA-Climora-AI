@@ -5,17 +5,21 @@ import { AppSettings, LANGUAGES, USER_TYPES } from '../settings'
 interface SettingsModalProps {
   open: boolean
   settings: AppSettings
+  currentPlan: string
   onSave: (settings: AppSettings) => void
   onClose: () => void
   onClearHistory: () => void
+  onViewPlans: () => void
 }
 
 export default function SettingsModal({
   open,
   settings,
+  currentPlan,
   onSave,
   onClose,
   onClearHistory,
+  onViewPlans,
 }: SettingsModalProps) {
   const [draft, setDraft] = useState<AppSettings>(settings)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -115,7 +119,18 @@ export default function SettingsModal({
         </select>
 
         {/* Danger zone */}
-        <div className="border-t border-slate-200 pt-4 mb-5">
+        <div className="border-t border-slate-200 pt-4 mb-5 space-y-3">
+          <div className="flex items-center gap-2">
+            <p className="text-sm text-slate-600 flex-1">
+              Current plan: <span className="font-medium capitalize">{currentPlan}</span>
+            </p>
+            <button
+              onClick={() => { onClose(); onViewPlans() }}
+              className="px-3 py-1.5 text-sm font-medium text-climora-700 hover:bg-climora-50 rounded-lg transition-colors"
+            >
+              View plans
+            </button>
+          </div>
           {confirmClear ? (
             <div className="flex items-center gap-2">
               <p className="text-sm text-slate-600 flex-1">Delete all conversations?</p>

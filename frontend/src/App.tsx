@@ -3,7 +3,10 @@ import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
 import SettingsModal from './components/SettingsModal'
+import PlansModal from './components/PlansModal'
 import { AppSettings, loadSettings, saveSettings } from './settings'
+import { loadPlan, savePlan } from './plans'
+import { setApiPlan } from './api/climoraApi'
 
 interface ConversationData {
   conversation: Conversation
@@ -62,7 +65,9 @@ function persist(key: string, value: string | null) {
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [plansOpen, setPlansOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
+  const [plan, setPlan] = useState<string>(loadPlan)
   const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(loadConversations)
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
     try {
@@ -84,6 +89,17 @@ function App() {
     setSettings(next)
     saveSettings(next)
   }, [])
+
+  const handleSelectPlan = useCallback((planId: string) => {
+    setPlan(planId)
+    savePlan(planId)
+    setApiPlan(planId)
+  }, [])
+
+  // Attach the commercial plan to every API request (quota enforcement).
+  useEffect(() => {
+    setApiPlan(plan)
+  }, [plan])
 
   const conversations = Array.from(conversationsData.values()).map(d => d.conversation)
 
@@ -155,9 +171,11 @@ function App() {
         <Sidebar
           conversations={conversations}
           activeConversationId={validActiveId}
+          currentPlan={plan}
           onNewChat={handleNewChat}
           onSelectConversation={handleSelectConversation}
           onDeleteConversation={handleDeleteConversation}
+          onViewPlans={() => setPlansOpen(true)}
         />
       )}
 
@@ -185,9 +203,18 @@ function App() {
       <SettingsModal
         open={settingsOpen}
         settings={settings}
+        currentPlan={plan}
         onSave={handleSaveSettings}
         onClose={() => setSettingsOpen(false)}
         onClearHistory={handleClearHistory}
+        onViewPlans={() => setPlansOpen(true)}
+      />
+
+      <PlansModal
+        open={plansOpen}
+        currentPlan={plan}
+        onSelectPlan={handleSelectPlan}
+        onClose={() => setPlansOpen(false)}
       />
     </div>
   )
