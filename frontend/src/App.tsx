@@ -3,9 +3,10 @@ import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
 import PlansModal from './components/PlansModal'
+import CheckoutModal, { CheckoutResult } from './components/CheckoutModal'
 import SettingsView from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
-import { FALLBACK_PLANS, Plan, addLocation, loadLocations, loadPlan, removeLocation, savePlan } from './plans'
+import { FALLBACK_PLANS, Plan, Subscription, addLocation, clearSubscription, loadLocations, loadPlan, loadSubscription, removeLocation, savePlan, saveSubscription } from './plans'
 import { getPlans, setApiPlan } from './api/climoraApi'
 import { notifyUsageChanged } from './usageBus'
 
@@ -98,6 +99,8 @@ function App() {
   const [plan, setPlan] = useState<string>(loadPlan)
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [savedLocations, setSavedLocations] = useState<string[]>(loadLocations)
+  const [subscription, setSubscription] = useState<Subscription | null>(loadSubscription)
+  const [checkout, setCheckout] = useState<{ plan: Plan; annual: boolean } | null>(null)
   const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(
     () => {
       // First load already respects the plan's history cap (live catalogue re-prunes after).
@@ -186,9 +189,31 @@ function App() {
     setPlan(planId)
     savePlan(planId)
     setApiPlan(planId)
+    if (planId === 'free') {
+      // Downgrade cancels any demo subscription.
+      setSubscription(null)
+      clearSubscription()
+    }
     // New quota applies immediately — refresh every usage display.
     notifyUsageChanged()
   }, [])
+
+  const handleCheckoutSuccess = useCallback((result: CheckoutResult) => {
+    if (!checkout) return
+    const sub: Subscription = {
+      planId: checkout.plan.id,
+      cycle: result.cycle,
+      startedAt: new Date().toISOString(),
+      receipt: result.receipt,
+    }
+    saveSubscription(sub)
+    setSubscription(sub)
+    setPlan(checkout.plan.id)
+    savePlan(checkout.plan.id)
+    setApiPlan(checkout.plan.id)
+    notifyUsageChanged()
+    setCheckout(null)
+  }, [checkout])
 
   // Attach the commercial plan to every API request (quota enforcement).
   useEffect(() => {
@@ -332,6 +357,7 @@ function App() {
               settings={settings}
               onChange={handleChangeSettings}
               plan={plan}
+              subscription={subscription}
               locationLimit={locationLimit}
               planHistoryDays={planDef.history_days}
               savedLocations={savedLocations}
@@ -365,7 +391,16 @@ function App() {
         open={plansOpen}
         currentPlan={plan}
         onSelectPlan={handleSelectPlan}
+        onCheckout={(p, annual) => setCheckout({ plan: p, annual })}
         onClose={() => setPlansOpen(false)}
+      />
+
+      <CheckoutModal
+        open={checkout !== null}
+        plan={checkout?.plan ?? null}
+        annual={checkout?.annual ?? false}
+        onSuccess={handleCheckoutSuccess}
+        onClose={() => setCheckout(null)}
       />
     </div>
   )

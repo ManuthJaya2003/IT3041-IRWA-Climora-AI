@@ -233,7 +233,7 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
-- 12 backend regression tests · strict `tsc` + production frontend build
+- 16 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
@@ -251,6 +251,9 @@ python tests/test_billing.py && python tests/test_api_guards.py
 | Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |
 
 Quotas and limits are enforced in code, not just displayed. Annual billing = 10× monthly.
+Upgrades go through a demo checkout (order summary → card form → receipt, clearly
+labeled — no payment provider); chat history persists to PostgreSQL when configured,
+memory otherwise.
 
 ## Responsible AI
 

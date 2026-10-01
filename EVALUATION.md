@@ -49,4 +49,5 @@ Trincomalee cyclone (EN), Colombo weather (TA).
 
 - `backend/tests/test_api_guards.py` — 7 tests (auth, rate limits, history)
 - `backend/tests/test_billing.py` — 5 tests (plans, quotas, usage)
+- `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - Frontend: `npm run build` (`tsc -b` + vite) must pass clean.
