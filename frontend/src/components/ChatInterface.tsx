@@ -408,19 +408,19 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="What should I prepare for during monsoon season in Sri Lanka?"
+          text="ශ්‍රී ලංකාවේ මෝසම් සමයේදී මා සූදානම් විය යුත්තේ මොනවාටද?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="Assess drought risk for the Dry Zone in Sri Lanka"
+          text="ශ්‍රී ලංකාවේ වියළි කලාපයේ නියං අවදානම තක්සේරු කරන්න"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="Are there landslide risks in Nuwara Eliya?"
+          text="நுவரெலியாவில் நிலச்சரிவு அபாயம் உள்ளதா?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="What is the cyclone risk in Trincomalee?"
+          text="திருகோணமலையில் சூறாவளி ஆபத்து என்ன?"
           onClick={onSuggestionClick}
         />
       </div>
