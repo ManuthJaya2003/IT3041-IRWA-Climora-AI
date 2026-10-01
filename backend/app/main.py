@@ -71,18 +71,26 @@ async def lifespan(app: FastAPI):
     if not settings.admin_token:
         print("   ⚠ WARNING: ADMIN_TOKEN is not set — protected vector endpoints are open (dev mode).")
 
-    # Initialize services on startup
+    # Initialize services on startup — each independently, so one failure
+    # (e.g. no cloud credentials) degrades gracefully instead of aborting startup.
     from app.services.llm_service import llm_service
     from app.services.embedding_service import embedding_service
     from app.services.vector_store_service import vector_store_service
     from app.services.tts_service import tts_service
 
-    await llm_service.initialize()
-    await embedding_service.initialize()
-    await vector_store_service.initialize()
-    await tts_service.initialize()
+    for svc_name, svc in [
+        ("llm", llm_service),
+        ("embedding", embedding_service),
+        ("vector store", vector_store_service),
+        ("tts", tts_service),
+    ]:
+        try:
+            await svc.initialize()
+            print(f"   ✓ {svc_name} service ready")
+        except Exception as exc:
+            print(f"   ⚠ {svc_name} service failed to initialize ({exc}) — continuing with fallbacks")
 
-    print("   Services initialized successfully")
+    print("   Services initialized (see warnings above for any degraded service)")
 
     # Auto-start all 6 agents as daemon subprocesses — only one terminal needed.
     for name, target in [
@@ -103,7 +111,14 @@ async def lifespan(app: FastAPI):
     # and marks every agent as disconnected, forcing fallback for the first query.
     import asyncio as _asyncio
     await _asyncio.sleep(3)
-    print("   ✓ Agents ready")
+
+    # Report which agents actually survived startup — anything missing is
+    # covered by orchestrator fallbacks, but the operator should know.
+    alive = [p for p in _agent_processes if p.is_alive()]
+    dead = [p.name for p in _agent_processes if not p.is_alive()]
+    if dead:
+        print(f"   ⚠ {len(dead)} agent(s) failed to start and will use fallbacks: {', '.join(dead)}")
+    print(f"   ✓ Agents ready ({len(alive)}/{len(_agent_processes)} running)")
 
     yield
 

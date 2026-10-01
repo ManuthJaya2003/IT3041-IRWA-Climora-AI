@@ -90,29 +90,45 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── models/
 │   │   │   └── schemas.py             # Pydantic request/response models
 │   │   ├── routers/
-│   │   │   ├── chat.py                # Chat API endpoints
+│   │   │   ├── chat.py                # Chat API endpoints + session history
 │   │   │   ├── agents.py              # Agent status and listing endpoints
 │   │   │   ├── health.py              # Health check endpoints
-│   │   │   ├── vector_store.py        # Vector store management API
-│   │   │   └── speech.py              # Text-to-Speech & voice query API
+│   │   │   ├── vector_store.py        # Vector store management API (admin-guarded)
+│   │   │   ├── speech.py              # Text-to-Speech & voice query API
+│   │   │   ├── billing.py             # Plans catalogue + quota usage API
+│   │   │   └── deps.py                # Admin auth, rate limit, quota dependencies
 │   │   └── services/
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
 │   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
 │   │       ├── vector_store_service.py # FAISS local vector store
 │   │       ├── language_service.py    # Language detection (English/Sinhala/Tamil)
-│   │       └── tts_service.py         # Text-to-Speech audio service
+│   │       ├── tts_service.py         # Text-to-Speech audio service
+│   │       ├── plans_service.py       # Commercial tiers, pricing, quotas
+│   │       └── usage_service.py       # Daily per-plan quota tracking
+│   ├── tests/                         # API regression tests (pytest)
+│   │   ├── test_api_guards.py
+│   │   └── test_billing.py
+│   ├── scripts/
+│   │   └── evaluate_ir.py             # Offline IR evaluation harness
 │   ├── requirements.txt
 │   ├── Dockerfile
 │   └── .env.example
 ├── frontend/
 │   ├── src/
 │   │   ├── App.tsx
+│   │   ├── settings.ts               # Settings load/save/validation + theme
+│   │   ├── plans.ts                  # Plan catalogue fallback + saved locations
+│   │   ├── usageBus.ts               # Real-time quota refresh events
 │   │   ├── components/
 │   │   │   ├── ChatInterface.tsx      # Main chat UI
 │   │   │   ├── ChatMessage.tsx        # Message display with rich data
 │   │   │   ├── Header.tsx
-│   │   │   └── Sidebar.tsx
+│   │   │   ├── Sidebar.tsx            # History + live quota meter
+│   │   │   ├── SettingsView.tsx       # Full settings page (7 sections)
+│   │   │   └── PlansModal.tsx         # Pricing tiers + plan switching
+│   │   ├── hooks/
+│   │   │   └── useSpeechRecognition.ts # Web Speech API wrapper
 │   │   └── api/
 │   │       └── climoraApi.ts          # Backend API client
 │   ├── package.json
@@ -297,6 +313,20 @@ served by `GET /api/v1/billing/plans` and rendered in-app (sidebar →
 **Upgrade plan**). Daily per-plan query quotas are enforced via the
 `X-Plan` request header; see `GET /api/v1/billing/usage`. Deployment
 options and the production checklist live in [DEPLOYMENT.md](./DEPLOYMENT.md).
+
+## Evaluation
+
+Measured, re-runnable results live in [EVALUATION.md](./EVALUATION.md):
+
+- Location extraction: **100%** (16/16, EN/SI/TA) · Topic detection: **100%**
+- FAISS top-3 retrieval hit rate: **68.8%** (TF-IDF baseline; live APIs + LLM compensate in production)
+- Backend regression suite: 12 tests (`backend/tests/`) · Frontend: strict `tsc` + production build
+
+```bash
+cd backend
+python scripts/evaluate_ir.py   # IR accuracy + retrieval hit rate
+python tests/test_billing.py && python tests/test_api_guards.py
+```
 
 ## Responsible AI
 
