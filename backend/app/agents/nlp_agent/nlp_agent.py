@@ -89,7 +89,6 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
     ("mullaitheevu", "Mullaitivu, Sri Lanka"),
     ("killinochchi", "Kilinochchi, Sri Lanka"),
     ("kilinochi", "Kilinochchi, Sri Lanka"),
-    ("kilinochi", "Kilinochchi, Sri Lanka"),
     ("hambanthota", "Hambantota, Sri Lanka"),
     ("kurunegela", "Kurunegala, Sri Lanka"),
     ("kurunagala", "Kurunegala, Sri Lanka"),

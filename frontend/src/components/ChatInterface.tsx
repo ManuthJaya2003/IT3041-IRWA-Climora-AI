@@ -15,25 +15,67 @@ export interface Message {
 interface ChatInterfaceProps {
   initialMessages?: Message[]
   initialSessionId?: string | null
+  defaultLanguage?: string
+  defaultLocation?: string
+  userType?: string
   onNewConversation?: (id: string, query: string, messages: Message[]) => void
   onUpdateConversation?: (id: string, messages: Message[]) => void
+}
+
+/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
+function newId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // fall through to fallback below
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 export default function ChatInterface({
   initialMessages = [],
   initialSessionId = null,
+  defaultLanguage = 'en',
+  defaultLocation = '',
+  userType = 'individual',
   onNewConversation,
   onUpdateConversation,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
-  const [location, setLocation] = useState('')
+  const [location, setLocation] = useState(defaultLocation)
   const [isLoading, setIsLoading] = useState(false)
   const [sessionId, setSessionId] = useState<string | null>(initialSessionId)
   const [isPlayingAudio, setIsPlayingAudio] = useState(false)
-  const [speechLang, setSpeechLang] = useState<string>('en')
+  const [speechLang, setSpeechLang] = useState<string>(defaultLanguage)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
+  // Mirror of messages for parent callbacks — avoids stale-closure history loss
+  // when a voice auto-submit races a typed submit.
+  const messagesRef = useRef<Message[]>(initialMessages)
+  // Last voice transcript already submitted — prevents re-submitting a stale
+  // transcript when the mic is toggled again.
+  const lastVoiceSubmit = useRef('')
+
+  // Pick up settings changes made while a chat is open.
+  useEffect(() => {
+    setSpeechLang(defaultLanguage)
+  }, [defaultLanguage])
+  useEffect(() => {
+    setLocation(defaultLocation)
+  }, [defaultLocation])
+
+  // Stop any playing audio when switching conversations (component unmounts).
+  useEffect(() => {
+    return () => {
+      if (audioRef.current) {
+        audioRef.current.pause()
+        audioRef.current = null
+      }
+    }
+  }, [])
 
   // Speech recognition hook
   const {
@@ -41,6 +83,7 @@ export default function ChatInterface({
     transcript,
     startListening,
     stopListening,
+    clearTranscript,
     isSupported: isSpeechSupported,
     error: speechError,
   } = useSpeechRecognition()
@@ -52,10 +95,14 @@ export default function ChatInterface({
     }
   }, [transcript])
 
-  // Auto-submit when speech recognition finishes with a transcript
+  // Auto-submit when speech recognition finishes with a transcript.
+  // Guarded by lastVoiceSubmit + clearTranscript so toggling the mic again
+  // never re-submits a stale transcript.
   useEffect(() => {
-    if (!isListening && transcript && transcript.trim()) {
+    if (!isListening && transcript && transcript.trim() && transcript !== lastVoiceSubmit.current) {
+      lastVoiceSubmit.current = transcript
       submitVoiceQuery(transcript)
+      clearTranscript()
     }
   }, [isListening])
 
@@ -71,12 +118,13 @@ export default function ChatInterface({
     if (!query.trim() || isLoading) return
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: newId(),
       role: 'user',
       content: query,
       timestamp: new Date(),
     }
 
+    messagesRef.current = [...messagesRef.current, userMessage]
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
@@ -85,6 +133,7 @@ export default function ChatInterface({
       const response = await sendQuery({
         query,
         location: location || undefined,
+        user_type: userType,
         session_id: sessionId || undefined,
         language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
       })
@@ -92,14 +141,15 @@ export default function ChatInterface({
       setSessionId(response.session_id)
 
       const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+        id: newId(),
         role: 'assistant',
         content: response.summary,
         response,
         timestamp: new Date(),
       }
 
-      const updatedMessages = [...messages, userMessage, assistantMessage]
+      messagesRef.current = [...messagesRef.current, assistantMessage]
+      const updatedMessages = messagesRef.current
       setMessages(prev => [...prev, assistantMessage])
 
       // Notify parent about new/updated conversation
@@ -110,11 +160,12 @@ export default function ChatInterface({
       }
     } catch (error) {
       const errorMessage: Message = {
-        id: crypto.randomUUID(),
+        id: newId(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please check if the backend server is running on http://localhost:8000.',
+        content: 'Sorry, I encountered an error processing your request. Please try again.',
         timestamp: new Date(),
       }
+      messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
@@ -130,12 +181,13 @@ export default function ChatInterface({
     if (!query.trim() || isLoading) return
 
     const userMessage: Message = {
-      id: crypto.randomUUID(),
+      id: newId(),
       role: 'user',
       content: `🎤 ${query}`,
       timestamp: new Date(),
     }
 
+    messagesRef.current = [...messagesRef.current, userMessage]
     setMessages(prev => [...prev, userMessage])
     setInput('')
     setIsLoading(true)
@@ -144,6 +196,7 @@ export default function ChatInterface({
       const result = await sendVoiceQuery({
         query,
         location: location || undefined,
+        user_type: userType,
         session_id: sessionId || undefined,
         language: speechLang,
       })
@@ -152,14 +205,15 @@ export default function ChatInterface({
       setSessionId(response.session_id)
 
       const assistantMessage: Message = {
-        id: crypto.randomUUID(),
+        id: newId(),
         role: 'assistant',
         content: response.summary,
         response,
         timestamp: new Date(),
       }
 
-      const updatedMessages = [...messages, userMessage, assistantMessage]
+      messagesRef.current = [...messagesRef.current, assistantMessage]
+      const updatedMessages = messagesRef.current
       setMessages(prev => [...prev, assistantMessage])
 
       if (!sessionId && onNewConversation) {
@@ -174,11 +228,12 @@ export default function ChatInterface({
       }
     } catch (error) {
       const errorMessage: Message = {
-        id: crypto.randomUUID(),
+        id: newId(),
         role: 'assistant',
         content: 'Sorry, I encountered an error processing your voice query.',
         timestamp: new Date(),
       }
+      messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
@@ -192,7 +247,7 @@ export default function ChatInterface({
     const audio = new Audio(url)
     audioRef.current = audio
     setIsPlayingAudio(true)
-    audio.play()
+    audio.play().catch(() => setIsPlayingAudio(false))
     audio.onended = () => setIsPlayingAudio(false)
     audio.onerror = () => setIsPlayingAudio(false)
   }
@@ -373,7 +428,7 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4">
       <div className="w-16 h-16 bg-climora-100 rounded-2xl flex items-center justify-center mb-6">
-        <span className="text-3xl">🌍</span>
+        <span className="text-3xl" aria-hidden="true">🌍</span>
       </div>
       <h2 className="text-2xl font-semibold text-slate-800 mb-2">
         Welcome to Climora AI

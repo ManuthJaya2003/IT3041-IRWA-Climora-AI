@@ -7,6 +7,7 @@ const api = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  timeout: 120000,
 })
 
 // --- Types ---
@@ -97,6 +98,7 @@ export async function getHealthCheck(): Promise<Record<string, unknown>> {
 export async function sendVoiceQuery(request: {
   query: string
   location?: string
+  user_type?: string
   session_id?: string
   language?: string
 }): Promise<VoiceQueryResponse> {

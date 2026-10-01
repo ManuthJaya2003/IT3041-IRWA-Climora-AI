@@ -64,7 +64,7 @@ class VectorStoreService:
 
     def is_available(self) -> bool:
         """Check if service is available."""
-        return self._available
+        return self._available and self._index is not None
 
     async def add_documents(
         self,

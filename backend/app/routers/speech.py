@@ -10,7 +10,7 @@ from typing import Optional
 from app.services.tts_service import tts_service
 from app.services.language_service import detect_language
 from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
-from app.models.schemas import ChatRequest
+from app.models.schemas import ChatRequest, UserType
 
 router = APIRouter()
 
@@ -29,6 +29,7 @@ class VoiceQueryRequest(BaseModel):
     """Voice query — text from speech recognition sent for processing + TTS response."""
     query: str = Field(..., description="Transcribed text from user's voice input")
     location: Optional[str] = Field(None, description="User's location")
+    user_type: Optional[UserType] = Field(None, description="Type of user for tailored responses")
     session_id: Optional[str] = Field(None, description="Session ID for continuity")
     language: Optional[str] = Field(None, description="Preferred response language (en, si, ta)")
 
@@ -78,6 +79,7 @@ async def voice_query(request: VoiceQueryRequest):
     chat_request = ChatRequest(
         query=request.query,
         location=request.location,
+        user_type=request.user_type,
         session_id=request.session_id,
         language=request.language,
     )

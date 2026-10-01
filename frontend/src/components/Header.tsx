@@ -3,9 +3,10 @@ import { Menu, Globe, Settings } from 'lucide-react'
 interface HeaderProps {
   sidebarOpen: boolean
   onToggleSidebar: () => void
+  onOpenSettings: () => void
 }
 
-export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
+export default function Header({ sidebarOpen, onToggleSidebar, onOpenSettings }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-6 py-3 bg-white border-b border-slate-200">
       <div className="flex items-center gap-3">
@@ -27,6 +28,7 @@ export default function Header({ sidebarOpen, onToggleSidebar }: HeaderProps) {
 
       <div className="flex items-center gap-2">
         <button
+          onClick={onOpenSettings}
           className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
           aria-label="Settings"
         >
