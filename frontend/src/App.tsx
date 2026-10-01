@@ -2,6 +2,8 @@ import { useState, useCallback, useEffect } from 'react'
 import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
+import SettingsModal from './components/SettingsModal'
+import { AppSettings, loadSettings, saveSettings } from './settings'
 
 interface ConversationData {
   conversation: Conversation
@@ -17,40 +19,78 @@ function loadConversations(): Map<string, ConversationData> {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (!saved) return new Map()
 
-    const entries = JSON.parse(saved) as Array<[string, ConversationData]>
-    return new Map(entries.map(([id, data]) => [id, {
-      ...data,
-      conversation: { ...data.conversation, timestamp: new Date(data.conversation.timestamp) },
-      messages: data.messages.map(message => ({
-        ...message,
-        timestamp: new Date(message.timestamp),
-      })),
-    }]))
+    const entries: unknown = JSON.parse(saved)
+    if (!Array.isArray(entries)) return new Map()
+
+    const result = new Map<string, ConversationData>()
+    for (const entry of entries) {
+      if (!Array.isArray(entry) || entry.length !== 2) continue
+      const [id, data] = entry as [unknown, Partial<ConversationData>]
+      if (typeof id !== 'string' || !data || typeof data !== 'object') continue
+      if (!data.conversation || !Array.isArray(data.messages)) continue
+      const timestamp = new Date(data.conversation.timestamp)
+      if (Number.isNaN(timestamp.getTime())) continue
+      result.set(id, {
+        conversation: { ...data.conversation, id, timestamp },
+        messages: data.messages
+          .filter(m => m && typeof m.content === 'string')
+          .map(message => ({
+            ...message,
+            timestamp: new Date(message.timestamp),
+          })),
+        sessionId: typeof data.sessionId === 'string' ? data.sessionId : null,
+      })
+    }
+    return result
   } catch {
     return new Map()
   }
 }
 
+function persist(key: string, value: string | null) {
+  try {
+    if (value === null) {
+      localStorage.removeItem(key)
+    } else {
+      localStorage.setItem(key, value)
+    }
+  } catch {
+    // Private-mode / quota errors must never crash the app.
+  }
+}
+
 function App() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(loadConversations)
-  const [activeConversationId, setActiveConversationId] = useState<string | null>(
-    () => localStorage.getItem(ACTIVE_CONVERSATION_KEY),
-  )
+  const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(ACTIVE_CONVERSATION_KEY)
+    } catch {
+      return null
+    }
+  })
 
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(Array.from(conversationsData.entries())))
+    persist(STORAGE_KEY, JSON.stringify(Array.from(conversationsData.entries())))
   }, [conversationsData])
 
   useEffect(() => {
-    if (activeConversationId) {
-      localStorage.setItem(ACTIVE_CONVERSATION_KEY, activeConversationId)
-    } else {
-      localStorage.removeItem(ACTIVE_CONVERSATION_KEY)
-    }
+    persist(ACTIVE_CONVERSATION_KEY, activeConversationId)
   }, [activeConversationId])
 
+  const handleSaveSettings = useCallback((next: AppSettings) => {
+    setSettings(next)
+    saveSettings(next)
+  }, [])
+
   const conversations = Array.from(conversationsData.values()).map(d => d.conversation)
+
+  // Drop a stale active id left over from deleted / corrupted history.
+  const validActiveId = activeConversationId && conversationsData.has(activeConversationId)
+    ? activeConversationId
+    : null
 
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null)
@@ -97,8 +137,14 @@ function App() {
     }
   }, [activeConversationId])
 
+  const handleClearHistory = useCallback(() => {
+    setConversationsData(new Map())
+    setActiveConversationId(null)
+    setSettingsOpen(false)
+  }, [])
+
   // Get messages for active conversation
-  const activeData = activeConversationId ? conversationsData.get(activeConversationId) : null
+  const activeData = validActiveId ? conversationsData.get(validActiveId) : null
   const activeMessages = activeData?.messages || []
   const activeSessionId = activeData?.sessionId || null
 
@@ -108,7 +154,7 @@ function App() {
       {sidebarOpen && (
         <Sidebar
           conversations={conversations}
-          activeConversationId={activeConversationId}
+          activeConversationId={validActiveId}
           onNewChat={handleNewChat}
           onSelectConversation={handleSelectConversation}
           onDeleteConversation={handleDeleteConversation}
@@ -120,17 +166,29 @@ function App() {
         <Header
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
+          onOpenSettings={() => setSettingsOpen(true)}
         />
         <main className="flex-1 overflow-hidden">
           <ChatInterface
-            key={activeConversationId || 'new'}
+            key={validActiveId || 'new'}
             initialMessages={activeMessages}
             initialSessionId={activeSessionId}
+            defaultLanguage={settings.language}
+            defaultLocation={settings.location}
+            userType={settings.userType}
             onNewConversation={handleNewConversation}
             onUpdateConversation={handleUpdateConversation}
           />
         </main>
       </div>
+
+      <SettingsModal
+        open={settingsOpen}
+        settings={settings}
+        onSave={handleSaveSettings}
+        onClose={() => setSettingsOpen(false)}
+        onClearHistory={handleClearHistory}
+      />
     </div>
   )
 }

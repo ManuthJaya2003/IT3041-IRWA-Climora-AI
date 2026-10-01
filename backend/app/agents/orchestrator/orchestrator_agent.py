@@ -135,6 +135,7 @@ class OrchestratorAgent:
                             user_type=request.user_type,
                             session_id=request.session_id,
                             context=request.context,
+                            language=request.language,
                         )
                         nlp_result = await self._invoke_nlp_agent(synthetic_request)
                         structured_query = nlp_result.get("structured_query", {})
@@ -226,10 +227,16 @@ class OrchestratorAgent:
 
             from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
 
-            # Check if the query text contains a known Sri Lanka location
+            # Check if the query text contains a known Sri Lanka location.
+            # Includes Sinhala/Tamil generic names so queries like "ශ්‍රී ලංකාවේ
+            # මෝසම් ..." or "இலங்கையில் ..." don't get asked for a location.
             has_sri_lanka_location = bool(detected_location) or any(
                 kw in query_lower_geo
                 for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka", "ceylon"]
+            ) or any(
+                tok in request.query
+                for tok in ("ශ්‍රී ලංකා", "இலங்கை", "වියළි කලාප", "வறண்ட வலய",
+                            "මධ්‍යම කඳුකර", "மத்திய மலைநாடு")
             )
 
             if not has_sri_lanka_location:
@@ -326,14 +333,17 @@ class OrchestratorAgent:
 
             return response
 
-        except Exception as e:
-            # Graceful error handling
+        except Exception:
+            # Graceful error handling — log the real error server-side and
+            # return a generic message (never leak internals to the user).
+            import logging as _logging
+            _logging.getLogger(__name__).exception("Orchestrator failed to process query")
             processing_time = (time.time() - start_time) * 1000
             return ChatResponse(
                 session_id=session_id,
                 query=request.query,
                 summary=f"I encountered an issue while processing your climate query. Please try again.",
-                detailed_analysis=f"Error details: {str(e)}",
+                detailed_analysis=f"An unexpected error occurred. Please try again.",
                 agents_used=agents_used,
                 processing_time_ms=processing_time,
             )
@@ -452,9 +462,13 @@ class OrchestratorAgent:
         self, analysis: dict, user_type: Optional[str], location: Optional[str]
     ) -> dict:
         """Invoke the Recommendation Agent to generate actionable guidance."""
+        # user_type may be a UserType enum (from ChatRequest) or a plain string.
+        user_type_str = (
+            user_type.value if hasattr(user_type, "value") else (user_type or "individual")
+        )
         task_payload = {
             "analysis": analysis,
-            "user_type": user_type.value if user_type else "individual",
+            "user_type": user_type_str,
             "location": location,
         }
 
@@ -805,7 +819,7 @@ Do not make claims beyond what the evidence supports.
         from app.services.vector_store_service import vector_store_service
         from app.agents.ir_agent.ir_agent import _location_matches, CLIMATE_QUERY_TERMS
 
-        if not vector_store_service.is_available() or vector_store_service._index.ntotal == 0:
+        if not vector_store_service.is_available() or getattr(vector_store_service, "_index", None) is None or vector_store_service._index.ntotal == 0:
             return {"documents": [], "message": "No documents in vector store"}
 
         original_query = structured_query.get("original_query", "")
@@ -1049,11 +1063,18 @@ Return ONLY the JSON object."""
         """Store query/response in session history."""
         if session_id not in self._session_store:
             self._session_store[session_id] = []
+        # Bound per-session history so long conversations cannot grow memory
+        # without limit (keeps the last 50 turns).
         self._session_store[session_id].append({
             "query": query,
             "response_summary": response.summary,
             "timestamp": datetime.now(timezone.utc).isoformat(),
         })
+        del self._session_store[session_id][:-50]
+
+    def get_session_history(self, session_id: str) -> list[dict]:
+        """Return the stored query/response turns for a session."""
+        return list(self._session_store.get(session_id, []))
 
     async def get_agents_status(self) -> dict:
         """Get the status of all connected agents."""

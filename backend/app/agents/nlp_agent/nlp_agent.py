@@ -89,7 +89,6 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
     ("mullaitheevu", "Mullaitivu, Sri Lanka"),
     ("killinochchi", "Kilinochchi, Sri Lanka"),
     ("kilinochi", "Kilinochchi, Sri Lanka"),
-    ("kilinochi", "Kilinochchi, Sri Lanka"),
     ("hambanthota", "Hambantota, Sri Lanka"),
     ("kurunegela", "Kurunegala, Sri Lanka"),
     ("kurunagala", "Kurunegala, Sri Lanka"),
@@ -178,6 +177,14 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
     ("mahaweli",                  "Mahaweli Basin, Sri Lanka"),
     ("kelani",                    "Colombo, Sri Lanka"),
     ("sri lanka",                 "Sri Lanka"),
+    # --- Generic country / zone names in Sinhala & Tamil (stems, so inflected
+    # forms like "ශ්‍රී ලංකාවේ" / "இலங்கையில்" still match by substring) ---
+    ("ශ්‍රී ලංකා",               "Sri Lanka"),
+    ("இலங்கை",                   "Sri Lanka"),
+    ("වියළි කලාප",               "Dry Zone, Sri Lanka"),
+    ("வறண்ட வலய",                "Dry Zone, Sri Lanka"),
+    ("මධ්‍යම කඳුකර",             "Central Highlands, Sri Lanka"),
+    ("மத்திய மலைநாடு",           "Central Highlands, Sri Lanka"),
 ]
 
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
@@ -238,13 +245,13 @@ _MULTILINGUAL_TOPIC_KEYWORDS: dict[str, list[str]] = {
     "flood":          ["ගංවතුර", "ගං වතුර", "ජල ගැලීම",
                        "வெள்ள",   # stem: வெள்ளம், வெள்ளப்பெருக்கு, வெள்ள அபாயம் (final "ம்" drops before a noun)
                        ],
-    "drought":        ["නියඟ", "නියග", "ජල හිඟ",
+    "drought":        ["නියඟ", "නියග", "නියං", "ජල හිඟ",
                        "வறட்சி", "தண்ணீர் பற்றாக்குறை"],
     "heat-wave":      ["අධික රස්නය", "රස්නය", "வெப்ப அலை", "கடும் வெப்பம்"],
     "cyclone":        ["සුළි සුළං", "සුළිසුළං", "සුළිසුළඟ", "சூறாவளி"],
     "landslide":      ["නායයෑම", "නායයාම", "නායයෑ", "நிலச்சரிவு", "மண்சரிவு"],
     "sea-level-rise": ["මුහුදු මට්ටම", "கடல் மட்டம்"],
-    "rain":           ["වැස්ස", "වර්ෂා", "மழை"],
+    "rain":           ["වැස්ස", "වර්ෂා", "මෝසම්", "மழை", "பருவமழை"],
     "air-quality":    ["වායු දූෂණ", "වායු ගුණාත්මක", "காற்று மாசு", "காற்றின் தரம்"],
     "storm":          ["කුණාටු", "புயல்"],
     "agriculture":    ["කෘෂිකර්ම", "ගොවි", "விவசாய"],

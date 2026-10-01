@@ -8,6 +8,7 @@ from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.services.vector_store_service import vector_store_service
+from app.routers.deps import AdminAuth
 
 router = APIRouter()
 
@@ -84,7 +85,7 @@ async def get_document(doc_id: str):
     raise HTTPException(status_code=404, detail=f"Document '{doc_id}' not found")
 
 
-@router.post("/documents")
+@router.post("/documents", dependencies=[AdminAuth])
 async def add_document(request: AddDocumentRequest):
     """Add a single document to the vector store."""
     import uuid
@@ -114,7 +115,7 @@ async def add_document(request: AddDocumentRequest):
     }
 
 
-@router.post("/documents/bulk")
+@router.post("/documents/bulk", dependencies=[AdminAuth])
 async def add_bulk_documents(request: AddBulkDocumentsRequest):
     """Add multiple documents at once."""
     import uuid
@@ -166,21 +167,21 @@ async def search_documents(request: SearchRequest):
     }
 
 
-@router.delete("/documents/{doc_id}")
+@router.delete("/documents/{doc_id}", dependencies=[AdminAuth])
 async def delete_document(doc_id: str):
     """Delete a specific document by ID."""
     result = await vector_store_service.delete_documents(ids=[doc_id])
     return result
 
 
-@router.delete("/reset")
+@router.delete("/reset", dependencies=[AdminAuth])
 async def reset_vector_store():
     """Delete ALL documents. Use with caution."""
     result = await vector_store_service.reset()
     return result
 
 
-@router.post("/seed")
+@router.post("/seed", dependencies=[AdminAuth])
 async def seed_sample_data():
     """
     Seed the vector store with sample climate documents for testing.

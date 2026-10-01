@@ -58,6 +58,9 @@ class Settings(BaseSettings):
     # Security
     secret_key: str = "change-this-in-production"
     access_token_expire_minutes: int = 60
+    # Token for protected (mutating) endpoints, sent as X-Admin-Token header.
+    # When unset, those endpoints are open (local development only).
+    admin_token: Optional[str] = None
     cors_origins: list[str] = ["http://localhost:5173", "http://localhost:3000"]
 
     # Rate Limiting

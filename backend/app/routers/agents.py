@@ -2,17 +2,15 @@
 
 from fastapi import APIRouter
 
-from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
+from app.agents.orchestrator.shared import get_orchestrator
 
 router = APIRouter()
-
-orchestrator = OrchestratorAgent()
 
 
 @router.get("/status")
 async def get_agents_status():
     """Get the status of all registered agents."""
-    return await orchestrator.get_agents_status()
+    return await get_orchestrator().get_agents_status()
 
 
 @router.get("/list")

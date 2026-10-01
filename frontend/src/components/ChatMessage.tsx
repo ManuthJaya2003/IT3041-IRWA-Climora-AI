@@ -45,7 +45,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
 
         {/* Timestamp */}
         <p className={`text-xs mt-1 ${isUser ? 'text-right' : 'text-left'} text-slate-400`}>
-          {message.timestamp.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+          {new Date(message.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
         </p>
       </div>
 
@@ -77,6 +77,10 @@ function FormattedText({ text }: { text: string }) {
 
 function ResponseDetails({ response }: { response: ChatResponse }) {
   const t = uiText(response.language)
+  const riskFactors = response.risk_assessment?.risk_factors ?? []
+  const recommendations = response.recommendations ?? []
+  const sources = response.sources ?? []
+  const agentsUsed = response.agents_used ?? []
   return (
     <div className="mt-3 space-y-3" lang={response.language || 'en'}>
       {/* Risk Assessment */}
@@ -91,11 +95,11 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
           </div>
 
           {/* Risk Factors */}
-          {response.risk_assessment.risk_factors.length > 0 && (
+          {riskFactors.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-slate-500 mb-1.5">{t.riskFactors}</p>
               <div className="flex flex-wrap gap-2">
-                {response.risk_assessment.risk_factors.map((factor, idx) => (
+                {riskFactors.map((factor, idx) => (
                   <span
                     key={idx}
                     className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full whitespace-nowrap"
@@ -129,14 +133,14 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
       )}
 
       {/* Recommendations */}
-      {response.recommendations.length > 0 && (
+      {recommendations.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle className="w-4 h-4 text-climora-500" />
             <span className="text-xs font-semibold text-slate-700">{t.recommendations}</span>
           </div>
           <ul className="space-y-2.5">
-            {response.recommendations.map((rec, idx) => (
+            {recommendations.map((rec, idx) => (
               <li key={idx} className="flex items-start gap-2">
                 <PriorityBadge priority={rec.priority} lang={response.language} />
                 <div>
@@ -152,15 +156,15 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
       )}
 
       {/* Sources */}
-      {response.sources.length > 0 && (
+      {sources.length > 0 && (
         <div className="bg-white border border-slate-200 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <ExternalLink className="w-4 h-4 text-blue-500" />
             <span className="text-xs font-semibold text-slate-700">{t.evidenceSources}</span>
-            <span className="text-xs text-slate-400">({response.sources.length})</span>
+            <span className="text-xs text-slate-400">({sources.length})</span>
           </div>
           <ul className="space-y-2">
-            {response.sources.map((source, idx) => (
+            {sources.map((source, idx) => (
               <li key={idx} className="flex items-start justify-between gap-2">
                 <div className="flex items-start gap-2 min-w-0">
                   <span className="text-xs text-slate-400 shrink-0">{idx + 1}.</span>
@@ -207,8 +211,8 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
             <span>{(response.processing_time_ms / 1000).toFixed(1)}s</span>
           </div>
         )}
-        {response.agents_used.length > 0 && (
-          <span>{response.agents_used.length} {t.agents}</span>
+        {agentsUsed.length > 0 && (
+          <span>{agentsUsed.length} {t.agents}</span>
         )}
       </div>
 
@@ -284,7 +288,10 @@ function ReadAloudButton({ text, language }: { text: string; language?: string }
       setIsPlaying(true)
 
       const audio = new Audio(audioUrl)
-      audio.play()
+      audio.play().catch(() => {
+        setIsPlaying(false)
+        URL.revokeObjectURL(audioUrl)
+      })
       audio.onended = () => {
         setIsPlaying(false)
         URL.revokeObjectURL(audioUrl)

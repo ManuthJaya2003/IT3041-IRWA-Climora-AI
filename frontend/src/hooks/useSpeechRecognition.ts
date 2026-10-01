@@ -1,10 +1,54 @@
-import { useState, useCallback, useRef } from 'react'
+import { useState, useCallback, useRef, useEffect } from 'react'
+
+/* Minimal Web Speech API types — not included in TypeScript's DOM lib. */
+interface SpeechRecognitionAlternative {
+  transcript: string
+  confidence: number
+}
+interface SpeechRecognitionResult {
+  isFinal: boolean
+  length: number
+  [index: number]: SpeechRecognitionAlternative
+}
+interface SpeechRecognitionResultList {
+  length: number
+  [index: number]: SpeechRecognitionResult
+}
+interface SpeechRecognitionEvent extends Event {
+  resultIndex: number
+  results: SpeechRecognitionResultList
+}
+interface SpeechRecognitionErrorEvent extends Event {
+  error: string
+}
+interface SpeechRecognitionInstance extends EventTarget {
+  continuous: boolean
+  interimResults: boolean
+  maxAlternatives: number
+  lang: string
+  onstart: (() => void) | null
+  onresult: ((event: SpeechRecognitionEvent) => void) | null
+  onerror: ((event: SpeechRecognitionErrorEvent) => void) | null
+  onend: (() => void) | null
+  start: () => void
+  stop: () => void
+}
+interface SpeechRecognitionCtor {
+  new (): SpeechRecognitionInstance
+}
+declare global {
+  interface Window {
+    SpeechRecognition?: SpeechRecognitionCtor
+    webkitSpeechRecognition?: SpeechRecognitionCtor
+  }
+}
 
 interface SpeechRecognitionHook {
   isListening: boolean
   transcript: string
   startListening: (lang?: string) => void
   stopListening: () => void
+  clearTranscript: () => void
   isSupported: boolean
   error: string | null
 }
@@ -24,12 +68,10 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
   const [isListening, setIsListening] = useState(false)
   const [transcript, setTranscript] = useState('')
   const [error, setError] = useState<string | null>(null)
-  const recognitionRef = useRef<SpeechRecognition | null>(null)
+  const recognitionRef = useRef<SpeechRecognitionInstance | null>(null)
 
   // Check browser support
-  const SpeechRecognitionAPI =
-    (window as unknown as { SpeechRecognition?: typeof SpeechRecognition })?.SpeechRecognition ||
-    (window as unknown as { webkitSpeechRecognition?: typeof SpeechRecognition })?.webkitSpeechRecognition
+  const SpeechRecognitionAPI = window.SpeechRecognition || window.webkitSpeechRecognition
 
   const isSupported = !!SpeechRecognitionAPI
 
@@ -99,11 +141,28 @@ export function useSpeechRecognition(): SpeechRecognitionHook {
     }
   }, [])
 
+  const clearTranscript = useCallback(() => {
+    setTranscript('')
+  }, [])
+
+  // Stop recognition if the component unmounts mid-listen.
+  useEffect(() => {
+    return () => {
+      try {
+        recognitionRef.current?.stop()
+      } catch {
+        // Already stopped — safe to ignore.
+      }
+      recognitionRef.current = null
+    }
+  }, [])
+
   return {
     isListening,
     transcript,
     startListening,
     stopListening,
+    clearTranscript,
     isSupported,
     error,
   }

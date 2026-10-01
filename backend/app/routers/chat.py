@@ -1,19 +1,20 @@
 """Chat API endpoints - main user interaction route."""
 
+import logging
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.models.schemas import ChatRequest, ChatResponse
-from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
+from app.agents.orchestrator.shared import get_orchestrator
+from app.routers.deps import RateLimit
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
-# Orchestrator instance
-orchestrator = OrchestratorAgent()
 
-
-@router.post("/query", response_model=ChatResponse)
+@router.post("/query", response_model=ChatResponse, dependencies=[RateLimit])
 async def process_query(request: ChatRequest):
     """
     Process a user's climate-related query through the multi-agent pipeline.
@@ -23,21 +24,28 @@ async def process_query(request: ChatRequest):
     comprehensive response with evidence and recommendations.
     """
     try:
-        response = await orchestrator.process_user_query(request)
+        response = await get_orchestrator().process_user_query(request)
         return response
-    except Exception as e:
+    except HTTPException:
+        raise
+    except Exception:
+        logger.exception("Chat query failed")
         raise HTTPException(
             status_code=500,
-            detail=f"Error processing query: {str(e)}"
+            detail="Error processing query. Please try again."
         )
 
 
 @router.get("/history")
 async def get_chat_history(session_id: Optional[str] = None):
-    """Retrieve chat history for a session."""
-    # Placeholder - will be implemented with database
+    """Retrieve stored chat history for a session."""
+    if not session_id:
+        return {
+            "session_id": None,
+            "messages": [],
+            "message": "Pass ?session_id=<id> to retrieve that session's history.",
+        }
     return {
         "session_id": session_id,
-        "messages": [],
-        "message": "Chat history will be available once database is connected."
+        "messages": get_orchestrator().get_session_history(session_id),
     }
