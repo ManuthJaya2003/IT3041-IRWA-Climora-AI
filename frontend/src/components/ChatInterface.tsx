@@ -1,9 +1,18 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
+import { Send, MapPin, Loader2, Mic, MicOff, Volume2, Square } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import { sendQuery, sendVoiceQuery, getAudioUrl, ChatResponse } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { notifyUsageChanged } from '../usageBus'
+
+/** True when an axios failure is a deliberate cancellation, not an error. */
+function isAbortError(error: unknown): boolean {
+  return (
+    typeof error === 'object' && error !== null &&
+    ((error as { code?: string }).code === 'ERR_CANCELED' ||
+      (error as { name?: string }).name === 'CanceledError')
+  )
+}
 
 export interface Message {
   id: string
@@ -62,6 +71,10 @@ export default function ChatInterface({
   // Mirror of messages for parent callbacks — avoids stale-closure history loss
   // when a voice auto-submit races a typed submit.
   const messagesRef = useRef<Message[]>(initialMessages)
+  // In-flight request: aborted when the user switches conversations or hits Stop,
+  // so a late response can never land in the wrong chat.
+  const abortRef = useRef<AbortController | null>(null)
+  const aliveRef = useRef(true)
   // Last voice transcript already submitted — prevents re-submitting a stale
   // transcript when the mic is toggled again.
   const lastVoiceSubmit = useRef('')
@@ -74,9 +87,12 @@ export default function ChatInterface({
     setLocation(defaultLocation)
   }, [defaultLocation])
 
-  // Stop any playing audio when switching conversations (component unmounts).
+  // Stop any playing audio and cancel any in-flight request on unmount
+  // (e.g. switching conversations mid-response).
   useEffect(() => {
     return () => {
+      aliveRef.current = false
+      abortRef.current?.abort()
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current = null
@@ -136,6 +152,9 @@ export default function ChatInterface({
     setInput('')
     setIsLoading(true)
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const response = await sendQuery({
         query,
@@ -143,7 +162,11 @@ export default function ChatInterface({
         user_type: userType,
         session_id: sessionId || undefined,
         language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
+        signal: controller.signal,
       })
+
+      // Switched conversations while waiting — drop the stale response.
+      if (!aliveRef.current) return
 
       setSessionId(response.session_id)
 
@@ -167,6 +190,9 @@ export default function ChatInterface({
         onUpdateConversation(sessionId, updatedMessages)
       }
     } catch (error) {
+      // Cancelled (Stop button / conversation switch) — leave the user's
+      // message in place with no error bubble and no history update.
+      if (isAbortError(error) || !aliveRef.current) return
       const errorMessage: Message = {
         id: newId(),
         role: 'assistant',
@@ -176,6 +202,7 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
+      if (abortRef.current === controller) abortRef.current = null
       setIsLoading(false)
       notifyUsageChanged()
     }
@@ -183,6 +210,11 @@ export default function ChatInterface({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
+    // While a response is loading, the send button acts as Stop.
+    if (isLoading) {
+      abortRef.current?.abort()
+      return
+    }
     await submitQuery(input)
   }
 
@@ -201,6 +233,9 @@ export default function ChatInterface({
     setInput('')
     setIsLoading(true)
 
+    const controller = new AbortController()
+    abortRef.current = controller
+
     try {
       const result = await sendVoiceQuery({
         query,
@@ -208,7 +243,11 @@ export default function ChatInterface({
         user_type: userType,
         session_id: sessionId || undefined,
         language: speechLang,
+        signal: controller.signal,
       })
+
+      // Switched conversations while waiting — drop the stale response.
+      if (!aliveRef.current) return
 
       const response = result.response
       setSessionId(response.session_id)
@@ -237,6 +276,7 @@ export default function ChatInterface({
         playAudio(getAudioUrl(result.audio_url))
       }
     } catch (error) {
+      if (isAbortError(error) || !aliveRef.current) return
       const errorMessage: Message = {
         id: newId(),
         role: 'assistant',
@@ -246,6 +286,7 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
+      if (abortRef.current === controller) abortRef.current = null
       setIsLoading(false)
       notifyUsageChanged()
     }
@@ -447,14 +488,15 @@ export default function ChatInterface({
               disabled={isLoading || isListening}
             />
 
-            {/* Send button */}
+            {/* Send / Stop button */}
             <button
               type="submit"
-              disabled={!input.trim() || isLoading}
-              className="p-3 bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-              aria-label="Send message"
+              disabled={!input.trim() && !isLoading}
+              className="p-3 bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
+              aria-label={isLoading ? 'Stop generating' : 'Send message'}
+              title={isLoading ? 'Stop generating' : 'Send message'}
             >
-              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {isLoading ? <Square className="w-4 h-4" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
 

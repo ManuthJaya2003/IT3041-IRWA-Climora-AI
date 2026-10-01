@@ -34,6 +34,8 @@ export interface ChatRequest {
   context?: Record<string, unknown>
   /** Preferred answer language: 'en' | 'si' | 'ta'. A Sinhala/Tamil query is always answered in that language. */
   language?: string
+  /** AbortSignal to cancel an in-flight request (never sent to the backend). */
+  signal?: AbortSignal
 }
 
 export interface SourceEvidence {
@@ -81,7 +83,8 @@ export interface VoiceQueryResponse {
 // --- API Functions ---
 
 export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
-  const response = await api.post<ChatResponse>('/chat/query', request)
+  const { signal, ...body } = request
+  const response = await api.post<ChatResponse>('/chat/query', body, { signal })
   return response.data
 }
 
@@ -93,8 +96,10 @@ export async function sendVoiceQuery(request: {
   user_type?: string
   session_id?: string
   language?: string
+  signal?: AbortSignal
 }): Promise<VoiceQueryResponse> {
-  const response = await api.post<VoiceQueryResponse>('/speech/voice-query', request)
+  const { signal, ...body } = request
+  const response = await api.post<VoiceQueryResponse>('/speech/voice-query', body, { signal })
   return response.data
 }
 
