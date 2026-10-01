@@ -105,7 +105,7 @@ export default function SettingsView({
       cancelled = true
       off()
     }
-  }, [])
+  }, [plan])
 
   const requestNotifPermission = async () => {
     try {
@@ -162,16 +162,18 @@ export default function SettingsView({
             <p className="text-xs text-slate-500 dark:text-slate-400 truncate">Manage your Climora experience</p>
           </div>
         </div>
-        <div className="relative mt-3 max-w-md">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
-          <input
-            type="search"
-            value={query}
-            onChange={e => setQuery(e.target.value)}
-            placeholder="Search settings…"
-            aria-label="Search settings"
-            className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500"
-          />
+        <div className="flex justify-center mt-3">
+          <div className="relative w-full max-w-md">
+            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+            <input
+              type="search"
+              value={query}
+              onChange={e => setQuery(e.target.value)}
+              placeholder="Search settings…"
+              aria-label="Search settings"
+              className="w-full rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500"
+            />
+          </div>
         </div>
       </div>
 

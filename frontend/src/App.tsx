@@ -7,6 +7,7 @@ import SettingsView from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { FALLBACK_PLANS, Plan, addLocation, loadLocations, loadPlan, removeLocation, savePlan } from './plans'
 import { getPlans, setApiPlan } from './api/climoraApi'
+import { notifyUsageChanged } from './usageBus'
 
 interface ConversationData {
   conversation: Conversation
@@ -185,6 +186,8 @@ function App() {
     setPlan(planId)
     savePlan(planId)
     setApiPlan(planId)
+    // New quota applies immediately — refresh every usage display.
+    notifyUsageChanged()
   }, [])
 
   // Attach the commercial plan to every API request (quota enforcement).
