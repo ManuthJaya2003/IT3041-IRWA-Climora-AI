@@ -1,10 +1,10 @@
-import { useState, useCallback, useEffect } from 'react'
+import { useState, useCallback, useEffect, useRef } from 'react'
 import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
-import SettingsModal from './components/SettingsModal'
 import PlansModal from './components/PlansModal'
-import { AppSettings, loadSettings, saveSettings } from './settings'
+import SettingsView from './components/SettingsView'
+import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { loadPlan, savePlan } from './plans'
 import { setApiPlan } from './api/climoraApi'
 
@@ -17,7 +17,7 @@ interface ConversationData {
 const STORAGE_KEY = 'climora-conversations'
 const ACTIVE_CONVERSATION_KEY = 'climora-active-conversation'
 
-function loadConversations(): Map<string, ConversationData> {
+function loadConversations(retentionDays: number): Map<string, ConversationData> {
   try {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (!saved) return new Map()
@@ -25,6 +25,7 @@ function loadConversations(): Map<string, ConversationData> {
     const entries: unknown = JSON.parse(saved)
     if (!Array.isArray(entries)) return new Map()
 
+    const cutoff = retentionDays > 0 ? Date.now() - retentionDays * 86400_000 : 0
     const result = new Map<string, ConversationData>()
     for (const entry of entries) {
       if (!Array.isArray(entry) || entry.length !== 2) continue
@@ -33,6 +34,7 @@ function loadConversations(): Map<string, ConversationData> {
       if (!data.conversation || !Array.isArray(data.messages)) continue
       const timestamp = new Date(data.conversation.timestamp)
       if (Number.isNaN(timestamp.getTime())) continue
+      if (cutoff > 0 && timestamp.getTime() < cutoff) continue // retention policy
       result.set(id, {
         conversation: { ...data.conversation, id, timestamp },
         messages: data.messages
@@ -63,12 +65,14 @@ function persist(key: string, value: string | null) {
 }
 
 function App() {
+  const [view, setView] = useState<'chat' | 'settings'>('chat')
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [settingsOpen, setSettingsOpen] = useState(false)
   const [plansOpen, setPlansOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [plan, setPlan] = useState<string>(loadPlan)
-  const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(loadConversations)
+  const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(
+    () => loadConversations(loadSettings().retentionDays),
+  )
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
     try {
       return localStorage.getItem(ACTIVE_CONVERSATION_KEY)
@@ -76,6 +80,21 @@ function App() {
       return null
     }
   })
+
+  // Apply theme now and follow OS changes while "System" is selected.
+  const themeRef = useRef(settings.theme)
+  themeRef.current = settings.theme
+  useEffect(() => {
+    applyTheme(themeRef.current)
+    const mq = window.matchMedia('(prefers-color-scheme: dark)')
+    const handler = () => applyTheme(themeRef.current)
+    mq.addEventListener('change', handler)
+    return () => mq.removeEventListener('change', handler)
+  }, [])
+
+  useEffect(() => {
+    applyTheme(settings.theme)
+  }, [settings.theme])
 
   useEffect(() => {
     persist(STORAGE_KEY, JSON.stringify(Array.from(conversationsData.entries())))
@@ -85,9 +104,28 @@ function App() {
     persist(ACTIVE_CONVERSATION_KEY, activeConversationId)
   }, [activeConversationId])
 
-  const handleSaveSettings = useCallback((next: AppSettings) => {
-    setSettings(next)
-    saveSettings(next)
+  const handleChangeSettings = useCallback((patch: Partial<AppSettings>) => {
+    setSettings(prev => {
+      const next = { ...prev, ...patch }
+      saveSettings(next)
+      return next
+    })
+    // Retention changes prune immediately.
+    if (patch.retentionDays !== undefined) {
+      const days = patch.retentionDays
+      if (days > 0) {
+        const cutoff = Date.now() - days * 86400_000
+        setConversationsData(prev => {
+          const updated = new Map(prev)
+          for (const [id, data] of updated) {
+            if (data.conversation.timestamp.getTime() < cutoff) {
+              updated.delete(id)
+            }
+          }
+          return updated
+        })
+      }
+    }
   }, [])
 
   const handleSelectPlan = useCallback((planId: string) => {
@@ -110,6 +148,7 @@ function App() {
 
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null)
+    setView('chat')
   }, [])
 
   const handleNewConversation = useCallback((id: string, firstQuery: string, messages: Message[]) => {
@@ -140,6 +179,7 @@ function App() {
 
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id)
+    setView('chat')
   }, [])
 
   const handleDeleteConversation = useCallback((id: string) => {
@@ -156,8 +196,36 @@ function App() {
   const handleClearHistory = useCallback(() => {
     setConversationsData(new Map())
     setActiveConversationId(null)
-    setSettingsOpen(false)
   }, [])
+
+  const handleExportHistory = useCallback(() => {
+    try {
+      const data = Array.from(conversationsData.values()).map(d => ({
+        id: d.conversation.id,
+        title: d.conversation.title,
+        timestamp: d.conversation.timestamp.toISOString(),
+        sessionId: d.sessionId,
+        messages: d.messages.map(m => ({
+          role: m.role,
+          content: m.content,
+          timestamp: new Date(m.timestamp).toISOString(),
+        })),
+      }))
+      const blob = new Blob([JSON.stringify({ exported_at: new Date().toISOString(), conversations: data }, null, 2)], {
+        type: 'application/json',
+      })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `climora-history-${new Date().toISOString().slice(0, 10)}.json`
+      document.body.appendChild(a)
+      a.click()
+      a.remove()
+      URL.revokeObjectURL(url)
+    } catch {
+      // Download failures must never crash the app.
+    }
+  }, [conversationsData])
 
   // Get messages for active conversation
   const activeData = validActiveId ? conversationsData.get(validActiveId) : null
@@ -165,7 +233,7 @@ function App() {
   const activeSessionId = activeData?.sessionId || null
 
   return (
-    <div className="flex h-screen bg-slate-50">
+    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
       {/* Sidebar */}
       {sidebarOpen && (
         <Sidebar
@@ -184,31 +252,36 @@ function App() {
         <Header
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onOpenSettings={() => setSettingsOpen(true)}
+          onOpenSettings={() => setView('settings')}
         />
         <main className="flex-1 overflow-hidden">
-          <ChatInterface
-            key={validActiveId || 'new'}
-            initialMessages={activeMessages}
-            initialSessionId={activeSessionId}
-            defaultLanguage={settings.language}
-            defaultLocation={settings.location}
-            userType={settings.userType}
-            onNewConversation={handleNewConversation}
-            onUpdateConversation={handleUpdateConversation}
-          />
+          {view === 'settings' ? (
+            <SettingsView
+              settings={settings}
+              onChange={handleChangeSettings}
+              plan={plan}
+              conversationCount={conversations.length}
+              onExportHistory={handleExportHistory}
+              onClearHistory={handleClearHistory}
+              onViewPlans={() => setPlansOpen(true)}
+              onBack={() => setView('chat')}
+            />
+          ) : (
+            <ChatInterface
+              key={validActiveId || 'new'}
+              initialMessages={activeMessages}
+              initialSessionId={activeSessionId}
+              defaultLanguage={settings.language}
+              defaultLocation={settings.location}
+              userType={settings.userType}
+              displayName={settings.displayName}
+              alertsEnabled={settings.alertsEnabled}
+              onNewConversation={handleNewConversation}
+              onUpdateConversation={handleUpdateConversation}
+            />
+          )}
         </main>
       </div>
-
-      <SettingsModal
-        open={settingsOpen}
-        settings={settings}
-        currentPlan={plan}
-        onSave={handleSaveSettings}
-        onClose={() => setSettingsOpen(false)}
-        onClearHistory={handleClearHistory}
-        onViewPlans={() => setPlansOpen(true)}
-      />
 
       <PlansModal
         open={plansOpen}
