@@ -42,6 +42,7 @@ export const FALLBACK_PLANS: Plan[] = [
       '100 AI climate queries / day',
       'Current weather + hazard risk',
       'English, Sinhala & Tamil',
+      'Voice input with audio answers',
       '1 saved location',
       '7-day chat history',
     ],
@@ -62,12 +63,12 @@ export const FALLBACK_PLANS: Plan[] = [
     max_saved_locations: 5,
     history_days: 90,
     features: [
+      'Everything in Free, plus:',
       '1,000 AI climate queries / day',
-      'Severe-weather alerts for your locations',
+      'Severe-weather browser alerts',
       '5 saved locations',
-      '90-day chat history & reports',
-      'Voice queries with audio answers',
-      'Priority processing',
+      '90-day chat history',
+      'Priority support',
     ],
     limits_note: 'Per-user fair use.',
   },
@@ -86,12 +87,12 @@ export const FALLBACK_PLANS: Plan[] = [
     max_saved_locations: 25,
     history_days: 365,
     features: [
+      'Everything in Premium, plus:',
       '10,000 AI climate queries / day',
-      'Up to 5 team seats',
+      '25 saved locations',
+      '1-year chat history',
       'API access for integrations',
-      'Location dashboards & risk reports',
-      '25 monitored locations',
-      '1-year history & exports',
+      'Email support',
     ],
     limits_note: 'Pooled across team seats.',
   },
@@ -149,4 +150,54 @@ export function priceSubtext(plan: Plan, annual: boolean): string {
   if (plan.monthly_lkr === null) return 'annual billing'
   if (plan.monthly_lkr === 0) return 'free forever'
   return annual ? 'per year (2 months free)' : 'per month'
+}
+
+// --- Saved locations (plan-limited quick picks for the chat location box) ---
+
+const LOCATIONS_KEY = 'climora-saved-locations'
+const MAX_LOCATION_LEN = 60
+
+export function loadLocations(): string[] {
+  try {
+    const raw = localStorage.getItem(LOCATIONS_KEY)
+    if (!raw) return []
+    const parsed: unknown = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed
+      .filter((v): v is string => typeof v === 'string')
+      .map(v => v.trim().slice(0, MAX_LOCATION_LEN))
+      .filter(Boolean)
+      .slice(0, 50)
+  } catch {
+    return []
+  }
+}
+
+function persistLocations(locations: string[]): void {
+  try {
+    localStorage.setItem(LOCATIONS_KEY, JSON.stringify(locations))
+  } catch {
+    // Private-mode / quota errors must never crash the app.
+  }
+}
+
+/** Add a location, enforcing the plan cap (0 = unlimited). Returns an error message or null. */
+export function addLocation(locations: string[], name: string, limit: number): { locations: string[]; error: string | null } {
+  const clean = name.trim().slice(0, MAX_LOCATION_LEN)
+  if (!clean) return { locations, error: 'Enter a location name.' }
+  if (locations.some(l => l.toLowerCase() === clean.toLowerCase())) {
+    return { locations, error: 'That location is already saved.' }
+  }
+  if (limit > 0 && locations.length >= limit) {
+    return { locations, error: `Your plan allows ${limit} saved location${limit === 1 ? '' : 's'}. Upgrade for more.` }
+  }
+  const next = [...locations, clean]
+  persistLocations(next)
+  return { locations: next, error: null }
+}
+
+export function removeLocation(locations: string[], name: string): string[] {
+  const next = locations.filter(l => l !== name)
+  persistLocations(next)
+  return next
 }

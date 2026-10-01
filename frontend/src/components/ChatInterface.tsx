@@ -21,6 +21,7 @@ interface ChatInterfaceProps {
   userType?: string
   displayName?: string
   alertsEnabled?: boolean
+  savedLocations?: string[]
   onNewConversation?: (id: string, query: string, messages: Message[]) => void
   onUpdateConversation?: (id: string, messages: Message[]) => void
 }
@@ -45,6 +46,7 @@ export default function ChatInterface({
   userType = 'individual',
   displayName = '',
   alertsEnabled = false,
+  savedLocations = [],
   onNewConversation,
   onUpdateConversation,
 }: ChatInterfaceProps) {
@@ -310,6 +312,7 @@ export default function ChatInterface({
 
   return (
     <div className="flex flex-col h-full">
+      <LocationOptions locations={savedLocations} />
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {messages.length === 0 ? (
@@ -390,6 +393,7 @@ export default function ChatInterface({
               type="text"
               value={location}
               onChange={e => setLocation(e.target.value)}
+              list="climora-saved-locations"
               placeholder="Your location (optional, e.g. Colombo, Sri Lanka)"
               className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
             />
@@ -492,6 +496,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
           type="text"
           value={location}
           onChange={e => onLocationChange(e.target.value)}
+          list="climora-saved-locations"
           placeholder="Enter your location first..."
           className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
         />
@@ -526,6 +531,17 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
         />
       </div>
     </div>
+  )
+}
+
+function LocationOptions({ locations }: { locations: string[] }) {
+  if (locations.length === 0) return null
+  return (
+    <datalist id="climora-saved-locations">
+      {locations.map(loc => (
+        <option key={loc} value={loc} />
+      ))}
+    </datalist>
   )
 }
 

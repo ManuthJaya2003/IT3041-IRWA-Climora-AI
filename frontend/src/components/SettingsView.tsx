@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, Bell, Check, Crown, Download, Info, Palette,
-  Search, Shield, SlidersHorizontal, Trash2, User, Sun, Moon, Monitor, FlaskConical,
+  ArrowLeft, Bell, Check, Crown, Download, Info, Lock, Palette,
+  Search, Shield, SlidersHorizontal, Trash2, User, Sun, Moon, Monitor, FlaskConical, MapPin, X,
 } from 'lucide-react'
 import { AppSettings, LANGUAGES, RETENTION_OPTIONS, Theme, USER_TYPES } from '../settings'
 import { getUsage, UsageDto } from '../api/climoraApi'
@@ -23,6 +23,14 @@ interface SettingsViewProps {
   settings: AppSettings
   onChange: (patch: Partial<AppSettings>) => void
   plan: string
+  /** Max saved locations for the current plan (0 = unlimited). */
+  locationLimit: number
+  /** History cap in days for the current plan (0 = unlimited). */
+  planHistoryDays: number
+  savedLocations: string[]
+  /** Returns an error message when the add is rejected, else null. */
+  onAddLocation: (name: string) => string | null
+  onRemoveLocation: (name: string) => void
   conversationCount: number
   onExportHistory: () => void
   onClearHistory: () => void
@@ -34,6 +42,11 @@ export default function SettingsView({
   settings,
   onChange,
   plan,
+  locationLimit,
+  planHistoryDays,
+  savedLocations,
+  onAddLocation,
+  onRemoveLocation,
   conversationCount,
   onExportHistory,
   onClearHistory,
@@ -51,6 +64,7 @@ export default function SettingsView({
 
   const notifApi = typeof Notification !== 'undefined'
   const isSecure = typeof window !== 'undefined' && !!window.isSecureContext
+  const alertsLocked = plan === 'free'
 
   // Search filters the section list; jump to the first match.
   const visibleSections = useMemo(() => {
@@ -221,6 +235,15 @@ export default function SettingsView({
                       aria-label="Default location"
                     />
                   </Row>
+                  <div className="py-4">
+                    <SavedLocations
+                      locations={savedLocations}
+                      limit={locationLimit}
+                      onAdd={onAddLocation}
+                      onRemove={onRemoveLocation}
+                      onViewPlans={onViewPlans}
+                    />
+                  </div>
                 </>
               )}
 
@@ -287,6 +310,23 @@ export default function SettingsView({
               )}
 
               {section === 'notifications' && (
+                alertsLocked ? (
+                  <div className="py-4 flex items-start gap-3 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800/50 p-4">
+                    <Lock className="w-5 h-5 text-slate-400 shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Premium feature</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                        Severe-weather alerts are available on Premium and above.
+                      </p>
+                      <button
+                        onClick={onViewPlans}
+                        className="mt-2 px-3 py-1.5 text-sm font-medium bg-climora-600 text-white rounded-lg hover:bg-climora-700 transition-colors"
+                      >
+                        View plans
+                      </button>
+                    </div>
+                  </div>
+                ) : (
                 <>
                   <Row label="Severe-weather alerts" hint="Notify me when a response assesses high or critical risk.">
                     <div className="flex sm:justify-end">
@@ -336,11 +376,17 @@ export default function SettingsView({
                     )}
                   </div>
                 </>
+                )
               )}
 
               {section === 'data' && (
                 <>
-                  <Row label="Keep chat history for" hint="Older conversations are removed from this browser automatically.">
+                  <Row
+                    label="Keep chat history for"
+                    hint={planHistoryDays > 0
+                      ? `Your ${plan} plan keeps up to ${planHistoryDays} days. You can shorten this further.`
+                      : 'Older conversations are removed from this browser automatically.'}
+                  >
                     <select
                       value={settings.retentionDays}
                       onChange={e => onChange({ retentionDays: Number(e.target.value) })}
@@ -469,6 +515,84 @@ function Row({ label, hint, children }: { label: string; hint: string; children:
         <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">{hint}</p>
       </div>
       <div className="mt-2.5 sm:mt-0 sm:w-64 shrink-0">{children}</div>
+    </div>
+  )
+}
+
+function SavedLocations({ locations, limit, onAdd, onRemove, onViewPlans }: {
+  locations: string[]
+  limit: number
+  onAdd: (name: string) => string | null
+  onRemove: (name: string) => void
+  onViewPlans: () => void
+}) {
+  const [draft, setDraft] = useState('')
+  const [error, setError] = useState<string | null>(null)
+
+  const submit = () => {
+    const err = onAdd(draft)
+    setError(err)
+    if (!err) setDraft('')
+  }
+
+  return (
+    <div>
+      <div className="flex items-center justify-between gap-2 mb-2">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-200">Saved locations</p>
+        <p className="text-xs text-slate-400">
+          {limit > 0 ? `${locations.length} / ${limit} used` : `${locations.length} saved (unlimited)`}
+        </p>
+      </div>
+      <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">
+        Quick picks for the chat location box. Limits follow your plan.
+      </p>
+      <div className="flex gap-2">
+        <div className="relative flex-1">
+          <MapPin className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400 pointer-events-none" />
+          <input
+            type="text"
+            value={draft}
+            onChange={e => { setDraft(e.target.value); setError(null) }}
+            onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }}
+            placeholder="e.g. Galle, Sri Lanka"
+            aria-label="Add a saved location"
+            className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500"
+          />
+        </div>
+        <button
+          onClick={submit}
+          className="px-3 py-2 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors shrink-0"
+        >
+          Add
+        </button>
+      </div>
+      {error && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+          {error}{' '}
+          <button onClick={onViewPlans} className="font-medium underline hover:no-underline">
+            View plans
+          </button>
+        </p>
+      )}
+      {locations.length > 0 && (
+        <div className="flex flex-wrap gap-2 mt-3">
+          {locations.map(loc => (
+            <span
+              key={loc}
+              className="inline-flex items-center gap-1.5 text-xs bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-200 border border-slate-200 dark:border-slate-700 pl-2.5 pr-1.5 py-1 rounded-full"
+            >
+              {loc}
+              <button
+                onClick={() => onRemove(loc)}
+                className="p-0.5 rounded-full hover:bg-slate-200 dark:hover:bg-slate-700 transition-colors"
+                aria-label={`Remove ${loc}`}
+              >
+                <X className="w-3 h-3 text-slate-400" />
+              </button>
+            </span>
+          ))}
+        </div>
+      )}
     </div>
   )
 }

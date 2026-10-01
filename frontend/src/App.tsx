@@ -5,8 +5,8 @@ import Header from './components/Header'
 import PlansModal from './components/PlansModal'
 import SettingsView from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
-import { loadPlan, savePlan } from './plans'
-import { setApiPlan } from './api/climoraApi'
+import { FALLBACK_PLANS, Plan, addLocation, loadLocations, loadPlan, removeLocation, savePlan } from './plans'
+import { getPlans, setApiPlan } from './api/climoraApi'
 
 interface ConversationData {
   conversation: Conversation
@@ -52,6 +52,28 @@ function loadConversations(retentionDays: number): Map<string, ConversationData>
   }
 }
 
+function planById(plans: Plan[], id: string): Plan {
+  return plans.find(p => p.id === id) ?? FALLBACK_PLANS[0]
+}
+
+/** Plan caps always apply; the user setting can only shorten retention further. 0 = unlimited. */
+function effectiveRetention(userDays: number, planDays: number): number {
+  if (planDays <= 0) return userDays
+  return userDays <= 0 ? planDays : Math.min(userDays, planDays)
+}
+
+function pruneMap(prev: Map<string, ConversationData>, days: number): Map<string, ConversationData> {
+  if (days <= 0) return prev
+  const cutoff = Date.now() - days * 86400_000
+  const updated = new Map(prev)
+  for (const [id, data] of updated) {
+    if (data.conversation.timestamp.getTime() < cutoff) {
+      updated.delete(id)
+    }
+  }
+  return updated
+}
+
 function persist(key: string, value: string | null) {
   try {
     if (value === null) {
@@ -73,8 +95,14 @@ function App() {
   const [plansOpen, setPlansOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [plan, setPlan] = useState<string>(loadPlan)
+  const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
+  const [savedLocations, setSavedLocations] = useState<string[]>(loadLocations)
   const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(
-    () => loadConversations(loadSettings().retentionDays),
+    () => {
+      // First load already respects the plan's history cap (live catalogue re-prunes after).
+      const s = loadSettings()
+      return loadConversations(effectiveRetention(s.retentionDays, planById(FALLBACK_PLANS, loadPlan()).history_days))
+    },
   )
   const [activeConversationId, setActiveConversationId] = useState<string | null>(() => {
     try {
@@ -107,28 +135,50 @@ function App() {
     persist(ACTIVE_CONVERSATION_KEY, activeConversationId)
   }, [activeConversationId])
 
+  const planDef = planById(plans, plan)
+  const locationLimit = planDef.max_saved_locations
+  const effectiveDays = effectiveRetention(settings.retentionDays, planDef.history_days)
+
+  // Live plan catalogue for limits (falls back to bundled data offline).
+  useEffect(() => {
+    let cancelled = false
+    getPlans()
+      .then(data => {
+        if (!cancelled && Array.isArray(data.plans) && data.plans.length > 0) {
+          setPlans(data.plans)
+        }
+      })
+      .catch(() => {
+        // Offline — FALLBACK_PLANS already in state.
+      })
+    return () => {
+      cancelled = true
+    }
+  }, [])
+
+  // Enforce the effective retention whenever plan, catalogue or setting changes.
+  useEffect(() => {
+    setConversationsData(prev => pruneMap(prev, effectiveDays))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [plan, plans, settings.retentionDays])
+
   const handleChangeSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings(prev => {
       const next = { ...prev, ...patch }
       saveSettings(next)
       return next
     })
-    // Retention changes prune immediately.
-    if (patch.retentionDays !== undefined) {
-      const days = patch.retentionDays
-      if (days > 0) {
-        const cutoff = Date.now() - days * 86400_000
-        setConversationsData(prev => {
-          const updated = new Map(prev)
-          for (const [id, data] of updated) {
-            if (data.conversation.timestamp.getTime() < cutoff) {
-              updated.delete(id)
-            }
-          }
-          return updated
-        })
-      }
-    }
+  }, [])
+
+  const handleAddLocation = useCallback((name: string): string | null => {
+    const limit = planById(plans, plan).max_saved_locations
+    const { locations, error } = addLocation(savedLocations, name, limit)
+    if (!error) setSavedLocations(locations)
+    return error
+  }, [plan, plans, savedLocations])
+
+  const handleRemoveLocation = useCallback((name: string) => {
+    setSavedLocations(prev => removeLocation(prev, name))
   }, [])
 
   const handleSelectPlan = useCallback((planId: string) => {
@@ -279,6 +329,11 @@ function App() {
               settings={settings}
               onChange={handleChangeSettings}
               plan={plan}
+              locationLimit={locationLimit}
+              planHistoryDays={planDef.history_days}
+              savedLocations={savedLocations}
+              onAddLocation={handleAddLocation}
+              onRemoveLocation={handleRemoveLocation}
               conversationCount={conversations.length}
               onExportHistory={handleExportHistory}
               onClearHistory={handleClearHistory}
@@ -295,6 +350,7 @@ function App() {
               userType={settings.userType}
               displayName={settings.displayName}
               alertsEnabled={settings.alertsEnabled}
+              savedLocations={savedLocations}
               onNewConversation={handleNewConversation}
               onUpdateConversation={handleUpdateConversation}
             />
