@@ -1,4 +1,6 @@
+import { useEffect, useState } from 'react'
 import { MessageSquare, Plus, Clock, Trash2, Crown } from 'lucide-react'
+import { getUsage } from '../api/climoraApi'
 
 export interface Conversation {
   id: string
@@ -25,6 +27,41 @@ export default function Sidebar({
   onDeleteConversation,
   onViewPlans,
 }: SidebarProps) {
+  const [used, setUsed] = useState<number | null>(null)
+  const [limit, setLimit] = useState<number | null>(null)
+
+  // Live daily quota from the backend — refreshes when the plan changes
+  // and every minute while the sidebar is visible. Hidden when offline.
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      getUsage()
+        .then(data => {
+          if (!cancelled) {
+            setUsed(data.used_today)
+            setLimit(data.daily_limit)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setUsed(null)
+            setLimit(null)
+          }
+        })
+    }
+    load()
+    const timer = setInterval(load, 60000)
+    return () => {
+      cancelled = true
+      clearInterval(timer)
+    }
+  }, [currentPlan])
+
+  const percent = used !== null && limit !== null && limit > 0
+    ? Math.min(100, Math.round((used / limit) * 100))
+    : null
+  const lowQuota = percent !== null && percent >= 80
+
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col">
       {/* New Chat Button */}
@@ -73,10 +110,41 @@ export default function Sidebar({
       <div className="p-4 border-t border-slate-700 space-y-2">
         <button
           onClick={onViewPlans}
-          className="flex items-center justify-center gap-1.5 w-full px-3 py-2 text-xs font-medium text-slate-300 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors"
+          className="block w-full px-3 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-left"
+          aria-label={`View plans. ${percent !== null ? `${percent}% of daily queries used.` : ''}`}
         >
-          <Crown className="w-3.5 h-3.5 text-amber-400" />
-          {currentPlan === 'free' ? 'Upgrade plan' : `${currentPlan[0].toUpperCase()}${currentPlan.slice(1)} plan`}
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-200">
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              {currentPlan === 'free' ? 'Free plan' : `${currentPlan[0].toUpperCase()}${currentPlan.slice(1)} plan`}
+            </span>
+            {percent !== null ? (
+              <span className={`text-xs font-semibold ${lowQuota ? 'text-amber-400' : 'text-slate-400'}`}>
+                {percent}%
+              </span>
+            ) : (
+              <span className="text-xs text-slate-500">Upgrade</span>
+            )}
+          </div>
+          {percent !== null && limit !== null && limit > 0 ? (
+            <>
+              <div className="h-1.5 mt-2 rounded-full bg-slate-700 overflow-hidden" role="progressbar"
+                aria-valuenow={used ?? 0} aria-valuemin={0} aria-valuemax={limit}
+                aria-label="Daily query usage">
+                <div
+                  className={`h-full rounded-full transition-all ${lowQuota ? 'bg-amber-400' : 'bg-climora-500'}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5">
+                {used} / {limit} queries today{lowQuota ? ' — upgrade for more' : ''}
+              </p>
+            </>
+          ) : (
+            <p className="text-[11px] text-slate-500 mt-1">
+              {limit === 0 ? 'Unlimited queries' : 'View plans & pricing'}
+            </p>
+          )}
         </button>
         <div className="text-xs text-slate-400 text-center">
           Climora AI v0.1.0
