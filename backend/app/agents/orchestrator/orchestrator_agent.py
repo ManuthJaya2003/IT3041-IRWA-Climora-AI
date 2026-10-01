@@ -226,10 +226,16 @@ class OrchestratorAgent:
 
             from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
 
-            # Check if the query text contains a known Sri Lanka location
+            # Check if the query text contains a known Sri Lanka location.
+            # Includes Sinhala/Tamil generic names so queries like "ශ්‍රී ලංකාවේ
+            # මෝසම් ..." or "இலங்கையில் ..." don't get asked for a location.
             has_sri_lanka_location = bool(detected_location) or any(
                 kw in query_lower_geo
                 for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka", "ceylon"]
+            ) or any(
+                tok in request.query
+                for tok in ("ශ්‍රී ලංකා", "இலங்கை", "වියළි කලාප", "வறண்ட வலய",
+                            "මධ්‍යම කඳුකර", "மத்திய மலைநாடு")
             )
 
             if not has_sri_lanka_location:

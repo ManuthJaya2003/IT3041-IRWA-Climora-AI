@@ -408,11 +408,11 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="ශ්‍රී ලංකාවේ මෝසම් සමයේදී මා සූදානම් විය යුත්තේ මොනවාටද?"
+          text="කොළඹ මෝසම් වර්ෂාවට සූදානම් වන්නේ කෙසේද?"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
-          text="ශ්‍රී ලංකාවේ වියළි කලාපයේ නියං අවදානම තක්සේරු කරන්න"
+          text="අනුරාධපුරයේ නියං අවදානම තක්සේරු කරන්න"
           onClick={onSuggestionClick}
         />
         <SuggestionCard
