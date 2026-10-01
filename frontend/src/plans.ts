@@ -152,6 +152,61 @@ export function priceSubtext(plan: Plan, annual: boolean): string {
   return annual ? 'per year (2 months free)' : 'per month'
 }
 
+export function planAmount(plan: Plan, annual: boolean): number | null {
+  return annual ? plan.annual_lkr : plan.monthly_lkr
+}
+
+// --- Demo subscriptions (mock checkout — no real payment provider) ---
+
+export type BillingCycle = 'monthly' | 'annual'
+
+export interface Subscription {
+  planId: string
+  cycle: BillingCycle
+  startedAt: string // ISO timestamp
+  receipt: string
+}
+
+const SUBSCRIPTION_KEY = 'climora-subscription'
+
+export function loadSubscription(): Subscription | null {
+  try {
+    const raw = localStorage.getItem(SUBSCRIPTION_KEY)
+    if (!raw) return null
+    const parsed: unknown = JSON.parse(raw)
+    if (
+      typeof parsed === 'object' && parsed !== null &&
+      typeof (parsed as Subscription).planId === 'string' &&
+      ((parsed as Subscription).cycle === 'monthly' || (parsed as Subscription).cycle === 'annual')
+    ) {
+      return parsed as Subscription
+    }
+  } catch {
+    // ignore — fall through
+  }
+  return null
+}
+
+export function saveSubscription(sub: Subscription): void {
+  try {
+    localStorage.setItem(SUBSCRIPTION_KEY, JSON.stringify(sub))
+  } catch {
+    // Private-mode / quota errors must never crash the app.
+  }
+}
+
+export function clearSubscription(): void {
+  try {
+    localStorage.removeItem(SUBSCRIPTION_KEY)
+  } catch {
+    // ignore
+  }
+}
+
+export function makeReceipt(): string {
+  return `DEMO-${Date.now().toString(36).toUpperCase()}${Math.floor(Math.random() * 1296).toString(36).toUpperCase().padStart(2, '0')}`
+}
+
 // --- Saved locations (plan-limited quick picks for the chat location box) ---
 
 const LOCATIONS_KEY = 'climora-saved-locations'

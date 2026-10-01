@@ -18,10 +18,11 @@ expected district and climate topic. Three metrics:
 
 - **Location accuracy: 16/16 = 100%**
 - **Topic accuracy: 16/16 = 100%**
-- **Retrieval top-3 hit rate: 11/16 = 68.8%**
+- **Retrieval top-3 hit rate: 13/16 = 81.2%** (was 68.8% before the
+  cross-lingual bridge — see below)
 
-Misses (all retrieval-side): Nuwara Eliya landslide (EN), Trincomalee
-cyclone (EN), Kandy flood (SI), Jaffna drought (SI), Colombo weather (TA).
+Remaining misses (all thin-corpus districts): Nuwara Eliya landslide (EN),
+Trincomalee cyclone (EN), Colombo weather (TA).
 
 ## What the evaluation caught (fixed before final)
 
@@ -35,11 +36,10 @@ cyclone (EN), Kandy flood (SI), Jaffna drought (SI), Colombo weather (TA).
 
 ## Honest limitations (viva-ready answers)
 
-- **TF-IDF retrieval is the bottleneck (68.8%)**, especially Sinhala/Tamil
-  queries against English documents. The production pipeline compensates
-  with live weather APIs, location-filtered evidence, and LLM synthesis —
-  end-to-end answers cite correct district evidence (verified manually for
-  Kandy flood → HIGH, Trincomalee cyclone → HIGH).
+- **TF-IDF retrieval is the bottleneck (81.2%)**, especially where the
+  corpus is thin. Mitigations shipped: a cross-lingual query bridge
+  (Sinhala/Tamil → English retrieval terms, offline, zero dependencies)
+  plus live weather APIs, location-filtered evidence, and LLM synthesis.
 - Next step for retrieval quality: multilingual embeddings so non-English
   queries match English documents semantically instead of lexically.
 - Sample size is 16 hand-picked queries; a larger annotated set with
@@ -49,4 +49,5 @@ cyclone (EN), Kandy flood (SI), Jaffna drought (SI), Colombo weather (TA).
 
 - `backend/tests/test_api_guards.py` — 7 tests (auth, rate limits, history)
 - `backend/tests/test_billing.py` — 5 tests (plans, quotas, usage)
+- `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - Frontend: `npm run build` (`tsc -b` + vite) must pass clean.

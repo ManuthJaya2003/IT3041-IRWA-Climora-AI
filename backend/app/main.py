@@ -77,12 +77,14 @@ async def lifespan(app: FastAPI):
     from app.services.embedding_service import embedding_service
     from app.services.vector_store_service import vector_store_service
     from app.services.tts_service import tts_service
+    from app.services.history_service import history_service
 
     for svc_name, svc in [
         ("llm", llm_service),
         ("embedding", embedding_service),
         ("vector store", vector_store_service),
         ("tts", tts_service),
+        ("chat history", history_service),
     ]:
         try:
             await svc.initialize()

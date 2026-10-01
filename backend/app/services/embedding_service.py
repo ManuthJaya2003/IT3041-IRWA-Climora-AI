@@ -70,6 +70,10 @@ class EmbeddingService:
 
     def embed_text(self, text: str) -> list[float]:
         """Generate embedding for a single text string."""
+        # Cross-lingual bridge: non-English queries gain English retrieval
+        # terms so they match the (English) document corpus.
+        from app.services.crosslingual_service import to_english_query
+        text = to_english_query(text)
         if self._use_bedrock:
             return self._bedrock_embed(text)
         return self._tfidf_embed(text)

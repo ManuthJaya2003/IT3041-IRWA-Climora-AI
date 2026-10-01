@@ -8,10 +8,11 @@ interface PlansModalProps {
   open: boolean
   currentPlan: string
   onSelectPlan: (planId: string) => void
+  onCheckout: (plan: Plan, annual: boolean) => void
   onClose: () => void
 }
 
-export default function PlansModal({ open, currentPlan, onSelectPlan, onClose }: PlansModalProps) {
+export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout, onClose }: PlansModalProps) {
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [annual, setAnnual] = useState(false)
@@ -63,12 +64,13 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onClose }:
 
   const handleSelect = (plan: Plan) => {
     if (plan.id === 'enterprise') return // contact-sales path, no plan switch
-    onSelectPlan(plan.id)
-    setNotice(
-      plan.id === 'free'
-        ? 'Switched to the Free plan.'
-        : `You're on ${plan.name} (demo mode — no payment processed).`,
-    )
+    if (plan.id === 'free') {
+      onSelectPlan('free')
+      setNotice('Switched to the Free plan.')
+      return
+    }
+    // Paid plans go through the (demo) checkout — activation happens on success.
+    onCheckout(plan, annual)
   }
 
   return (

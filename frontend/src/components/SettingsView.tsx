@@ -5,6 +5,7 @@ import {
 } from 'lucide-react'
 import { AppSettings, LANGUAGES, RETENTION_OPTIONS, Theme, USER_TYPES } from '../settings'
 import { getUsage, UsageDto } from '../api/climoraApi'
+import { Subscription } from '../plans'
 import { onUsageChanged } from '../usageBus'
 
 type SectionId = 'general' | 'appearance' | 'personalization' | 'notifications' | 'data' | 'subscription' | 'about'
@@ -23,6 +24,7 @@ interface SettingsViewProps {
   settings: AppSettings
   onChange: (patch: Partial<AppSettings>) => void
   plan: string
+  subscription: Subscription | null
   /** Max saved locations for the current plan (0 = unlimited). */
   locationLimit: number
   /** History cap in days for the current plan (0 = unlimited). */
@@ -42,6 +44,7 @@ export default function SettingsView({
   settings,
   onChange,
   plan,
+  subscription,
   locationLimit,
   planHistoryDays,
   savedLocations,
@@ -467,6 +470,14 @@ export default function SettingsView({
                       Manage plan
                     </button>
                   </div>
+                  {subscription && subscription.planId === plan && plan !== 'free' && (
+                    <div className="text-xs text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
+                      {subscription.cycle === 'annual' ? 'Annual' : 'Monthly'} billing · started{' '}
+                      {new Date(subscription.startedAt).toLocaleDateString()} · receipt{' '}
+                      <span className="font-mono">{subscription.receipt}</span>{' '}
+                      <span className="text-slate-400">(demo checkout — no charge)</span>
+                    </div>
+                  )}
                   {usage && usage.daily_limit > 0 && (
                     <div className="h-2 rounded-full bg-slate-100 dark:bg-slate-800 overflow-hidden" role="progressbar"
                       aria-valuenow={usage.used_today} aria-valuemin={0} aria-valuemax={usage.daily_limit}

@@ -32,18 +32,21 @@ Say: "Language is auto-detected by script — no manual toggle needed."
 
 ## 3. Commercialization working (2 min)
 
-- Sidebar → plan card shows live quota % → open pricing → switch Free → Premium:
-  quota jumps 100 → 1,000 instantly (Settings → Subscription proves it).
+- Sidebar → plan card shows live quota % → open pricing → Premium →
+  demo checkout (order summary → card form → processing → receipt) →
+  quota jumps 100 → 1,000 instantly (Settings → Subscription shows receipt).
 - Settings → Notifications on Free shows the Premium lock (upsell enforced).
+- History: with PostgreSQL running, restart the backend — chat history survives
+  (`/health/detailed` shows `chat_history: postgresql`); otherwise memory mode.
 - Exhaust-quota demo (optional): lower the Free quota and hammer queries
   to show the 429 + upgrade hint — or just describe it.
 
 ## 4. Engineering depth (2 min, if asked)
 
-- `EVALUATION.md`: 100% location/topic accuracy, 68.8% TF-IDF retrieval —
+- `EVALUATION.md`: 100% location/topic accuracy, 81.2% retrieval (TF-IDF + cross-lingual bridge) —
   and the eval caught 2 real bugs we fixed (Tamil Colombo inflection,
   heat-wave topic ordering).
-- `backend/tests/`: 12 regression tests (auth, quotas, rate limits).
+- `backend/tests/`: 16 regression tests (auth, quotas, rate limits, history).
 - Responsible AI: every answer grounded in retrieved evidence, verification
   agent, confidence scores, disclaimers, no internal errors leaked.
 
@@ -54,7 +57,8 @@ Say: "Language is auto-detected by script — no manual toggle needed."
 - *"What is genuinely agentic?"* — 6 MCP agent servers + orchestrator with
   structured task messages, retries, and fallbacks (kill an agent port and
   the pipeline still answers).
-- *"Biggest limitation?"* — lexical retrieval for Sinhala/Tamil (68.8%);
+- *"Biggest limitation?"* — lexical retrieval where the corpus is thin (81.2% top-3);
   mitigation is live data + LLM synthesis; multilingual embeddings are next.
-- *"Payments/teams/dashboards?"* — scoped out; quotas, saved locations,
+- *"Payments/teams/dashboards?"* — payments are a labeled demo checkout
+  (order → card → receipt, no provider); quotas, saved locations,
   retention caps and alerts are the enforced subset. Stated, not hidden.

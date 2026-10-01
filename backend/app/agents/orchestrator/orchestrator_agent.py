@@ -18,7 +18,6 @@ import asyncio
 import uuid
 import time
 from typing import Optional
-from datetime import datetime, timezone
 
 from app.models.schemas import (
     ChatRequest,
@@ -32,6 +31,7 @@ from app.models.schemas import (
 )
 from app.agents.orchestrator.mcp_client import MCPClientManager
 from app.services.llm_service import llm_service
+from app.services.history_service import history_service
 
 
 class OrchestratorAgent:
@@ -52,7 +52,6 @@ class OrchestratorAgent:
     def __init__(self):
         self.agent_name = "orchestrator"
         self.mcp_client = MCPClientManager()
-        self._session_store: dict[str, list] = {}  # Simple in-memory session storage
 
     async def process_user_query(self, request: ChatRequest) -> ChatResponse:
         """
@@ -110,7 +109,7 @@ class OrchestratorAgent:
                 and any(kw in query_stripped for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka"])
             )
             if is_location_only and request.session_id:
-                history = self._session_store.get(request.session_id, [])
+                history = history_service.get_turns(request.session_id)
                 if history:
                     last_summary = history[-1].get("response_summary", "").lower()
                     asked_for_location = "please specify a location" in last_summary or "specify a location" in last_summary
@@ -1060,21 +1059,12 @@ Return ONLY the JSON object."""
         )
 
     def _store_session(self, session_id: str, query: str, response: ChatResponse):
-        """Store query/response in session history."""
-        if session_id not in self._session_store:
-            self._session_store[session_id] = []
-        # Bound per-session history so long conversations cannot grow memory
-        # without limit (keeps the last 50 turns).
-        self._session_store[session_id].append({
-            "query": query,
-            "response_summary": response.summary,
-            "timestamp": datetime.now(timezone.utc).isoformat(),
-        })
-        del self._session_store[session_id][:-50]
+        """Persist a conversation turn (PostgreSQL when available, memory otherwise)."""
+        history_service.store_turn(session_id, query, response.summary)
 
     def get_session_history(self, session_id: str) -> list[dict]:
         """Return the stored query/response turns for a session."""
-        return list(self._session_store.get(session_id, []))
+        return history_service.get_turns(session_id)
 
     async def get_agents_status(self) -> dict:
         """Get the status of all connected agents."""

@@ -78,32 +78,10 @@ export interface VoiceQueryResponse {
   language: string
 }
 
-export interface AgentInfo {
-  name: string
-  role: string
-  status: string
-  owner: string
-}
-
 // --- API Functions ---
 
 export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
   const response = await api.post<ChatResponse>('/chat/query', request)
-  return response.data
-}
-
-export async function getAgentsList(): Promise<{ agents: AgentInfo[] }> {
-  const response = await api.get('/agents/list')
-  return response.data
-}
-
-export async function getAgentsStatus(): Promise<Record<string, unknown>> {
-  const response = await api.get('/agents/status')
-  return response.data
-}
-
-export async function getHealthCheck(): Promise<Record<string, unknown>> {
-  const response = await api.get('/health')
   return response.data
 }
 
