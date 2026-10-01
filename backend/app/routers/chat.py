@@ -7,14 +7,14 @@ from typing import Optional
 
 from app.models.schemas import ChatRequest, ChatResponse
 from app.agents.orchestrator.shared import get_orchestrator
-from app.routers.deps import RateLimit
+from app.routers.deps import QuotaLimit, RateLimit
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
 
-@router.post("/query", response_model=ChatResponse, dependencies=[RateLimit])
+@router.post("/query", response_model=ChatResponse, dependencies=[RateLimit, QuotaLimit])
 async def process_query(request: ChatRequest):
     """
     Process a user's climate-related query through the multi-agent pipeline.

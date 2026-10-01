@@ -227,6 +227,9 @@ Copy `backend/.env.example` to `backend/.env` and fill in:
 | Method | Endpoint | Description |
 |--------|----------|-------------|
 | POST | `/api/v1/chat/query` | Send a climate query through the multi-agent pipeline |
+| GET | `/api/v1/chat/history?session_id=...` | Stored conversation turns for a session |
+| GET | `/api/v1/billing/plans` | Commercial plans, pricing, quotas, features |
+| GET | `/api/v1/billing/usage` | Caller's plan + daily quota usage |
 | GET | `/api/v1/agents/list` | List all active agents, roles, and ports |
 | GET | `/api/v1/agents/status` | Real-time agent MCP connection status |
 | POST | `/api/v1/speech/speak` | Synthesize speech audio from text (TTS) |
@@ -286,6 +289,14 @@ class MyAgent(BaseAgentServer):
 - **Unified Startup**: Running `uvicorn app.main:app --reload --port 8000` automatically manages the lifecycle of all agent servers in background subprocesses.
 - **Standalone Mode**: All agents can also be run standalone for isolated debugging (e.g. `python -m app.agents.nlp_agent.nlp_agent`).
 - **Offline / Mock Capable**: The backend and frontend function end-to-end even without external API keys or cloud credentials.
+
+## Commercialization
+
+Four tiers (Free / Premium / Business / Enterprise) with LKR pricing,
+served by `GET /api/v1/billing/plans` and rendered in-app (sidebar →
+**Upgrade plan**). Daily per-plan query quotas are enforced via the
+`X-Plan` request header; see `GET /api/v1/billing/usage`. Deployment
+options and the production checklist live in [DEPLOYMENT.md](./DEPLOYMENT.md).
 
 ## Responsible AI
 

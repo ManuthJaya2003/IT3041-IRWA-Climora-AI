@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, health, agents, vector_store, speech
+from app.routers import chat, health, agents, vector_store, speech, billing
 
 
 def _run_security_agent():
@@ -137,6 +137,7 @@ app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(vector_store.router, prefix="/api/v1/vectors", tags=["Vector Store"])
 app.include_router(speech.router, prefix="/api/v1/speech", tags=["Speech"])
+app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
 
 
 @app.get("/")

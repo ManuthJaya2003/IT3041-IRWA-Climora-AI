@@ -11,6 +11,8 @@ from collections import OrderedDict
 from fastapi import Depends, HTTPException, Request
 
 from app.config import settings
+from app.services import plans_service
+from app.services import usage_service
 
 logger = logging.getLogger(__name__)
 
@@ -84,3 +86,35 @@ def rate_limit(request: Request) -> None:
 # Re-export Depends-friendly alias for route decorators.
 AdminAuth = Depends(require_admin)
 RateLimit = Depends(rate_limit)
+
+
+def client_key(request: Request) -> str:
+    """Stable per-caller key for quotas (IP address, proxy-aware)."""
+    forwarded = request.headers.get("X-Forwarded-For")
+    if forwarded:
+        return forwarded.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
+def resolve_plan(request: Request) -> dict:
+    """Plan from the X-Plan header (unknown values fall back to Free)."""
+    return plans_service.get_plan(request.headers.get("X-Plan"))
+
+
+def enforce_quota(request: Request) -> None:
+    """Daily per-plan query quota. Exceeding callers get HTTP 429."""
+    plan = resolve_plan(request)
+    allowed, _remaining, limit = usage_service.check_and_consume(
+        client_key(request), plan["id"]
+    )
+    if not allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Daily query quota exceeded for the {plan['name']} plan "
+                f"({limit}/day). Upgrade your plan for higher limits."
+            ),
+        )
+
+
+QuotaLimit = Depends(enforce_quota)

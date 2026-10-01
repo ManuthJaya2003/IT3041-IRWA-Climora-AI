@@ -3,6 +3,7 @@ import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import { sendQuery, sendVoiceQuery, getAudioUrl, ChatResponse } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
+import { notifyUsageChanged } from '../usageBus'
 
 export interface Message {
   id: string
@@ -18,6 +19,9 @@ interface ChatInterfaceProps {
   defaultLanguage?: string
   defaultLocation?: string
   userType?: string
+  displayName?: string
+  alertsEnabled?: boolean
+  savedLocations?: string[]
   onNewConversation?: (id: string, query: string, messages: Message[]) => void
   onUpdateConversation?: (id: string, messages: Message[]) => void
 }
@@ -40,6 +44,9 @@ export default function ChatInterface({
   defaultLanguage = 'en',
   defaultLocation = '',
   userType = 'individual',
+  displayName = '',
+  alertsEnabled = false,
+  savedLocations = [],
   onNewConversation,
   onUpdateConversation,
 }: ChatInterfaceProps) {
@@ -151,6 +158,7 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, assistantMessage]
       const updatedMessages = messagesRef.current
       setMessages(prev => [...prev, assistantMessage])
+      maybeNotifyAlerts(response)
 
       // Notify parent about new/updated conversation
       if (!sessionId && onNewConversation) {
@@ -169,6 +177,7 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      notifyUsageChanged()
     }
   }
 
@@ -215,6 +224,7 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, assistantMessage]
       const updatedMessages = messagesRef.current
       setMessages(prev => [...prev, assistantMessage])
+      maybeNotifyAlerts(response)
 
       if (!sessionId && onNewConversation) {
         onNewConversation(response.session_id, query, updatedMessages)
@@ -237,6 +247,7 @@ export default function ChatInterface({
       setMessages(prev => [...prev, errorMessage])
     } finally {
       setIsLoading(false)
+      notifyUsageChanged()
     }
   }
 
@@ -264,12 +275,49 @@ export default function ChatInterface({
     submitQuery(text)
   }
 
+  // Browser notification when the user opted into severe-weather alerts and
+  // the pipeline assessed high or critical risk. Never throws. If permission
+  // hasn't been decided yet, ask now so this very alert still gets through.
+  const fireAlert = (title: string, body: string) => {
+    try {
+      new Notification(title, { body })
+    } catch {
+      // Notifications must never break the chat flow.
+    }
+  }
+
+  const maybeNotifyAlerts = (response: ChatResponse) => {
+    if (!alertsEnabled) return
+    const level = response.risk_assessment?.risk_level
+    if (level !== 'high' && level !== 'critical') return
+    try {
+      if (typeof Notification === 'undefined') return
+      const title = `Climora AI — ${level === 'critical' ? 'Critical' : 'High'} risk detected`
+      const body = response.summary.slice(0, 140)
+      if (Notification.permission === 'granted') {
+        fireAlert(title, body)
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission()
+          .then(result => {
+            if (result === 'granted') fireAlert(title, body)
+          })
+          .catch(() => {
+            // Denied or dismissed — stay silent.
+          })
+      }
+    } catch {
+      // Notifications must never break the chat flow.
+    }
+  }
+
   return (
     <div className="flex flex-col h-full">
+      <LocationOptions locations={savedLocations} />
       {/* Messages Area */}
       <div className="flex-1 overflow-y-auto px-4 py-6">
         {messages.length === 0 ? (
           <WelcomeScreen
+            displayName={displayName}
             onSuggestionClick={handleSuggestionClick}
             location={location}
             onLocationChange={setLocation}
@@ -284,16 +332,16 @@ export default function ChatInterface({
                 <div className="w-8 h-8 rounded-full bg-climora-100 flex items-center justify-center shrink-0">
                   <Loader2 className="w-4 h-4 text-climora-600 animate-spin" />
                 </div>
-                <div className="bg-white border border-slate-200 rounded-2xl px-4 py-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3">
                   <div className="flex items-center gap-2">
-                    <span className="text-sm text-slate-500">Analyzing climate data</span>
+                    <span className="text-sm text-slate-500 dark:text-slate-400">Analyzing climate data</span>
                     <span className="flex gap-1">
                       <span className="w-1.5 h-1.5 bg-climora-400 rounded-full animate-bounce" style={{ animationDelay: '0ms' }}></span>
                       <span className="w-1.5 h-1.5 bg-climora-400 rounded-full animate-bounce" style={{ animationDelay: '150ms' }}></span>
                       <span className="w-1.5 h-1.5 bg-climora-400 rounded-full animate-bounce" style={{ animationDelay: '300ms' }}></span>
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 mt-1">Retrieving evidence, assessing risk, generating recommendations...</p>
+                  <p className="text-xs text-slate-400 dark:text-slate-500 mt-1">Retrieving evidence, assessing risk, generating recommendations...</p>
                 </div>
               </div>
             )}
@@ -303,16 +351,16 @@ export default function ChatInterface({
       </div>
 
       {/* Input Area */}
-      <div className="border-t border-slate-200 bg-white px-4 py-4">
+      <div className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 px-4 py-4">
         <div className="max-w-3xl mx-auto">
           {/* Listening indicator */}
           {isListening && (
             <div className="flex items-center gap-2 mb-2 px-2">
               <span className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></span>
-              <span className="text-xs text-red-600 font-medium">Listening... speak now</span>
+              <span className="text-xs text-red-600 dark:text-red-400 font-medium">Listening... speak now</span>
               <button
                 onClick={stopListening}
-                className="text-xs text-slate-500 hover:text-slate-700 ml-auto"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ml-auto"
               >
                 Cancel
               </button>
@@ -326,7 +374,7 @@ export default function ChatInterface({
               <span className="text-xs text-climora-600 font-medium">Playing response...</span>
               <button
                 onClick={stopAudio}
-                className="text-xs text-slate-500 hover:text-slate-700 ml-auto"
+                className="text-xs text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 ml-auto"
               >
                 Stop
               </button>
@@ -340,25 +388,26 @@ export default function ChatInterface({
 
           {/* Location input */}
           <div className="flex items-center gap-2 mb-2">
-            <MapPin className="w-4 h-4 text-slate-400" />
+            <MapPin className="w-4 h-4 text-slate-400 dark:text-slate-500" />
             <input
               type="text"
               value={location}
               onChange={e => setLocation(e.target.value)}
+              list="climora-saved-locations"
               placeholder="Your location (optional, e.g. Colombo, Sri Lanka)"
-              className="text-sm text-slate-600 bg-transparent border-none outline-none placeholder:text-slate-400 w-full"
+              className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
             />
           </div>
 
           {/* Query input with mic and send */}
-          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <form onSubmit={handleSubmit} className="flex items-end gap-2 min-w-0">
             {/* Language selector + Mic button */}
             {isSpeechSupported && (
               <div className="flex items-center">
                 <select
                   value={speechLang}
                   onChange={e => setSpeechLang(e.target.value)}
-                  className="text-xs bg-slate-100 border-none rounded-l-xl px-2 py-3 text-slate-600 focus:outline-none cursor-pointer h-[48px]"
+                  className="text-xs bg-slate-100 dark:bg-slate-800 border-none rounded-l-xl px-2 py-3 text-slate-600 dark:text-slate-300 focus:outline-none cursor-pointer h-[48px]"
                   disabled={isLoading || isListening}
                   aria-label="Select language (speech input and answers)"
                   title="Language for voice input and answers"
@@ -373,8 +422,8 @@ export default function ChatInterface({
                   disabled={isLoading}
                   className={`p-3 rounded-r-xl transition-colors h-[48px] ${
                     isListening
-                      ? 'bg-red-100 text-red-600 hover:bg-red-200'
-                      : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                      ? 'bg-red-100 dark:bg-red-900/40 text-red-600 dark:text-red-300 hover:bg-red-200 dark:hover:bg-red-900/60'
+                      : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700'
                   } disabled:opacity-50 disabled:cursor-not-allowed`}
                   aria-label={isListening ? 'Stop listening' : 'Start voice input'}
                 >
@@ -393,7 +442,7 @@ export default function ChatInterface({
                 }
               }}
               placeholder={isListening ? "Listening..." : "Ask about weather, floods, drought, cyclones in Sri Lanka..."}
-              className="flex-1 resize-none rounded-xl border border-slate-300 px-4 py-3 text-sm focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
+              className="flex-1 min-w-0 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent px-4 py-3 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
               rows={1}
               disabled={isLoading || isListening}
             />
@@ -409,7 +458,7 @@ export default function ChatInterface({
             </button>
           </form>
 
-          <p className="text-xs text-slate-400 mt-2 text-center">
+          <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
             Climora AI supports English, සිංහල, and தமிழ் — speak or type in any language.
           </p>
         </div>
@@ -419,39 +468,41 @@ export default function ChatInterface({
 }
 
 interface WelcomeScreenProps {
+  displayName: string
   onSuggestionClick: (text: string) => void
   location: string
   onLocationChange: (val: string) => void
 }
 
-function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: WelcomeScreenProps) {
+function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationChange }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4">
       <div className="w-16 h-16 bg-climora-100 rounded-2xl flex items-center justify-center mb-6">
         <span className="text-3xl" aria-hidden="true">🌍</span>
       </div>
-      <h2 className="text-2xl font-semibold text-slate-800 mb-2">
-        Welcome to Climora AI
+      <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
+        {displayName ? `Welcome back, ${displayName}` : 'Welcome to Climora AI'}
       </h2>
-      <p className="text-slate-500 max-w-md mb-4">
+      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-4">
         Sri Lanka's AI-powered climate intelligence assistant. Ask about weather conditions,
         flood and drought risks, cyclones, landslides, and climate preparedness
         for any location in Sri Lanka.
       </p>
 
       {/* Location prompt on welcome screen */}
-      <div className="flex items-center gap-2 mb-6 px-4 py-2 bg-white border border-slate-200 rounded-lg w-full max-w-sm">
+      <div className="flex items-center gap-2 mb-6 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg w-full max-w-sm">
         <MapPin className="w-4 h-4 text-climora-500" />
         <input
           type="text"
           value={location}
           onChange={e => onLocationChange(e.target.value)}
+          list="climora-saved-locations"
           placeholder="Enter your location first..."
-          className="text-sm text-slate-600 bg-transparent border-none outline-none placeholder:text-slate-400 w-full"
+          className="text-base sm:text-sm text-slate-600 dark:text-slate-300 bg-transparent border-none outline-none placeholder:text-slate-400 dark:placeholder:text-slate-500 w-full"
         />
       </div>
 
-      <p className="text-xs text-slate-400 mb-4">Try one of these queries:</p>
+      <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Try one of these queries:</p>
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg">
         <SuggestionCard
@@ -483,11 +534,22 @@ function WelcomeScreen({ onSuggestionClick, location, onLocationChange }: Welcom
   )
 }
 
+function LocationOptions({ locations }: { locations: string[] }) {
+  if (locations.length === 0) return null
+  return (
+    <datalist id="climora-saved-locations">
+      {locations.map(loc => (
+        <option key={loc} value={loc} />
+      ))}
+    </datalist>
+  )
+}
+
 function SuggestionCard({ text, onClick }: { text: string; onClick: (text: string) => void }) {
   return (
     <button
       onClick={() => onClick(text)}
-      className="px-4 py-3 text-left text-sm text-slate-600 bg-white border border-slate-200 rounded-xl hover:border-climora-300 hover:bg-climora-50 transition-colors cursor-pointer"
+      className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-climora-300 hover:bg-climora-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
     >
       {text}
     </button>

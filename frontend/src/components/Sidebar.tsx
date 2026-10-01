@@ -1,4 +1,7 @@
-import { MessageSquare, Plus, Clock, Trash2 } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { MessageSquare, Plus, Clock, Trash2, Crown, X } from 'lucide-react'
+import { getUsage } from '../api/climoraApi'
+import { onUsageChanged } from '../usageBus'
 
 export interface Conversation {
   id: string
@@ -9,28 +12,79 @@ export interface Conversation {
 interface SidebarProps {
   conversations: Conversation[]
   activeConversationId: string | null
+  currentPlan: string
   onNewChat: () => void
   onSelectConversation: (id: string) => void
   onDeleteConversation: (id: string) => void
+  onViewPlans: () => void
+  onClose: () => void
 }
 
 export default function Sidebar({
   conversations,
   activeConversationId,
+  currentPlan,
   onNewChat,
   onSelectConversation,
   onDeleteConversation,
+  onViewPlans,
+  onClose,
 }: SidebarProps) {
+  const [used, setUsed] = useState<number | null>(null)
+  const [limit, setLimit] = useState<number | null>(null)
+
+  // Live daily quota from the backend — refreshes when the plan changes,
+  // the moment any query completes, and every minute as a fallback.
+  // Hidden when offline.
+  useEffect(() => {
+    let cancelled = false
+    const load = () => {
+      getUsage()
+        .then(data => {
+          if (!cancelled) {
+            setUsed(data.used_today)
+            setLimit(data.daily_limit)
+          }
+        })
+        .catch(() => {
+          if (!cancelled) {
+            setUsed(null)
+            setLimit(null)
+          }
+        })
+    }
+    load()
+    const off = onUsageChanged(load)
+    const timer = setInterval(load, 60000)
+    return () => {
+      cancelled = true
+      off()
+      clearInterval(timer)
+    }
+  }, [currentPlan])
+
+  const percent = used !== null && limit !== null && limit > 0
+    ? Math.min(100, Math.round((used / limit) * 100))
+    : null
+  const lowQuota = percent !== null && percent >= 80
+
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col">
+    <aside className="fixed md:static inset-y-0 left-0 z-40 w-64 max-w-[85vw] bg-slate-900 text-white flex flex-col shrink-0">
       {/* New Chat Button */}
-      <div className="p-4">
+      <div className="p-4 flex items-center gap-2">
         <button
           onClick={onNewChat}
-          className="flex items-center gap-2 w-full px-4 py-2.5 bg-climora-600 hover:bg-climora-700 rounded-lg transition-colors font-medium text-sm"
+          className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 bg-climora-600 hover:bg-climora-700 rounded-lg transition-colors font-medium text-sm"
         >
           <Plus className="w-4 h-4" />
           New Climate Query
+        </button>
+        <button
+          onClick={onClose}
+          className="md:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5 text-slate-300" />
         </button>
       </div>
 
@@ -66,7 +120,45 @@ export default function Sidebar({
       </div>
 
       {/* Footer */}
-      <div className="p-4 border-t border-slate-700">
+      <div className="p-4 border-t border-slate-700 space-y-2">
+        <button
+          onClick={onViewPlans}
+          className="block w-full px-3 py-2.5 bg-slate-800 hover:bg-slate-700 rounded-lg transition-colors text-left"
+          aria-label={`View plans. ${percent !== null ? `${percent}% of daily queries used.` : ''}`}
+        >
+          <div className="flex items-center justify-between gap-2">
+            <span className="flex items-center gap-1.5 text-xs font-medium text-slate-200">
+              <Crown className="w-3.5 h-3.5 text-amber-400" />
+              {currentPlan === 'free' ? 'Free plan' : `${currentPlan[0].toUpperCase()}${currentPlan.slice(1)} plan`}
+            </span>
+            {percent !== null ? (
+              <span className={`text-xs font-semibold ${lowQuota ? 'text-amber-400' : 'text-slate-400'}`}>
+                {percent}%
+              </span>
+            ) : (
+              <span className="text-xs text-slate-500">Upgrade</span>
+            )}
+          </div>
+          {percent !== null && limit !== null && limit > 0 ? (
+            <>
+              <div className="h-1.5 mt-2 rounded-full bg-slate-700 overflow-hidden" role="progressbar"
+                aria-valuenow={used ?? 0} aria-valuemin={0} aria-valuemax={limit}
+                aria-label="Daily query usage">
+                <div
+                  className={`h-full rounded-full transition-all ${lowQuota ? 'bg-amber-400' : 'bg-climora-500'}`}
+                  style={{ width: `${percent}%` }}
+                />
+              </div>
+              <p className="text-[11px] text-slate-500 mt-1.5">
+                {used} / {limit} queries today{lowQuota ? ' — upgrade for more' : ''}
+              </p>
+            </>
+          ) : (
+            <p className="text-[11px] text-slate-500 mt-1">
+              {limit === 0 ? 'Unlimited queries' : 'View plans & pricing'}
+            </p>
+          )}
+        </button>
         <div className="text-xs text-slate-400 text-center">
           Climora AI v0.1.0
         </div>
