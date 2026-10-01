@@ -535,6 +535,8 @@ function SavedLocations({ locations, limit, onAdd, onRemove, onViewPlans }: {
     if (!err) setDraft('')
   }
 
+  const full = limit > 0 && locations.length >= limit
+
   return (
     <div>
       <div className="flex items-center justify-between gap-2 mb-2">
@@ -554,18 +556,28 @@ function SavedLocations({ locations, limit, onAdd, onRemove, onViewPlans }: {
             value={draft}
             onChange={e => { setDraft(e.target.value); setError(null) }}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }}
-            placeholder="e.g. Galle, Sri Lanka"
+            placeholder={full ? 'Limit reached — upgrade for more' : 'e.g. Galle, Sri Lanka'}
             aria-label="Add a saved location"
-            className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500"
+            disabled={full}
+            className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500 disabled:opacity-50 disabled:cursor-not-allowed"
           />
         </div>
         <button
           onClick={submit}
-          className="px-3 py-2 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors shrink-0"
+          disabled={full}
+          className="px-3 py-2 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors shrink-0 disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Add
         </button>
       </div>
+      {full && (
+        <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
+          Location limit reached.{' '}
+          <button onClick={onViewPlans} className="font-medium underline hover:no-underline">
+            Upgrade for more
+          </button>
+        </p>
+      )}
       {error && (
         <p className="text-xs text-amber-600 dark:text-amber-400 mt-1.5">
           {error}{' '}
