@@ -67,6 +67,15 @@ export default function SettingsView({
     }
   }
 
+  // Turning alerts on doubles as the permission gesture, so the browser
+  // prompt appears immediately instead of failing silently later.
+  const handleAlertsToggle = async (v: boolean) => {
+    onChange({ alertsEnabled: v })
+    if (v && typeof Notification !== 'undefined' && Notification.permission === 'default') {
+      await requestNotifPermission()
+    }
+  }
+
   const ActiveIcon = SECTIONS.find(s => s.id === section)?.icon ?? SlidersHorizontal
 
   return (
@@ -210,7 +219,7 @@ export default function SettingsView({
                   </div>
                   <Toggle
                     checked={settings.alertsEnabled}
-                    onChange={v => onChange({ alertsEnabled: v })}
+                    onChange={handleAlertsToggle}
                     label="Severe-weather alerts"
                   />
                 </div>

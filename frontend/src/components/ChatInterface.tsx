@@ -271,16 +271,34 @@ export default function ChatInterface({
   }
 
   // Browser notification when the user opted into severe-weather alerts and
-  // the pipeline assessed high or critical risk. Never throws.
+  // the pipeline assessed high or critical risk. Never throws. If permission
+  // hasn't been decided yet, ask now so this very alert still gets through.
+  const fireAlert = (title: string, body: string) => {
+    try {
+      new Notification(title, { body })
+    } catch {
+      // Notifications must never break the chat flow.
+    }
+  }
+
   const maybeNotifyAlerts = (response: ChatResponse) => {
     if (!alertsEnabled) return
     const level = response.risk_assessment?.risk_level
     if (level !== 'high' && level !== 'critical') return
     try {
-      if (typeof Notification !== 'undefined' && Notification.permission === 'granted') {
-        new Notification(`Climora AI — ${level === 'critical' ? 'Critical' : 'High'} risk detected`, {
-          body: response.summary.slice(0, 140),
-        })
+      if (typeof Notification === 'undefined') return
+      const title = `Climora AI — ${level === 'critical' ? 'Critical' : 'High'} risk detected`
+      const body = response.summary.slice(0, 140)
+      if (Notification.permission === 'granted') {
+        fireAlert(title, body)
+      } else if (Notification.permission === 'default') {
+        Notification.requestPermission()
+          .then(result => {
+            if (result === 'granted') fireAlert(title, body)
+          })
+          .catch(() => {
+            // Denied or dismissed — stay silent.
+          })
       }
     } catch {
       // Notifications must never break the chat flow.
