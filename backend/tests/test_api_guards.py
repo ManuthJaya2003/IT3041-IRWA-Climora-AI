@@ -45,6 +45,7 @@ def test_shared_orchestrator_singleton():
 
 
 def test_session_history_round_trip():
+    from app.services.history_service import history_service
     orch = get_orchestrator()
     orch._store_session("test-sess", "flood in Kandy?", type("R", (), {"summary": "ok"})())
     try:
@@ -54,7 +55,7 @@ def test_session_history_round_trip():
         messages = resp.json()["messages"]
         assert messages and messages[-1]["query"] == "flood in Kandy?"
     finally:
-        orch._session_store.pop("test-sess", None)
+        history_service.reset_state()
 
 
 def test_admin_guard_blocks_mutation_with_wrong_token():
