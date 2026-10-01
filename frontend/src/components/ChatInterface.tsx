@@ -393,7 +393,7 @@ export default function ChatInterface({
           </div>
 
           {/* Query input with mic and send */}
-          <form onSubmit={handleSubmit} className="flex items-end gap-2">
+          <form onSubmit={handleSubmit} className="flex items-end gap-2 min-w-0">
             {/* Language selector + Mic button */}
             {isSpeechSupported && (
               <div className="flex items-center">
@@ -435,7 +435,7 @@ export default function ChatInterface({
                 }
               }}
               placeholder={isListening ? "Listening..." : "Ask about weather, floods, drought, cyclones in Sri Lanka..."}
-              className="flex-1 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
+              className="flex-1 min-w-0 resize-none rounded-xl border border-slate-300 dark:border-slate-600 bg-transparent px-4 py-3 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-climora-500 focus:border-transparent min-h-[48px] max-h-[120px]"
               rows={1}
               disabled={isLoading || isListening}
             />
@@ -473,7 +473,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
       <div className="w-16 h-16 bg-climora-100 rounded-2xl flex items-center justify-center mb-6">
         <span className="text-3xl" aria-hidden="true">🌍</span>
       </div>
-      <h2 className="text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
+      <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
         {displayName ? `Welcome back, ${displayName}` : 'Welcome to Climora AI'}
       </h2>
       <p className="text-slate-500 dark:text-slate-400 max-w-md mb-4">

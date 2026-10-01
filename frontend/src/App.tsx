@@ -66,7 +66,10 @@ function persist(key: string, value: string | null) {
 
 function App() {
   const [view, setView] = useState<'chat' | 'settings'>('chat')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
+  // On phones the sidebar starts closed (it opens as an overlay drawer).
+  const [sidebarOpen, setSidebarOpen] = useState(
+    () => typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches,
+  )
   const [plansOpen, setPlansOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [plan, setPlan] = useState<string>(loadPlan)
@@ -146,9 +149,16 @@ function App() {
     ? activeConversationId
     : null
 
+  const closeSidebarOnMobile = () => {
+    if (window.matchMedia('(max-width: 767px)').matches) {
+      setSidebarOpen(false)
+    }
+  }
+
   const handleNewChat = useCallback(() => {
     setActiveConversationId(null)
     setView('chat')
+    closeSidebarOnMobile()
   }, [])
 
   const handleNewConversation = useCallback((id: string, firstQuery: string, messages: Message[]) => {
@@ -180,6 +190,7 @@ function App() {
   const handleSelectConversation = useCallback((id: string) => {
     setActiveConversationId(id)
     setView('chat')
+    closeSidebarOnMobile()
   }, [])
 
   const handleDeleteConversation = useCallback((id: string) => {
@@ -233,18 +244,26 @@ function App() {
   const activeSessionId = activeData?.sessionId || null
 
   return (
-    <div className="flex h-screen bg-slate-50 dark:bg-slate-950">
-      {/* Sidebar */}
+    <div className="flex h-dvh bg-slate-50 dark:bg-slate-950">
+      {/* Sidebar (overlay drawer on mobile, static column on desktop) */}
       {sidebarOpen && (
-        <Sidebar
-          conversations={conversations}
-          activeConversationId={validActiveId}
-          currentPlan={plan}
-          onNewChat={handleNewChat}
-          onSelectConversation={handleSelectConversation}
-          onDeleteConversation={handleDeleteConversation}
-          onViewPlans={() => setPlansOpen(true)}
-        />
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-slate-900/50 md:hidden"
+            onClick={() => setSidebarOpen(false)}
+            aria-hidden="true"
+          />
+          <Sidebar
+            conversations={conversations}
+            activeConversationId={validActiveId}
+            currentPlan={plan}
+            onNewChat={handleNewChat}
+            onSelectConversation={handleSelectConversation}
+            onDeleteConversation={handleDeleteConversation}
+            onViewPlans={() => setPlansOpen(true)}
+            onClose={() => setSidebarOpen(false)}
+          />
+        </>
       )}
 
       {/* Main Content */}

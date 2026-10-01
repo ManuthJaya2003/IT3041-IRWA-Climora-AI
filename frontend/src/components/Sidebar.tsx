@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { MessageSquare, Plus, Clock, Trash2, Crown } from 'lucide-react'
+import { MessageSquare, Plus, Clock, Trash2, Crown, X } from 'lucide-react'
 import { getUsage } from '../api/climoraApi'
 
 export interface Conversation {
@@ -16,6 +16,7 @@ interface SidebarProps {
   onSelectConversation: (id: string) => void
   onDeleteConversation: (id: string) => void
   onViewPlans: () => void
+  onClose: () => void
 }
 
 export default function Sidebar({
@@ -26,6 +27,7 @@ export default function Sidebar({
   onSelectConversation,
   onDeleteConversation,
   onViewPlans,
+  onClose,
 }: SidebarProps) {
   const [used, setUsed] = useState<number | null>(null)
   const [limit, setLimit] = useState<number | null>(null)
@@ -63,15 +65,22 @@ export default function Sidebar({
   const lowQuota = percent !== null && percent >= 80
 
   return (
-    <aside className="w-64 bg-slate-900 text-white flex flex-col">
+    <aside className="fixed md:static inset-y-0 left-0 z-40 w-64 max-w-[85vw] bg-slate-900 text-white flex flex-col shrink-0">
       {/* New Chat Button */}
-      <div className="p-4">
+      <div className="p-4 flex items-center gap-2">
         <button
           onClick={onNewChat}
-          className="flex items-center gap-2 w-full px-4 py-2.5 bg-climora-600 hover:bg-climora-700 rounded-lg transition-colors font-medium text-sm"
+          className="flex items-center justify-center gap-2 flex-1 px-4 py-2.5 bg-climora-600 hover:bg-climora-700 rounded-lg transition-colors font-medium text-sm"
         >
           <Plus className="w-4 h-4" />
           New Climate Query
+        </button>
+        <button
+          onClick={onClose}
+          className="md:hidden p-2 rounded-lg hover:bg-slate-800 transition-colors shrink-0"
+          aria-label="Close sidebar"
+        >
+          <X className="w-5 h-5 text-slate-300" />
         </button>
       </div>
 

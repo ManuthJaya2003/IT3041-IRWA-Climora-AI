@@ -19,7 +19,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         </div>
       )}
 
-      <div className={`max-w-[85%] ${isUser ? 'order-first' : ''}`}>
+      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? 'order-first' : ''}`}>
         {/* Message Bubble */}
         <div
           className={`rounded-2xl px-4 py-3 ${

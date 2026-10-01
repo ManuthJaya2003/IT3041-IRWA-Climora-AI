@@ -73,7 +73,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onClose }:
       aria-label="Plans and pricing"
     >
       <div
-        className="w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-6 my-auto"
+        className="w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 my-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
