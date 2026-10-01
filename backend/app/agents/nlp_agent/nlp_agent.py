@@ -108,6 +108,7 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
     # --- Sinhala / Tamil district names (please have a native speaker verify spellings) ---
     ("කොළඹ", "Colombo, Sri Lanka"),
     ("கொழும்பு", "Colombo, Sri Lanka"),
+    ("கொழும்ப", "Colombo, Sri Lanka"),  # stem: matches கொழும்பு and inflected கொழும்பில்
     ("ගම්පහ", "Gampaha, Sri Lanka"),
     ("கம்பஹா", "Gampaha, Sri Lanka"),
     ("කළුතර", "Kalutara, Sri Lanka"),
@@ -190,16 +191,18 @@ SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
 # Sinhala/Tamil triggers are appended right after this dict (see below).
 TOPIC_KEYWORDS: dict[str, list[str]] = {
-    # General weather — checked first so "weather/forecast/temperature" queries
-    # don't accidentally inherit a hazard topic from document content.
+    # Hazards first: "heat wave" must win over the generic "conditions"
+    # trigger in temperature; plain "hot" still falls through correctly.
+    "heat-wave":      ["heat wave", "heatwave", "heat stress", "heat island",
+                       "extreme heat", "heat index"],
+    # General weather — checked before remaining topics so
+    # "weather/forecast/temperature" queries don't inherit a hazard topic.
     "temperature":    ["weather", "forecast", "humidity", "wind speed", "conditions",
                        "temperature", "hot", "warming", "cold", "climate change"],
     "flood":          ["flood", "flooding", "inundation", "overflow", "waterlog",
                        "flash flood", "river level", "discharge"],
     "drought":        ["drought", "dry spell", "water scarcity", "arid",
                        "low rainfall", "water shortage"],
-    "heat-wave":      ["heat wave", "heatwave", "heat stress", "heat island",
-                       "extreme heat", "heat index"],
     "cyclone":        ["cyclone", "hurricane", "typhoon", "tropical storm",
                        "storm surge", "wind speed"],
     "landslide":      ["landslide", "mudslide", "slope failure", "debris flow",
