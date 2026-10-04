@@ -2,6 +2,16 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+import AgentMesh from './components/AgentMesh'
+import type { AgentStreamEvent } from './api/climoraApi'
+=======
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
 import PlansModal from './components/PlansModal'
 import CheckoutModal, { CheckoutResult } from './components/CheckoutModal'
 import SettingsView from './components/SettingsView'
@@ -9,6 +19,13 @@ import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { FALLBACK_PLANS, Plan, Subscription, addLocation, clearSubscription, loadLocations, loadPlan, loadSubscription, removeLocation, savePlan, saveSubscription } from './plans'
 import { getPlans, setApiPlan } from './api/climoraApi'
 import { notifyUsageChanged } from './usageBus'
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
 
 interface ConversationData {
   conversation: Conversation
@@ -94,6 +111,22 @@ function App() {
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches,
   )
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+  // Live state for the Agent Mesh panel.
+  const [isProcessing, setIsProcessing] = useState(false)
+  const [meshEvent, setMeshEvent] = useState<AgentStreamEvent | null>(null)
+  const [meshSeq, setMeshSeq] = useState(0)
+
+  const handleAgentEvent = useCallback((event: AgentStreamEvent) => {
+    setMeshEvent(event)
+    setMeshSeq(s => s + 1)
+=======
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
   const [plansOpen, setPlansOpen] = useState(false)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [plan, setPlan] = useState<string>(loadPlan)
@@ -125,6 +158,13 @@ function App() {
     const handler = () => applyTheme(themeRef.current)
     mq.addEventListener('change', handler)
     return () => mq.removeEventListener('change', handler)
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
   }, [])
 
   useEffect(() => {
@@ -351,6 +391,22 @@ function App() {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setView('settings')}
         />
+<<<<<<< HEAD
+        <div className="flex flex-1 overflow-hidden">
+          <main className="flex-1 overflow-hidden">
+            <ChatInterface
+              key={activeConversationId || 'new'}
+              initialMessages={activeMessages}
+              initialSessionId={activeSessionId}
+              onNewConversation={handleNewConversation}
+              onUpdateConversation={handleUpdateConversation}
+              onProcessingChange={setIsProcessing}
+              onAgentEvent={handleAgentEvent}
+            />
+          </main>
+          <AgentMesh active={isProcessing} event={meshEvent} seq={meshSeq} />
+        </div>
+=======
         <main className="flex-1 overflow-hidden">
           {view === 'settings' ? (
             <SettingsView
@@ -385,6 +441,7 @@ function App() {
             />
           )}
         </main>
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
       </div>
 
       <PlansModal

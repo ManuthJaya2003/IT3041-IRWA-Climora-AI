@@ -68,7 +68,10 @@ class Settings(BaseSettings):
     rate_limit_window_seconds: int = 60
 
     # MCP Configuration
-    mcp_server_host: str = "localhost"
+    # Use 127.0.0.1 (not "localhost"): on Windows "localhost" resolves to IPv6
+    # ::1 first, but the agent servers bind to 0.0.0.0 (IPv4), so an IPv6 connect
+    # attempt stalls until timeout and forces every agent call into fallback.
+    mcp_server_host: str = "127.0.0.1"
     mcp_server_base_port: int = 8100  # Agents will use 8100, 8101, 8102, etc.
 
     model_config = {

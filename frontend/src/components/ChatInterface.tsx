@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, MapPin, Loader2, Mic, MicOff, Volume2, Square } from 'lucide-react'
 import ChatMessage from './ChatMessage'
-import { sendQuery, sendVoiceQuery, getAudioUrl, ChatResponse } from '../api/climoraApi'
+import { streamQuery, sendVoiceQuery, getAudioUrl, ChatResponse, AgentStreamEvent } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { notifyUsageChanged } from '../usageBus'
 
@@ -33,6 +33,34 @@ interface ChatInterfaceProps {
   savedLocations?: string[]
   onNewConversation?: (id: string, query: string, messages: Message[]) => void
   onUpdateConversation?: (id: string, messages: Message[]) => void
+  /** Notifies the parent whenever the pipeline starts/stops processing a query. */
+  onProcessingChange?: (processing: boolean) => void
+  /** Forwards each real-time agent-communication event to the parent (Agent Mesh). */
+  onAgentEvent?: (event: AgentStreamEvent) => void
+}
+
+/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
+function newId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // fall through to fallback below
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
+}
+
+/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
+function newId(): string {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch {
+    // fall through to fallback below
+  }
+  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
@@ -58,6 +86,8 @@ export default function ChatInterface({
   savedLocations = [],
   onNewConversation,
   onUpdateConversation,
+  onProcessingChange,
+  onAgentEvent,
 }: ChatInterfaceProps) {
   const [messages, setMessages] = useState<Message[]>(initialMessages)
   const [input, setInput] = useState('')
@@ -129,6 +159,11 @@ export default function ChatInterface({
     }
   }, [isListening])
 
+  // Keep the parent (Agent Mesh panel) in sync with the pipeline processing state.
+  useEffect(() => {
+    onProcessingChange?.(isLoading)
+  }, [isLoading, onProcessingChange])
+
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }
@@ -156,6 +191,21 @@ export default function ChatInterface({
     abortRef.current = controller
 
     try {
+<<<<<<< HEAD
+      // Stream the pipeline so the Agent Mesh reflects the real, live
+      // agent-communication flow. streamQuery resolves with the final response
+      // once the pipeline is done; each intermediate event is forwarded to the
+      // parent via onAgentEvent.
+      const response = await streamQuery(
+        {
+          query,
+          location: location || undefined,
+          session_id: sessionId || undefined,
+          language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
+        },
+        event => onAgentEvent?.(event),
+      )
+=======
       const response = await sendQuery({
         query,
         location: location || undefined,
@@ -164,6 +214,7 @@ export default function ChatInterface({
         language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
         signal: controller.signal,
       })
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
 
       // Switched conversations while waiting — drop the stale response.
       if (!aliveRef.current) return
