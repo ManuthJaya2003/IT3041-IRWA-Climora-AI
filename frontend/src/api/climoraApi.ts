@@ -85,6 +85,118 @@ export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
   return response.data
 }
 
+<<<<<<< Updated upstream
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+// --- Streaming query (Server-Sent Events) ---
+
+/** A real-time event emitted by the backend pipeline while it runs. */
+export interface AgentStreamEvent {
+  type: 'pipeline_start' | 'agent_start' | 'agent_end' | 'done' | 'error'
+  agent?: string
+  tool?: string
+  /** For agent_end: 'success' | 'fallback' | 'error'. */
+  outcome?: string
+  duration_ms?: number
+  /** For done: the final ChatResponse. */
+  response?: ChatResponse
+  message?: string
+}
+
+/**
+ * Send a query and receive real-time pipeline events over SSE.
+ *
+ * `onEvent` is called for every event as it happens (agent_start / agent_end),
+ * letting the UI reflect the exact live agent-communication flow. The promise
+ * resolves with the final ChatResponse once the pipeline is done.
+ *
+ * The stream closing (or a `done` event) signals that communication has stopped.
+ */
+export async function streamQuery(
+  request: ChatRequest,
+  onEvent: (event: AgentStreamEvent) => void,
+  signal?: AbortSignal,
+): Promise<ChatResponse> {
+  const res = await fetch(`${API_BASE_URL}/chat/query/stream`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(request),
+    signal,
+  })
+
+  if (!res.ok || !res.body) {
+    throw new Error(`Stream request failed: ${res.status}`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let finalResponse: ChatResponse | null = null
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+
+      buffer += decoder.decode(value, { stream: true })
+
+      // SSE frames are separated by a blank line.
+      const frames = buffer.split('\n\n')
+      buffer = frames.pop() ?? ''
+
+      for (const frame of frames) {
+        const line = frame.split('\n').find(l => l.startsWith('data:'))
+        if (!line) continue
+        const json = line.slice(5).trim()
+        if (!json) continue
+
+        let event: AgentStreamEvent
+        try {
+          event = JSON.parse(json) as AgentStreamEvent
+        } catch {
+          continue
+        }
+
+        onEvent(event)
+
+        if (event.type === 'done' && event.response) {
+          finalResponse = event.response
+        } else if (event.type === 'error') {
+          throw new Error(event.message || 'Pipeline error')
+        }
+      }
+    }
+  } finally {
+    reader.releaseLock()
+  }
+
+  if (!finalResponse) {
+    throw new Error('Stream ended without a final response')
+  }
+  return finalResponse
+}
+
+export async function getAgentsList(): Promise<{ agents: AgentInfo[] }> {
+  const response = await api.get('/agents/list')
+  return response.data
+}
+
+export async function getAgentsStatus(): Promise<Record<string, unknown>> {
+  const response = await api.get('/agents/status')
+  return response.data
+}
+
+export async function getHealthCheck(): Promise<Record<string, unknown>> {
+  const response = await api.get('/health')
+  return response.data
+}
+
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+=======
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
 // --- Speech API Functions ---
 
 export async function sendVoiceQuery(request: {
