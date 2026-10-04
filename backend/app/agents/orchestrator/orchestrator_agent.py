@@ -1069,3 +1069,53 @@ Return ONLY the JSON object."""
     async def get_agents_status(self) -> dict:
         """Get the status of all connected agents."""
         return await self.mcp_client.get_all_agents_status()
+
+    async def process_user_query_stream(self, request: ChatRequest):
+        """
+        Run the full pipeline while yielding real-time agent-communication events.
+
+        Yields dict events as they actually happen:
+          - {"type": "pipeline_start"}
+          - {"type": "agent_start", "agent": <name>, "tool": <tool>}
+          - {"type": "agent_end", "agent": <name>, "outcome": <success|fallback|error>, ...}
+          - {"type": "done", "response": <ChatResponse as dict>}
+
+        The events are emitted by the MCP client the moment each agent tool is
+        invoked/returns, so the Agent Mesh reflects the exact communication flow.
+        When the pipeline finishes, the stream ends — signalling the mesh to stop
+        showing any active communication.
+        """
+        queue: asyncio.Queue = asyncio.Queue()
+
+        async def _on_event(event: dict):
+            await queue.put(event)
+
+        # Register the callback so every real agent call reports here.
+        self.mcp_client.set_event_callback(_on_event)
+
+        await queue.put({"type": "pipeline_start"})
+
+        async def _run():
+            try:
+                response = await self.process_user_query(request)
+                await queue.put({
+                    "type": "done",
+                    "response": response.model_dump(mode="json"),
+                })
+            except Exception as e:
+                await queue.put({"type": "error", "message": str(e)})
+            finally:
+                await queue.put(None)  # sentinel: pipeline complete
+
+        task = asyncio.create_task(_run())
+
+        try:
+            while True:
+                event = await queue.get()
+                if event is None:
+                    break
+                yield event
+        finally:
+            self.mcp_client.set_event_callback(None)
+            if not task.done():
+                task.cancel()

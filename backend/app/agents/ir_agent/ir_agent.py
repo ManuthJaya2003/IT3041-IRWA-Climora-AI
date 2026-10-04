@@ -28,6 +28,7 @@ Port: 8102
 
 import asyncio
 import logging
+import ssl
 import time
 import uuid
 import httpx
@@ -35,6 +36,18 @@ from app.mcp.base_agent_server import BaseAgentServer
 from app.config import settings
 
 logger = logging.getLogger(__name__)
+
+# Build an SSL context backed by certifi's CA bundle. On Windows, httpx's default
+# trust store often can't verify public certs (Python doesn't use the Windows
+# cert store), which surfaces as "CERTIFICATE_VERIFY_FAILED: unable to get local
+# issuer certificate" when calling the Open-Meteo / OpenWeatherMap APIs.
+# Pointing verification explicitly at certifi's bundle resolves it.
+try:
+    import certifi
+    _SSL_CONTEXT: ssl.SSLContext | bool = ssl.create_default_context(cafile=certifi.where())
+except Exception as _ssl_exc:  # pragma: no cover - defensive
+    logger.warning("Could not build certifi SSL context (%s); using httpx default", _ssl_exc)
+    _SSL_CONTEXT = True  # fall back to httpx's default verification
 
 # Default coordinates used only if geocoding fails and no location was given at all.
 DEFAULT_LOCATION_NAME = "Colombo, Sri Lanka"
@@ -129,7 +142,7 @@ async def _http_get_with_retry(
     """
     for attempt in range(retries + 1):
         try:
-            async with httpx.AsyncClient(timeout=timeout) as client:
+            async with httpx.AsyncClient(timeout=timeout, verify=_SSL_CONTEXT) as client:
                 resp = await client.get(url, params=params)
                 if resp.status_code == 200:
                     return resp

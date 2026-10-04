@@ -1,7 +1,21 @@
 """Chat API endpoints - main user interaction route."""
 
+<<<<<<< Updated upstream
 import logging
+=======
+<<<<<<< HEAD
+<<<<<<< HEAD
+import json
+
+=======
+import logging
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+=======
+import logging
+>>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
+>>>>>>> Stashed changes
 from fastapi import APIRouter, HTTPException
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 
@@ -34,6 +48,39 @@ async def process_query(request: ChatRequest):
             status_code=500,
             detail="Error processing query. Please try again."
         )
+
+
+@router.post("/query/stream")
+async def process_query_stream(request: ChatRequest):
+    """
+    Process a query and stream real-time agent-communication events via SSE.
+
+    Emits Server-Sent Events as each agent is actually invoked and returns, so
+    the frontend Agent Mesh can visualise the exact live communication flow.
+    The final event (`done`) carries the full ChatResponse. When the pipeline
+    finishes the stream closes, telling the mesh that communication has stopped.
+
+    A fresh orchestrator instance is used per request so the per-request event
+    callback never cross-wires with other concurrent streams.
+    """
+    stream_orchestrator = OrchestratorAgent()
+
+    async def event_generator():
+        try:
+            async for event in stream_orchestrator.process_user_query_stream(request):
+                yield f"data: {json.dumps(event)}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",  # disable proxy buffering (nginx)
+        },
+    )
 
 
 @router.get("/history")

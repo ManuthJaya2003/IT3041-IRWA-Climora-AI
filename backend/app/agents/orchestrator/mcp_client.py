@@ -15,10 +15,16 @@ Communication pattern:
 
 import json
 import asyncio
-from typing import Optional
+import time
+from typing import Optional, Callable, Awaitable
 from dataclasses import dataclass, field
 
 from app.config import settings
+
+# Type for an async event callback used to stream real agent-communication
+# events (agent_start / agent_end) to observers such as the SSE endpoint that
+# powers the Agent Mesh visualisation.
+EventCallback = Callable[[dict], Awaitable[None]]
 
 
 @dataclass
@@ -42,47 +48,73 @@ class MCPClientManager:
     """
 
     def __init__(self):
+        # Normalize the host: "localhost" on Windows resolves to IPv6 (::1)
+        # first, but agents bind to 0.0.0.0 (IPv4 only), so an IPv6 connect
+        # attempt stalls until timeout and forces every call into fallback.
+        # Forcing 127.0.0.1 avoids the resolution ambiguity entirely.
+        host = settings.mcp_server_host
+        if host in ("localhost", "::1", ""):
+            host = "127.0.0.1"
+
         # Define all agent connections
         self._agents: dict[str, AgentConnection] = {
             "security_agent": AgentConnection(
                 name="security_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port,
                 tools=["validate_input", "check_rate_limit", "detect_injection"],
             ),
             "nlp_agent": AgentConnection(
                 name="nlp_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port + 1,
                 tools=["process_query", "extract_entities", "expand_query", "summarize_text"],
             ),
             "ir_agent": AgentConnection(
                 name="ir_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port + 2,
                 tools=["retrieve_documents", "search_sources", "index_document"],
             ),
             "analysis_agent": AgentConnection(
                 name="analysis_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port + 3,
                 tools=["analyze_climate_data", "assess_risk", "identify_patterns"],
             ),
             "verification_agent": AgentConnection(
                 name="verification_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port + 4,
                 tools=["verify_claims", "check_source_quality", "cross_reference"],
             ),
             "recommendation_agent": AgentConnection(
                 name="recommendation_agent",
-                host=settings.mcp_server_host,
+                host=host,
                 port=settings.mcp_server_base_port + 5,
                 tools=["generate_recommendations", "prioritize_actions", "personalize_advice"],
             ),
         }
 
         self._initialized = False
+
+        # Optional async callback invoked with a real-time event dict every time
+        # an agent tool is called. Used by the streaming endpoint to drive the
+        # Agent Mesh so it reflects actual agent communication (and only then).
+        self._on_event: Optional[EventCallback] = None
+
+    def set_event_callback(self, callback: Optional[EventCallback]) -> None:
+        """Register (or clear) the async event callback for agent communication."""
+        self._on_event = callback
+
+    async def _emit(self, event: dict) -> None:
+        """Fire the event callback if one is registered (never raises)."""
+        if self._on_event is None:
+            return
+        try:
+            await self._on_event(event)
+        except Exception as e:
+            print(f"   [!] MCP Client: event callback error: {e}")
 
     async def _init_agent(self, agent: AgentConnection):
         try:
@@ -152,6 +184,26 @@ class MCPClientManager:
             print(f"   ✗ MCP Client: Unknown agent '{agent_name}'")
             return None
 
+        # Announce that the orchestrator is beginning to communicate with this
+        # agent. Emitted before the connectivity probe so the mesh lights up the
+        # edge exactly while the call is in flight.
+        started_at = time.time()
+        await self._emit({
+            "type": "agent_start",
+            "agent": agent_name,
+            "tool": tool_name,
+        })
+
+        async def _finish(outcome: str, result: Optional[dict]) -> Optional[dict]:
+            await self._emit({
+                "type": "agent_end",
+                "agent": agent_name,
+                "tool": tool_name,
+                "outcome": outcome,  # success | fallback | error
+                "duration_ms": (time.time() - started_at) * 1000,
+            })
+            return result
+
         # If previously disconnected, re-probe — the agent may have started
         # after the initial connectivity check (common when agents are spawned
         # as subprocesses by main.py after the MCP client first initialises).
@@ -160,11 +212,11 @@ class MCPClientManager:
             agent.status = "connected" if connected else "disconnected"
 
         if agent.status != "connected":
-            return None
+            return await _finish("fallback", None)
 
         if tool_name not in agent.tools:
             print(f"   ✗ MCP Client: Tool '{tool_name}' not found on agent '{agent_name}'")
-            return None
+            return await _finish("error", None)
 
         try:
             # In production MCP implementation:
@@ -173,11 +225,11 @@ class MCPClientManager:
 
             # For now, send via HTTP to the agent's MCP-compatible endpoint
             result = await self._http_call_agent(agent, tool_name, arguments)
-            return result
+            return await _finish("success" if result is not None else "fallback", result)
 
         except Exception as e:
             print(f"   ✗ MCP Client: Error calling {agent_name}.{tool_name}: {e}")
-            return None
+            return await _finish("error", None)
 
     async def _http_call_agent(
         self, agent: AgentConnection, tool_name: str, arguments: dict
