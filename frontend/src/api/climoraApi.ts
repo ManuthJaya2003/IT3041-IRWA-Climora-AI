@@ -34,8 +34,6 @@ export interface ChatRequest {
   context?: Record<string, unknown>
   /** Preferred answer language: 'en' | 'si' | 'ta'. A Sinhala/Tamil query is always answered in that language. */
   language?: string
-  /** AbortSignal to cancel an in-flight request (never sent to the backend). */
-  signal?: AbortSignal
 }
 
 export interface SourceEvidence {
@@ -80,18 +78,21 @@ export interface VoiceQueryResponse {
   language: string
 }
 
+export interface AgentInfo {
+  name: string
+  role: string
+  status: string
+  owner: string
+  port: number
+}
+
 // --- API Functions ---
 
 export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
-  const { signal, ...body } = request
-  const response = await api.post<ChatResponse>('/chat/query', body, { signal })
+  const response = await api.post<ChatResponse>('/chat/query', request)
   return response.data
 }
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
 // --- Streaming query (Server-Sent Events) ---
 
 /** A real-time event emitted by the backend pipeline while it runs. */
@@ -123,7 +124,10 @@ export async function streamQuery(
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_BASE_URL}/chat/query/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Plan': apiPlan,
+    },
     body: JSON.stringify(request),
     signal,
   })
@@ -195,11 +199,6 @@ export async function getHealthCheck(): Promise<Record<string, unknown>> {
   return response.data
 }
 
-=======
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
-=======
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
->>>>>>> Stashed changes
 // --- Speech API Functions ---
 
 export async function sendVoiceQuery(request: {
@@ -208,10 +207,8 @@ export async function sendVoiceQuery(request: {
   user_type?: string
   session_id?: string
   language?: string
-  signal?: AbortSignal
 }): Promise<VoiceQueryResponse> {
-  const { signal, ...body } = request
-  const response = await api.post<VoiceQueryResponse>('/speech/voice-query', body, { signal })
+  const response = await api.post<VoiceQueryResponse>('/speech/voice-query', request)
   return response.data
 }
 
@@ -265,4 +262,41 @@ export async function getPlans(): Promise<{ plans: PlanDto[] }> {
 export async function getUsage(): Promise<UsageDto> {
   const response = await api.get('/billing/usage')
   return response.data
+}
+
+export async function createCheckoutSession(
+  planId: string,
+  annual: boolean,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<{ session_id: string; checkout_url: string }> {
+  const response = await api.post('/billing/checkout-session', {
+    plan_id: planId,
+    annual,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  })
+  return response.data
+}
+
+export async function verifyCheckoutSession(sessionId: string): Promise<{
+  plan_id: string
+  billing_cycle: 'monthly' | 'annual'
+  session_id: string
+}> {
+  const response = await api.get(`/billing/checkout-session/${encodeURIComponent(sessionId)}`)
+  return response.data
+}
+
+export async function getAlertConfig(): Promise<{ enabled: boolean; public_key: string | null }> {
+  const response = await api.get('/alerts/config')
+  return response.data
+}
+
+export async function subscribeToAlerts(subscription: PushSubscriptionJSON, location: string): Promise<void> {
+  await api.post('/alerts/subscribe', { subscription, location })
+}
+
+export async function sendAlertTest(subscription: PushSubscriptionJSON): Promise<void> {
+  await api.post('/alerts/test', subscription)
 }

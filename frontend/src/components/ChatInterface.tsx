@@ -1,18 +1,9 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, MapPin, Loader2, Mic, MicOff, Volume2, Square } from 'lucide-react'
+import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
 import ChatMessage from './ChatMessage'
 import { streamQuery, sendVoiceQuery, getAudioUrl, ChatResponse, AgentStreamEvent } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { notifyUsageChanged } from '../usageBus'
-
-/** True when an axios failure is a deliberate cancellation, not an error. */
-function isAbortError(error: unknown): boolean {
-  return (
-    typeof error === 'object' && error !== null &&
-    ((error as { code?: string }).code === 'ERR_CANCELED' ||
-      (error as { name?: string }).name === 'CanceledError')
-  )
-}
 
 export interface Message {
   id: string
@@ -37,30 +28,6 @@ interface ChatInterfaceProps {
   onProcessingChange?: (processing: boolean) => void
   /** Forwards each real-time agent-communication event to the parent (Agent Mesh). */
   onAgentEvent?: (event: AgentStreamEvent) => void
-}
-
-/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
-function newId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID()
-    }
-  } catch {
-    // fall through to fallback below
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
-function newId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID()
-    }
-  } catch {
-    // fall through to fallback below
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
 /** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
@@ -101,10 +68,6 @@ export default function ChatInterface({
   // Mirror of messages for parent callbacks — avoids stale-closure history loss
   // when a voice auto-submit races a typed submit.
   const messagesRef = useRef<Message[]>(initialMessages)
-  // In-flight request: aborted when the user switches conversations or hits Stop,
-  // so a late response can never land in the wrong chat.
-  const abortRef = useRef<AbortController | null>(null)
-  const aliveRef = useRef(true)
   // Last voice transcript already submitted — prevents re-submitting a stale
   // transcript when the mic is toggled again.
   const lastVoiceSubmit = useRef('')
@@ -117,12 +80,9 @@ export default function ChatInterface({
     setLocation(defaultLocation)
   }, [defaultLocation])
 
-  // Stop any playing audio and cancel any in-flight request on unmount
-  // (e.g. switching conversations mid-response).
+  // Stop any playing audio when switching conversations (component unmounts).
   useEffect(() => {
     return () => {
-      aliveRef.current = false
-      abortRef.current?.abort()
       if (audioRef.current) {
         audioRef.current.pause()
         audioRef.current = null
@@ -187,11 +147,7 @@ export default function ChatInterface({
     setInput('')
     setIsLoading(true)
 
-    const controller = new AbortController()
-    abortRef.current = controller
-
     try {
-<<<<<<< HEAD
       // Stream the pipeline so the Agent Mesh reflects the real, live
       // agent-communication flow. streamQuery resolves with the final response
       // once the pipeline is done; each intermediate event is forwarded to the
@@ -200,24 +156,12 @@ export default function ChatInterface({
         {
           query,
           location: location || undefined,
+          user_type: userType,
           session_id: sessionId || undefined,
           language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
         },
         event => onAgentEvent?.(event),
       )
-=======
-      const response = await sendQuery({
-        query,
-        location: location || undefined,
-        user_type: userType,
-        session_id: sessionId || undefined,
-        language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
-        signal: controller.signal,
-      })
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
-
-      // Switched conversations while waiting — drop the stale response.
-      if (!aliveRef.current) return
 
       setSessionId(response.session_id)
 
@@ -241,9 +185,6 @@ export default function ChatInterface({
         onUpdateConversation(sessionId, updatedMessages)
       }
     } catch (error) {
-      // Cancelled (Stop button / conversation switch) — leave the user's
-      // message in place with no error bubble and no history update.
-      if (isAbortError(error) || !aliveRef.current) return
       const errorMessage: Message = {
         id: newId(),
         role: 'assistant',
@@ -253,7 +194,6 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
-      if (abortRef.current === controller) abortRef.current = null
       setIsLoading(false)
       notifyUsageChanged()
     }
@@ -261,11 +201,6 @@ export default function ChatInterface({
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // While a response is loading, the send button acts as Stop.
-    if (isLoading) {
-      abortRef.current?.abort()
-      return
-    }
     await submitQuery(input)
   }
 
@@ -284,9 +219,6 @@ export default function ChatInterface({
     setInput('')
     setIsLoading(true)
 
-    const controller = new AbortController()
-    abortRef.current = controller
-
     try {
       const result = await sendVoiceQuery({
         query,
@@ -294,11 +226,7 @@ export default function ChatInterface({
         user_type: userType,
         session_id: sessionId || undefined,
         language: speechLang,
-        signal: controller.signal,
       })
-
-      // Switched conversations while waiting — drop the stale response.
-      if (!aliveRef.current) return
 
       const response = result.response
       setSessionId(response.session_id)
@@ -327,7 +255,6 @@ export default function ChatInterface({
         playAudio(getAudioUrl(result.audio_url))
       }
     } catch (error) {
-      if (isAbortError(error) || !aliveRef.current) return
       const errorMessage: Message = {
         id: newId(),
         role: 'assistant',
@@ -337,7 +264,6 @@ export default function ChatInterface({
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
-      if (abortRef.current === controller) abortRef.current = null
       setIsLoading(false)
       notifyUsageChanged()
     }
@@ -403,10 +329,10 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <LocationOptions locations={savedLocations} />
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
         {messages.length === 0 ? (
           <WelcomeScreen
             displayName={displayName}
@@ -539,15 +465,14 @@ export default function ChatInterface({
               disabled={isLoading || isListening}
             />
 
-            {/* Send / Stop button */}
+            {/* Send button */}
             <button
               type="submit"
-              disabled={!input.trim() && !isLoading}
-              className="p-3 bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors shrink-0"
-              aria-label={isLoading ? 'Stop generating' : 'Send message'}
-              title={isLoading ? 'Stop generating' : 'Send message'}
+              disabled={!input.trim() || isLoading}
+              className="p-3 bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+              aria-label="Send message"
             >
-              {isLoading ? <Square className="w-4 h-4" /> : <Send className="w-4 h-4" />}
+              {isLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </button>
           </form>
 
@@ -569,14 +494,14 @@ interface WelcomeScreenProps {
 
 function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationChange }: WelcomeScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="w-16 h-16 bg-climora-100 rounded-2xl flex items-center justify-center mb-6">
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+      <div className="w-16 h-16 bg-climora-100 dark:bg-climora-900/40 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
         <span className="text-3xl" aria-hidden="true">🌍</span>
       </div>
       <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
         {displayName ? `Welcome back, ${displayName}` : 'Welcome to Climora AI'}
       </h2>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-4">
+      <p className="text-sm leading-6 text-slate-500 dark:text-slate-400 max-w-xl mb-5">
         Sri Lanka's AI-powered climate intelligence assistant. Ask about weather conditions,
         flood and drought risks, cyclones, landslides, and climate preparedness
         for any location in Sri Lanka.
@@ -597,7 +522,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
 
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Try one of these queries:</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
         <SuggestionCard
           text="What is the current weather in Colombo?"
           onClick={onSuggestionClick}
@@ -642,7 +567,7 @@ function SuggestionCard({ text, onClick }: { text: string; onClick: (text: strin
   return (
     <button
       onClick={() => onClick(text)}
-      className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-climora-300 hover:bg-climora-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+      className="px-4 py-3.5 text-left text-sm leading-5 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:-translate-y-0.5 hover:border-climora-400 hover:bg-climora-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
     >
       {text}
     </button>
