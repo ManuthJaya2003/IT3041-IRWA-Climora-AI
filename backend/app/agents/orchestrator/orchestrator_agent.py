@@ -295,12 +295,22 @@ class OrchestratorAgent:
                 )
 
             # --- Step 2c: Reject non-climate queries at orchestrator level ---
+            # A query is out of scope only when it carries NO climate meaning.
+            # (Blocklisted terms alone no longer refuse a query that also has a
+            # climate term — e.g. "weather risks for my tourism business".)
+            # A safety-seeking question about a Sri Lanka location (e.g. "is it
+            # safe to go sightseeing in Galle?") is also in scope: it is routed
+            # to a weather answer rather than refused.
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
                 from app.agents.ir_agent.ir_agent import query_has_climate_term
                 # Handles English, Sinhala and Tamil (\b word boundaries don't work
                 # for the latter two scripts).
                 has_climate_term = query_has_climate_term(request.query)
-                if not has_climate_term or intent == "non_climate":
+                safety_intent = intent in (
+                    "preparedness", "forecast", "risk_awareness", "trend_analysis",
+                )
+                has_location = bool(entities.get("location"))
+                if not has_climate_term and not (safety_intent and has_location):
                     return ChatResponse(
                         session_id=session_id,
                         query=request.query,
@@ -900,20 +910,28 @@ Do not make claims beyond what the evidence supports.
         # ------------------------------------------------------------------
         # Hard blocklist — reject clearly non-climate questions even if they
         # mention a Sri Lanka place name (e.g. "Kandy train timetable").
-        # These terms have no climate meaning and should never produce results.
+        # Word-boundary matching avoids false hits ("bus" in "business").
+        # Tourism words are intentionally not blocked: tourists are a core
+        # audience and any climate term in the query makes it in-scope.
         # ------------------------------------------------------------------
         NON_CLIMATE_TERMS = [
             "price of", "cost of", "how much does", "how much is",
             "train", "bus", "flight", "timetable", "schedule", "ticket",
             "president", "prime minister", "minister", "government",
             "election", "vote", "parliament", "political",
-            "recipe", "cook", "restaurant", "hotel", "tourist",
+            "recipe", "cook",
             "cricket", "football", "sport", "match", "score",
-            "school", "university", "exam", "admission",
+            "exam", "admission",
             "salary", "job", "vacancy", "hire",
             "population", "history of", "capital of",
         ]
-        if any(term in query for term in NON_CLIMATE_TERMS):
+        import re as _re2
+        _blocked = any(
+            (term in query) if " " in term
+            else _re2.search(r"\b" + _re2.escape(term) + r"\b", query)
+            for term in NON_CLIMATE_TERMS
+        )
+        if _blocked:
             # Return empty entities with no climate topic — orchestrator will reject
             return {
                 "intent": "non_climate",

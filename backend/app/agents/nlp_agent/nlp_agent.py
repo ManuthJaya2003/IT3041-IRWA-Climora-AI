@@ -548,12 +548,49 @@ NON_CLIMATE_TERMS: list[str] = [
     "train", "bus", "flight", "timetable", "schedule", "ticket",
     "president", "prime minister", "minister", "government",
     "election", "vote", "parliament", "political",
-    "recipe", "cook", "restaurant", "hotel", "tourist",
+    "recipe", "cook",
     "cricket", "football", "sport", "match", "score",
-    "school", "university", "exam", "admission",
+    "exam", "admission",
     "salary", "job", "vacancy", "hire",
     "population", "history of", "capital of",
 ]
+# NOTE: tourism words ("tourist", "hotel", "restaurant") and "school" /
+# "university" are deliberately NOT blocklisted: tourists, schools and
+# campuses are core audiences, and a climate term in the query (e.g.
+# "weather risks for my tourism business") makes the question in-scope.
+
+
+def contains_non_climate_term(text_lower: str) -> bool:
+    """Word-boundary blocklist match.
+
+    Plain substring matching caused false refusals ("bus" inside
+    "business", "match" inside "mismatched"). Single-word terms match on
+    word boundaries; multi-word phrases match as-is.
+    """
+    import re as _re
+
+    for term in NON_CLIMATE_TERMS:
+        if " " in term:
+            if term in text_lower:
+                return True
+        elif _re.search(r"\b" + _re.escape(term) + r"\b", text_lower):
+            return True
+    return False
+
+
+def keyword_hit(keyword: str, text_lower: str) -> bool:
+    """Boundary-aware keyword match for topics and intents.
+
+    Single ASCII words match on word boundaries so "hot" doesn't fire
+    inside "hotels" and "rain" doesn't fire inside "train". Phrases and
+    Sinhala/Tamil terms match as substrings (word boundaries are
+    unreliable for those scripts).
+    """
+    import re as _re
+
+    if keyword.isascii() and " " not in keyword:
+        return _re.search(r"\b" + _re.escape(keyword) + r"\b", text_lower) is not None
+    return keyword in text_lower
 
 # Any of these words confirms a query is climate-related.
 CLIMATE_TERMS: tuple[str, ...] = (
@@ -689,22 +726,30 @@ class NLPAgent(BaseAgentServer):
 
         query_lower = query.lower()
 
-        # 1. Off-topic guard — mirror the orchestrator's blocklist so a location
-        #    match alone (e.g. "Kandy train times") never produces climate results.
-        if any(term in query_lower for term in NON_CLIMATE_TERMS):
-            return {
-                "intent": "non_climate",
-                "entities": {},
-                "structured_query": {"original_query": query, "processed": True},
-                "expanded_terms": [],
-                "expanded_query": query,
-            }
-
-        # 2. Entity extraction (rules + optional spaCy)
+        # 2. Entity extraction (rules + optional spaCy) runs FIRST so the
+        #    off-topic guard below only fires when there is genuinely no
+        #    climate signal (e.g. "my study schedule" blocks, but "study
+        #    schedule during heavy rain" proceeds).
         entities = self._extract_entities_impl(query, location_field)
 
         # 3. Intent detection
         intent = self._classify_intent(query_lower)
+
+        # 1. Off-topic guard — blocklisted terms (e.g. "Kandy train times")
+        #    refuse only when the query carries no climate meaning.
+        if contains_non_climate_term(query_lower) and not entities.get(
+            "climate_topic"
+        ):
+            from app.agents.ir_agent.ir_agent import query_has_climate_term
+
+            if not query_has_climate_term(query):
+                return {
+                    "intent": "non_climate",
+                    "entities": {},
+                    "structured_query": {"original_query": query, "processed": True},
+                    "expanded_terms": [],
+                    "expanded_query": query,
+                }
 
         # 4. Query expansion (deterministic synonyms + optional LLM refinement)
         expansion = await self._expand_query_impl(query, entities)
@@ -779,7 +824,7 @@ class NLPAgent(BaseAgentServer):
         climate_topic = None
         hazard_type = None
         for topic, keywords in TOPIC_KEYWORDS.items():
-            if any(kw in text_lower for kw in keywords):
+            if any(keyword_hit(kw, text_lower) for kw in keywords):
                 climate_topic = topic
                 hazard_type = topic
                 break
@@ -941,7 +986,7 @@ class NLPAgent(BaseAgentServer):
     def _classify_intent(query_lower: str) -> str:
         """Keyword-based intent classification, evaluated in priority order."""
         for intent, keywords in INTENT_KEYWORDS:
-            if any(kw in query_lower for kw in keywords):
+            if any(keyword_hit(kw, query_lower) for kw in keywords):
                 return intent
         return "general_climate_query"
 
