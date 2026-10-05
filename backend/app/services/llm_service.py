@@ -27,9 +27,13 @@ class LLMService:
         self._available = False
         self._provider = "bedrock"
 
-    async def initialize(self):
+    async def initialize(self, validate_access: bool = True):
         """
-        Initialize and validate the Bedrock provider.
+        Initialize the Bedrock provider.
+
+        ``validate_access`` performs a small probe for the main process. Agent
+        subprocesses skip that probe because each process would otherwise
+        consume an additional model invocation during startup.
         """
         if settings.aws_access_key_id and settings.aws_secret_access_key:
             try:
@@ -45,17 +49,18 @@ class LLMService:
                     kwargs["aws_session_token"] = settings.aws_session_token
 
                 client = boto3.client(**kwargs)
-                test_body = json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 10,
-                    "messages": [{"role": "user", "content": "hi"}],
-                })
-                client.invoke_model(
-                    modelId=settings.bedrock_model_id,
-                    contentType="application/json",
-                    accept="application/json",
-                    body=test_body,
-                )
+                if validate_access:
+                    test_body = json.dumps({
+                        "anthropic_version": "bedrock-2023-05-31",
+                        "max_tokens": 10,
+                        "messages": [{"role": "user", "content": "hi"}],
+                    })
+                    client.invoke_model(
+                        modelId=settings.bedrock_model_id,
+                        contentType="application/json",
+                        accept="application/json",
+                        body=test_body,
+                    )
                 self._bedrock_client = client
                 self._provider = "bedrock"
                 self._available = True

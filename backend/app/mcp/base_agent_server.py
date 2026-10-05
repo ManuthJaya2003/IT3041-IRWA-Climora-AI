@@ -62,7 +62,19 @@ class BaseAgentServer:
             title=f"Climora AI - {name}",
             description=description or f"MCP Server for {name}",
         )
+        # Agent processes have separate Python runtimes and therefore separate
+        # service singletons. Initialize the Bedrock client in each process so
+        # LLM-backed tools do not appear available only in the main process.
+        self._app.add_event_handler("startup", self._initialize_llm_service)
         self._setup_routes()
+
+    @staticmethod
+    async def _initialize_llm_service():
+        """Initialize the process-local Bedrock LLM service."""
+        from app.services.llm_service import llm_service
+
+        if not llm_service.is_available():
+            await llm_service.initialize(validate_access=False)
 
     def register_tool(
         self,
