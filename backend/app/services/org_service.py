@@ -4,7 +4,8 @@ Model (PostgreSQL, memory fallback for dev — same pattern as auth_service):
 
 - org: id, slug (unique, URL-safe), name, domain (email domain auto-provision),
   plan_id ("enterprise"), SSO fields (issuer, client_id, client_secret or None
-  with PKCE), created_at.
+  with PKCE), billing state (status trial/active, trial_ends_at, activated_at,
+  billing_cycle, receipt), created_at.
 - membership: org_id + user_id (+ role owner/admin/member).
 - audit: org-scoped event log (actor, action, detail, timestamp).
 
@@ -19,7 +20,7 @@ import re
 import secrets
 import time
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from app.config import settings
 
@@ -56,8 +57,15 @@ SSO_STATE_TTL = 600
 SSO_CODE_TTL = 600
 
 
+TRIAL_DAYS = 14
+
+
 def _utcnow():
     return datetime.now(timezone.utc)
+
+
+def _trial_ends_at() -> str:
+    return (_utcnow() + timedelta(days=TRIAL_DAYS)).isoformat()
 
 
 async def initialize(database_url: str | None = None) -> str:
@@ -84,6 +92,11 @@ async def initialize(database_url: str | None = None) -> str:
             Column("sso_issuer", String(512), nullable=True),
             Column("sso_client_id", String(255), nullable=True),
             Column("sso_client_secret", Text, nullable=True),
+            Column("status", String(16), nullable=False, default="trial"),
+            Column("trial_ends_at", DateTime(timezone=True), nullable=True),
+            Column("activated_at", DateTime(timezone=True), nullable=True),
+            Column("billing_cycle", String(16), nullable=False, default="annual"),
+            Column("receipt", String(64), nullable=True),
             Column("created_at", DateTime(timezone=True), nullable=False),
         )
         members = Table(
@@ -119,27 +132,61 @@ def validate_slug(slug: str) -> str:
     return clean
 
 
+def _parse_dt(value) -> datetime | None:
+    if value is None:
+        return None
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    try:
+        dt = datetime.fromisoformat(str(value))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except ValueError:
+        return None
+
+
+def org_status(org: dict) -> str:
+    """Effective billing status: active > trial (unexpired) > expired."""
+    if org.get("activated_at"):
+        return "active"
+    trial_end = _parse_dt(org.get("trial_ends_at"))
+    if trial_end is not None and trial_end > _utcnow():
+        return "trial"
+    return "expired"
+
+
 def _row_org(row) -> dict:
-    return {
+    org = {
         "id": row.id, "slug": row.slug, "name": row.name,
         "domain": row.domain or "", "plan_id": row.plan_id or "enterprise",
         "sso_issuer": row.sso_issuer or "", "sso_client_id": row.sso_client_id or "",
         "sso_configured": bool(row.sso_issuer and row.sso_client_id),
+        "trial_ends_at": row.trial_ends_at.isoformat() if getattr(row, "trial_ends_at", None) else "",
+        "activated_at": row.activated_at.isoformat() if getattr(row, "activated_at", None) else "",
+        "billing_cycle": getattr(row, "billing_cycle", None) or "annual",
+        "receipt": getattr(row, "receipt", None) or "",
         "created_at": row.created_at.isoformat() if row.created_at else "",
     }
+    org["status"] = org_status(org)
+    return org
 
 
 def _public_org(org: dict, role: str | None = None) -> dict:
     # Never expose the client secret.
-    return {
+    pub = {
         "id": org["id"], "slug": org["slug"], "name": org["name"],
         "domain": org.get("domain", ""), "plan_id": org.get("plan_id", "enterprise"),
         "sso_issuer": org.get("sso_issuer", ""),
         "sso_client_id": org.get("sso_client_id", ""),
         "sso_configured": bool(org.get("sso_issuer") and org.get("sso_client_id")),
+        "trial_ends_at": org.get("trial_ends_at", ""),
+        "activated_at": org.get("activated_at", ""),
+        "billing_cycle": org.get("billing_cycle", "annual"),
+        "receipt": org.get("receipt", ""),
         "role": role,
         "created_at": org.get("created_at", ""),
     }
+    pub["status"] = org_status(org)
+    return pub
 
 
 def _with_flag(org: dict | None) -> dict | None:
@@ -209,6 +256,11 @@ def create_org(name: str, slug: str, owner_id: str, domain: str = "") -> dict:
         "sso_issuer": "",
         "sso_client_id": "",
         "sso_client_secret": None,
+        "status": "trial",
+        "trial_ends_at": _trial_ends_at(),
+        "activated_at": "",
+        "billing_cycle": "annual",
+        "receipt": "",
         "created_at": _utcnow().isoformat(),
     }
     _persist_org(org)
@@ -225,15 +277,23 @@ def _persist_org(org: dict) -> None:
         return
     try:
         with _engine.begin() as conn:
+            # Tolerate older databases whose orgs table predates the billing
+            # columns (they simply keep working without trial/activation data).
+            cols = set(_orgs.c.keys())
+            values = {k: v for k, v in org.items()
+                      if k in cols and k not in ("id", "slug", "sso_configured", "status")}
+            for dt_key in ("trial_ends_at", "activated_at", "created_at"):
+                if dt_key in values:
+                    values[dt_key] = _parse_dt(values[dt_key]) or _utcnow()
+            if "created_at" in cols and "created_at" not in values:
+                values["created_at"] = _utcnow()
             existing = conn.execute(
                 select(_orgs.c.id).where(_orgs.c.slug == org["slug"])
             ).first()
-            values = {k: v for k, v in org.items() if k != "sso_configured"}
-            values["created_at"] = _utcnow()
             if existing:
                 conn.execute(_orgs.update().where(_orgs.c.id == org["id"]).values(**values))
             else:
-                conn.execute(_orgs.insert().values(**values))
+                conn.execute(_orgs.insert().values(id=org["id"], slug=org["slug"], **values))
     except Exception:
         logger.exception("Failed to persist org")
 
@@ -249,8 +309,9 @@ def configure_sso(org_id: str, issuer: str, client_id: str, client_secret: str =
     if not client_id:
         raise ValueError("Client ID is required.")
     full = _orgs_mem.get(org_id, dict(org))
+    secret = client_secret.strip() or _secret(org_id)
     full.update({"sso_issuer": issuer, "sso_client_id": client_id,
-                 "sso_client_secret": client_secret.strip() or None})
+                 "sso_client_secret": secret})
     _persist_org(full)
     return get_org(org_id) or org
 
@@ -361,11 +422,36 @@ def members_of(org_id: str) -> list[dict]:
 
 
 def user_has_enterprise(user_id: str) -> bool:
-    """Enterprise quota inheritance: any enterprise-org membership unlocks it."""
+    """Enterprise quota inheritance: membership in a trial/active org unlocks it.
+
+    Expired-trial orgs grant nothing — members fall back to personal plans.
+    """
     for org in orgs_for_user(user_id):
-        if org.get("plan_id") == "enterprise":
+        if org.get("plan_id") == "enterprise" and org_status(org) in ("trial", "active"):
             return True
     return False
+
+
+def activate_org(org_id: str, actor: str, billing_cycle: str = "annual", receipt: str = "") -> dict:
+    """Record a (demo) enterprise purchase on the org. A real Stripe webhook
+    should call this same function after verified payment."""
+    org = get_org(org_id)
+    if org is None:
+        raise ValueError("Organization not found.")
+    if billing_cycle not in ("monthly", "annual"):
+        billing_cycle = "annual"
+    full = _orgs_mem.get(org_id, dict(org))
+    if full.get("sso_client_secret") is None:
+        # Don't wipe a stored secret when activating from a cold memory cache.
+        full["sso_client_secret"] = _secret(org_id)
+    full.update({
+        "activated_at": _utcnow().isoformat(),
+        "billing_cycle": billing_cycle,
+        "receipt": (receipt or "")[:64],
+    })
+    _persist_org(full)
+    audit(org_id, actor, "org.activated", f"cycle={billing_cycle} receipt={full['receipt']}")
+    return get_org(org_id) or org
 
 
 def audit(org_id: str, actor: str, action: str, detail: str = "") -> None:

@@ -369,6 +369,11 @@ export interface Org {
   name: string
   domain: string
   plan_id: string
+  status: 'trial' | 'active' | 'expired'
+  trial_ends_at: string
+  activated_at: string
+  billing_cycle: string
+  receipt: string
   sso_issuer: string
   sso_client_id: string
   sso_configured: boolean
@@ -411,6 +416,13 @@ export async function inviteOrgMember(orgId: string, email: string, role: string
 export async function configureOrgSso(orgId: string, issuer: string, clientId: string, clientSecret: string): Promise<{ org: Org }> {
   const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/sso`, {
     issuer, client_id: clientId, client_secret: clientSecret,
+  })
+  return response.data
+}
+
+export async function activateOrg(orgId: string, billingCycle: string, receipt: string): Promise<{ org: Org }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/activate`, {
+    billing_cycle: billingCycle, receipt,
   })
   return response.data
 }

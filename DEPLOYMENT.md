@@ -21,12 +21,17 @@ enterprise members inherit unlimited quota via their organization.
 ### Enterprise SSO setup (owner)
 
 1. Create the organization: **Settings → Organization** (or Plans → Enterprise → Set up organization).
+   New orgs start on a **14-day trial** with full Enterprise quota.
 2. In your identity provider (Okta, Entra ID, Auth0, Google Workspace),
    register an app with redirect URI
    `<backend-origin>/api/v1/auth/sso/callback`.
 3. Paste the issuer URL + client ID (+ secret if required) into the
    Organization panel. Members sign in via **Sign in → Enterprise SSO**
    with the org slug; matching email domains are auto-provisioned.
+4. Before the trial ends, activate from the Organization panel (demo order
+   recorded server-side with a receipt; a real Stripe webhook calls
+   `org_service.activate_org` the same way). Expired trials fall back to
+   personal plans until activated.
 
 ### Dedicated deploy
 

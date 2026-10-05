@@ -5,6 +5,7 @@ import {
   Org,
   OrgMember,
   AuditEvent,
+  activateOrg,
   configureOrgSso,
   createOrg,
   getOrgAudit,
@@ -12,6 +13,7 @@ import {
   listMyOrgs,
   listOrgMembers,
 } from '../api/climoraApi'
+import { makeReceipt } from '../plans'
 import { notifyUsageChanged } from '../usageBus'
 
 const inputCls =
@@ -156,6 +158,33 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
     }
   }
 
+  const handleActivate = async () => {
+    if (!active) return
+    setError(null)
+    setNotice(null)
+    setBusy(true)
+    try {
+      // Demo purchase: receipt generated locally, entitlement recorded
+      // server-side. A real Stripe webhook would activate the same way.
+      const { org } = await activateOrg(active.id, 'annual', makeReceipt())
+      setOrgs(prev => prev.map(o => (o.id === org.id ? org : o)))
+      setActiveId(org.id)
+      const { events: ev } = await getOrgAudit(active.id).catch(() => ({ events: [] }))
+      setEvents(ev)
+      setNotice('Enterprise activated — unlimited quota for all members.')
+      notifyUsageChanged()
+    } catch (e) {
+      fail(e, 'Could not activate the organization.')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  const trialDaysLeft = (org: Org): number | null => {
+    if (org.status !== 'trial' || !org.trial_ends_at) return null
+    return Math.max(0, Math.ceil((new Date(org.trial_ends_at).getTime() - Date.now()) / 86400_000))
+  }
+
   return (
     <div className="py-4 space-y-5">
       {orgs.length > 1 && (
@@ -190,6 +219,36 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
               </p>
             </div>
           </div>
+
+          {active.status === 'trial' && (
+            <div className="flex items-center justify-between gap-3 text-xs rounded-xl px-3 py-2 bg-climora-50 dark:bg-climora-900/30 border border-climora-200 dark:border-climora-800 text-climora-700 dark:text-climora-300">
+              <span>
+                Trial{trialDaysLeft(active) !== null ? ` — ${trialDaysLeft(active)} day${trialDaysLeft(active) === 1 ? '' : 's'} left` : ''}.
+                Activate to keep unlimited quota for all members.
+              </span>
+              {isOwner && (
+                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-lg hover:bg-climora-700 disabled:opacity-60 shrink-0">
+                  Activate
+                </button>
+              )}
+            </div>
+          )}
+          {active.status === 'expired' && (
+            <div className="flex items-center justify-between gap-3 text-xs rounded-xl px-3 py-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">
+              <span>Trial expired — members are back on personal plans until you activate.</span>
+              {isOwner && (
+                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-lg hover:bg-climora-700 disabled:opacity-60 shrink-0">
+                  Activate
+                </button>
+              )}
+            </div>
+          )}
+          {active.status === 'active' && active.receipt && (
+            <p className="text-xs text-slate-400">
+              Active · {active.billing_cycle} billing · receipt <span className="font-mono">{active.receipt}</span>{' '}
+              <span className="text-slate-400">(demo order — no charge)</span>
+            </p>
+          )}
 
           <div>
             <p className="flex items-center gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 mb-2">

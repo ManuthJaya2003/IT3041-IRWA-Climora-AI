@@ -52,6 +52,11 @@ class SsoConfigRequest(BaseModel):
     client_secret: str = Field(default="", max_length=2000)
 
 
+class ActivateRequest(BaseModel):
+    billing_cycle: str = Field(default="annual", pattern="^(monthly|annual)$")
+    receipt: str = Field(default="", max_length=64)
+
+
 @router.post("")
 async def create_org(body: CreateOrgRequest, request: Request):
     user = _me(request)
@@ -116,3 +121,21 @@ async def get_audit(org_id: str, request: Request, limit: int = 100):
     _org_or_404(org_id)
     _require_role(org_id, user["id"], "owner", "admin")
     return {"events": org_service.audit_log(org_id, limit)}
+
+
+@router.post("/{org_id}/activate")
+async def activate(org_id: str, body: ActivateRequest, request: Request):
+    """Record the enterprise purchase on the org (demo activation).
+
+    The demo UI generates a receipt client-side after its mock order step —
+    card data never touches this endpoint. A real Stripe webhook should call
+    ``org_service.activate_org`` the same way after verified payment.
+    """
+    user = _me(request)
+    _org_or_404(org_id)
+    role = _require_role(org_id, user["id"], "owner")
+    try:
+        updated = org_service.activate_org(org_id, user["email"], body.billing_cycle, body.receipt)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    return {"org": org_service._public_org(updated, role)}

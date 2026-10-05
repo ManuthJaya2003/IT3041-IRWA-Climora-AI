@@ -85,6 +85,45 @@ def test_org_lifecycle_and_guards():
     assert "org.created" in actions and "member.added" in actions
 
 
+def test_org_trial_and_activation():
+    from datetime import datetime, timedelta, timezone
+    auth_service.reset_state()
+    org_service.reset_state()
+    client = _client()
+    owner = _register(client, "ceo@startup.example")
+    H = _headers(owner["access_token"])
+    oid = client.post("/api/v1/orgs", json={"name": "Startup", "slug": "startup"},
+                      headers=H).json()["org"]["id"]
+
+    # Fresh org is a 14-day trial with enterprise quota.
+    assert client.get("/api/v1/billing/usage", headers=H).json()["plan"] == "enterprise"
+
+    # Expired trial falls back to the personal plan.
+    org_service._orgs_mem[oid]["trial_ends_at"] = (
+        datetime.now(timezone.utc) - timedelta(days=1)).isoformat()
+    assert client.get("/api/v1/billing/usage", headers=H).json()["plan"] == "free"
+
+    # Owner activates (demo purchase recorded server-side with a receipt).
+    act = client.post(f"/api/v1/orgs/{oid}/activate", json={
+        "billing_cycle": "annual", "receipt": "DEMO-ORDER-1",
+    }, headers=H)
+    assert act.status_code == 200, act.text
+    body = act.json()["org"]
+    assert body["status"] == "active" and body["receipt"] == "DEMO-ORDER-1"
+    assert client.get("/api/v1/billing/usage", headers=H).json()["plan"] == "enterprise"
+
+    events = client.get(f"/api/v1/orgs/{oid}/audit", headers=H).json()["events"]
+    assert "org.activated" in [e["action"] for e in events]
+
+    # Non-owners cannot activate.
+    member = _register(client, "intern@startup.example")
+    client.post(f"/api/v1/orgs/{oid}/invite",
+                json={"email": "intern@startup.example", "role": "member"}, headers=H)
+    MH = _headers(member["access_token"])
+    denied = client.post(f"/api/v1/orgs/{oid}/activate", json={}, headers=MH)
+    assert denied.status_code == 403, denied.text
+
+
 def test_enterprise_quota_inheritance():
     auth_service.reset_state()
     org_service.reset_state()
