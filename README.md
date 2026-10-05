@@ -236,6 +236,10 @@ docker compose up --build
 
 See [DEPLOYMENT.md](./DEPLOYMENT.md) for the production checklist and cloud sketch.
 
+The deployment uses `/health` as a liveness probe and `/ready` as a readiness
+probe. `/ready` returns HTTP 503 until the configured LLM, vector store, and
+chat-history services are initialized.
+
 ## Environment configuration
 
 | Variable | Description | Required |

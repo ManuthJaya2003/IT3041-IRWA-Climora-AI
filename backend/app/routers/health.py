@@ -1,6 +1,6 @@
 """Health check endpoints."""
 
-from fastapi import APIRouter
+from fastapi import APIRouter, HTTPException
 
 from app.config import settings
 
@@ -35,6 +35,26 @@ async def detailed_health_check():
         },
         "environment": settings.environment,
     }
+
+
+@router.get("/ready")
+async def readiness_check():
+    """Readiness probe for traffic routing after startup."""
+    from app.services.llm_service import llm_service
+    from app.services.vector_store_service import vector_store_service
+    from app.services.history_service import history_service
+
+    services = {
+        "llm": llm_service.is_available(),
+        "vector_store": vector_store_service.is_available(),
+        "chat_history": history_service.backend_name() is not None,
+    }
+    if not all(services.values()):
+        raise HTTPException(
+            status_code=503,
+            detail={"status": "not_ready", "services": services},
+        )
+    return {"status": "ready", "services": services}
 
 
 @router.get("/health/bedrock-models")
