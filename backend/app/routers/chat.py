@@ -1,25 +1,14 @@
 """Chat API endpoints - main user interaction route."""
 
-<<<<<<< Updated upstream
-import logging
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
 import json
-
-=======
 import logging
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
-=======
-import logging
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
->>>>>>> Stashed changes
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
 
 from app.models.schemas import ChatRequest, ChatResponse
+from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
 from app.agents.orchestrator.shared import get_orchestrator
 from app.routers.deps import QuotaLimit, RateLimit
 

@@ -78,6 +78,14 @@ export interface VoiceQueryResponse {
   language: string
 }
 
+export interface AgentInfo {
+  name: string
+  role: string
+  status: string
+  owner: string
+  port: number
+}
+
 // --- API Functions ---
 
 export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
@@ -85,10 +93,6 @@ export async function sendQuery(request: ChatRequest): Promise<ChatResponse> {
   return response.data
 }
 
-<<<<<<< Updated upstream
-=======
-<<<<<<< HEAD
-<<<<<<< HEAD
 // --- Streaming query (Server-Sent Events) ---
 
 /** A real-time event emitted by the backend pipeline while it runs. */
@@ -192,11 +196,6 @@ export async function getHealthCheck(): Promise<Record<string, unknown>> {
   return response.data
 }
 
-=======
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
-=======
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
->>>>>>> Stashed changes
 // --- Speech API Functions ---
 
 export async function sendVoiceQuery(request: {

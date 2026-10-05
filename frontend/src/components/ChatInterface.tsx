@@ -42,30 +42,6 @@ function newId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
-function newId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID()
-    }
-  } catch {
-    // fall through to fallback below
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
-}
-
-/** ID generation with a fallback for non-secure contexts where crypto.randomUUID is unavailable. */
-function newId(): string {
-  try {
-    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
-      return crypto.randomUUID()
-    }
-  } catch {
-    // fall through to fallback below
-  }
-  return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 10)}-${Math.random().toString(36).slice(2, 10)}`
-}
-
 export default function ChatInterface({
   initialMessages = [],
   initialSessionId = null,
@@ -172,7 +148,6 @@ export default function ChatInterface({
     setIsLoading(true)
 
     try {
-<<<<<<< HEAD
       // Stream the pipeline so the Agent Mesh reflects the real, live
       // agent-communication flow. streamQuery resolves with the final response
       // once the pipeline is done; each intermediate event is forwarded to the
@@ -181,20 +156,12 @@ export default function ChatInterface({
         {
           query,
           location: location || undefined,
+          user_type: userType,
           session_id: sessionId || undefined,
           language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
         },
         event => onAgentEvent?.(event),
       )
-=======
-      const response = await sendQuery({
-        query,
-        location: location || undefined,
-        user_type: userType,
-        session_id: sessionId || undefined,
-        language: speechLang,   // answer language (a Sinhala/Tamil query overrides this)
-      })
->>>>>>> 555981c5b9f10f6cd846d1a0c184e3f6346c8b0e
 
       setSessionId(response.session_id)
 
@@ -362,10 +329,10 @@ export default function ChatInterface({
   }
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="flex flex-col h-full bg-slate-50 dark:bg-slate-950">
       <LocationOptions locations={savedLocations} />
       {/* Messages Area */}
-      <div className="flex-1 overflow-y-auto px-4 py-6">
+      <div className="flex-1 overflow-y-auto px-4 py-8 sm:px-8">
         {messages.length === 0 ? (
           <WelcomeScreen
             displayName={displayName}
@@ -527,14 +494,14 @@ interface WelcomeScreenProps {
 
 function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationChange }: WelcomeScreenProps) {
   return (
-    <div className="flex flex-col items-center justify-center h-full text-center px-4">
-      <div className="w-16 h-16 bg-climora-100 rounded-2xl flex items-center justify-center mb-6">
+    <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
+      <div className="w-16 h-16 bg-climora-100 dark:bg-climora-900/40 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
         <span className="text-3xl" aria-hidden="true">🌍</span>
       </div>
       <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
         {displayName ? `Welcome back, ${displayName}` : 'Welcome to Climora AI'}
       </h2>
-      <p className="text-slate-500 dark:text-slate-400 max-w-md mb-4">
+      <p className="text-sm leading-6 text-slate-500 dark:text-slate-400 max-w-xl mb-5">
         Sri Lanka's AI-powered climate intelligence assistant. Ask about weather conditions,
         flood and drought risks, cyclones, landslides, and climate preparedness
         for any location in Sri Lanka.
@@ -555,7 +522,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
 
       <p className="text-xs text-slate-400 dark:text-slate-500 mb-4">Try one of these queries:</p>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 max-w-lg">
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-2xl w-full">
         <SuggestionCard
           text="What is the current weather in Colombo?"
           onClick={onSuggestionClick}
@@ -600,7 +567,7 @@ function SuggestionCard({ text, onClick }: { text: string; onClick: (text: strin
   return (
     <button
       onClick={() => onClick(text)}
-      className="px-4 py-3 text-left text-sm text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl hover:border-climora-300 hover:bg-climora-50 dark:hover:bg-slate-800 transition-colors cursor-pointer"
+      className="px-4 py-3.5 text-left text-sm leading-5 text-slate-600 dark:text-slate-300 bg-white dark:bg-slate-900/80 border border-slate-200 dark:border-slate-800 rounded-xl shadow-sm hover:-translate-y-0.5 hover:border-climora-400 hover:bg-climora-50 dark:hover:bg-slate-800 transition-all cursor-pointer"
     >
       {text}
     </button>

@@ -1,5 +1,5 @@
-import { useState } from 'react'
-import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock, Volume2, Loader2 } from 'lucide-react'
+import { useEffect, useRef, useState } from 'react'
+import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock, Volume2, Loader2, Pause, Play, Square } from 'lucide-react'
 import { ChatResponse, textToSpeech } from '../api/climoraApi'
 import { Message } from './ChatInterface'
 import { uiText } from '../i18n'
@@ -277,48 +277,117 @@ function ReadAloudButton({ text, language }: { text: string; language?: string }
   const t = uiText(language)
   const [isLoading, setIsLoading] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
+  const [isPaused, setIsPaused] = useState(false)
+  const audioRef = useRef<HTMLAudioElement | null>(null)
+  const audioUrlRef = useRef<string | null>(null)
+
+  const releaseAudio = () => {
+    const audio = audioRef.current
+    if (audio) {
+      audio.pause()
+      audio.onended = null
+      audio.onerror = null
+      audioRef.current = null
+    }
+    if (audioUrlRef.current) {
+      URL.revokeObjectURL(audioUrlRef.current)
+      audioUrlRef.current = null
+    }
+  }
+
+  useEffect(() => releaseAudio, [])
 
   const handleReadAloud = async () => {
-    if (isPlaying) return
+    if (isPlaying || isLoading) return
 
     setIsLoading(true)
     try {
       const audioUrl = await textToSpeech(text, language)
+      const audio = new Audio(audioUrl)
+      audioRef.current = audio
+      audioUrlRef.current = audioUrl
       setIsLoading(false)
       setIsPlaying(true)
+      setIsPaused(false)
 
-      const audio = new Audio(audioUrl)
       audio.play().catch(() => {
+        releaseAudio()
         setIsPlaying(false)
-        URL.revokeObjectURL(audioUrl)
+        setIsPaused(false)
       })
       audio.onended = () => {
+        releaseAudio()
         setIsPlaying(false)
-        URL.revokeObjectURL(audioUrl)
+        setIsPaused(false)
       }
       audio.onerror = () => {
+        releaseAudio()
         setIsPlaying(false)
-        URL.revokeObjectURL(audioUrl)
+        setIsPaused(false)
       }
     } catch {
       setIsLoading(false)
       setIsPlaying(false)
+      setIsPaused(false)
     }
   }
 
+  const handlePauseResume = () => {
+    const audio = audioRef.current
+    if (!audio) return
+    if (audio.paused) {
+      audio.play().catch(() => {
+        releaseAudio()
+        setIsPlaying(false)
+        setIsPaused(false)
+      })
+      setIsPaused(false)
+    } else {
+      audio.pause()
+      setIsPaused(true)
+    }
+  }
+
+  const handleStop = () => {
+    releaseAudio()
+    setIsPlaying(false)
+    setIsPaused(false)
+  }
+
   return (
-    <button
-      onClick={handleReadAloud}
-      disabled={isLoading || isPlaying}
-      className="mt-2 flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors disabled:opacity-50"
-      aria-label={t.readAloud}
-    >
-      {isLoading ? (
-        <Loader2 className="w-3 h-3 animate-spin" />
-      ) : (
-        <Volume2 className="w-3 h-3" />
+    <div className="mt-2 flex items-center gap-2 text-xs">
+      {!isPlaying && (
+        <button
+          onClick={handleReadAloud}
+          disabled={isLoading}
+          className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors disabled:opacity-50"
+          aria-label={t.readAloud}
+        >
+          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />}
+          <span>{isLoading ? t.generating : t.readAloud}</span>
+        </button>
       )}
-      <span>{isPlaying ? t.playing : isLoading ? t.generating : t.readAloud}</span>
-    </button>
+      {isPlaying && (
+        <>
+          <button
+            onClick={handlePauseResume}
+            className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors"
+            aria-label={isPaused ? t.resume : t.pause}
+          >
+            {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
+            <span>{isPaused ? t.resume : t.pause}</span>
+          </button>
+          <button
+            onClick={handleStop}
+            className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors"
+            aria-label={t.stop}
+          >
+            <Square className="w-3 h-3" />
+            <span>{t.stop}</span>
+          </button>
+          <span className="text-slate-400 dark:text-slate-500">{isPaused ? t.pause : t.playing}</span>
+        </>
+      )}
+    </div>
   )
 }

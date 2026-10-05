@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import type { AgentStreamEvent } from '../api/climoraApi'
+import type { MeshInteraction } from '../App'
 
 /**
  * AgentMesh
@@ -25,6 +26,7 @@ export interface AgentMeshProps {
   event?: AgentStreamEvent | null
   /** Monotonic counter so repeated identical events still trigger an update. */
   seq?: number
+  initialInteractions?: MeshInteraction[]
 }
 
 interface AgentNode {
@@ -64,15 +66,30 @@ const OUTCOME_STYLE: Record<string, string> = {
   error: 'text-red-400',
 }
 
-export default function AgentMesh({ active, event, seq }: AgentMeshProps) {
+export default function AgentMesh({
+  active,
+  event,
+  seq,
+  initialInteractions = [],
+}: AgentMeshProps) {
   // Agents with a call currently in flight (agent_start seen, no agent_end yet).
   const [inFlight, setInFlight] = useState<Set<string>>(new Set())
   // Final outcome per agent for the current query: 'success' | 'fallback' | 'error'.
   // Persists for the whole query so fast/parallel calls stay visibly "used"
   // (kills the render race that briefly greyed out quick hand-offs).
   const [outcomes, setOutcomes] = useState<Record<string, string>>({})
-  const [log, setLog] = useState<LogEntry[]>([])
+  const [log, setLog] = useState<LogEntry[]>(initialInteractions)
   const logEndRef = useRef<HTMLDivElement>(null)
+  const initialInteractionsKey = JSON.stringify(initialInteractions)
+  const lastInitialInteractions = useRef('')
+
+  useEffect(() => {
+    if (initialInteractionsKey === lastInitialInteractions.current) return
+    lastInitialInteractions.current = initialInteractionsKey
+    setLog(initialInteractions)
+    setOutcomes(Object.fromEntries(initialInteractions.map(item => [item.agent, item.outcome])))
+    setInFlight(new Set())
+  }, [initialInteractionsKey]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // Advance mesh state from each REAL streamed event.
   useEffect(() => {
@@ -91,10 +108,15 @@ export default function AgentMesh({ active, event, seq }: AgentMeshProps) {
           setInFlight(prev => new Set(prev).add(agent))
           // Mark as touched immediately; outcome refined on agent_end.
           setOutcomes(prev => (agent in prev ? prev : { ...prev, [agent]: 'in-flight' }))
-          setLog(prev => [
-            ...prev.slice(-40),
-            { id: `${seq}-${agent}-start`, agent, outcome: 'in-flight' },
-          ])
+          setLog(prev => {
+            const existing = prev.findIndex(entry => entry.agent === agent)
+            if (existing < 0) {
+              return [...prev, { id: `${seq}-${agent}`, agent, outcome: 'in-flight' }]
+            }
+            const next = [...prev]
+            next[existing] = { ...next[existing], outcome: 'in-flight' }
+            return next
+          })
         }
         break
 
@@ -111,11 +133,11 @@ export default function AgentMesh({ active, event, seq }: AgentMeshProps) {
           // Update the most recent in-flight log entry for this agent.
           setLog(prev => {
             const next = [...prev]
-            for (let i = next.length - 1; i >= 0; i--) {
-              if (next[i].agent === agent && next[i].outcome === 'in-flight') {
-                next[i] = { ...next[i], outcome }
-                break
-              }
+            const index = next.findIndex(entry => entry.agent === agent)
+            if (index >= 0) {
+              next[index] = { ...next[index], outcome }
+            } else {
+              next.push({ id: `${seq}-${agent}`, agent, outcome })
             }
             return next
           })
@@ -156,7 +178,7 @@ export default function AgentMesh({ active, event, seq }: AgentMeshProps) {
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-72 shrink-0 bg-slate-950 border-l border-slate-800 text-slate-200">
+    <aside className="hidden lg:flex flex-col w-80 shrink-0 bg-slate-950/95 border-l border-slate-800/80 text-slate-200 shadow-[-12px_0_30px_rgba(2,6,23,0.12)]">
       {/* Header */}
       <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
         <h2 className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
@@ -175,7 +197,7 @@ export default function AgentMesh({ active, event, seq }: AgentMeshProps) {
       </div>
 
       {/* Mesh diagram */}
-      <div className="px-3 pt-4 pb-2">
+      <div className="px-4 pt-5 pb-3">
         <svg viewBox="0 0 200 240" className="w-full" role="img" aria-label="Agent interaction mesh">
           <defs>
             <radialGradient id="mesh-glow" cx="50%" cy="50%" r="50%">
