@@ -452,7 +452,11 @@ class OrchestratorAgent:
         task_payload = {
             "query": request.query,
             "location": request.location,
-            "user_type": effective_user_type,
+            "user_type": (
+                request.user_type.value
+                if hasattr(request.user_type, "value")
+                else request.user_type
+            ),
             "context": request.context,
         }
 
