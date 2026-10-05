@@ -5,6 +5,7 @@ Agentic AI-Powered Climate Intelligence & Decision Support System
 """
 
 import multiprocessing
+import logging
 
 # Required on Windows: prevents subprocesses from re-executing this module
 # when multiprocessing uses the 'spawn' start method (Windows default).
@@ -56,6 +57,7 @@ def _run_recommendation_agent():
 
 # Keep references so we can terminate on shutdown
 _agent_processes: list[multiprocessing.Process] = []
+logger = logging.getLogger(__name__)
 
 
 def _validate_production_security() -> None:
@@ -129,7 +131,7 @@ async def lifespan(app: FastAPI):
                 try:
                     await alert_service.monitor_once()
                 except Exception:
-                    pass
+                    logger.exception("Weather alert monitor cycle failed")
                 await _alert_asyncio.sleep(max(60, settings.alert_poll_interval_seconds))
         alert_task = _alert_asyncio.create_task(monitor_alerts())
         print(f"   ✓ Weather alert monitor enabled (every {settings.alert_poll_interval_seconds}s)")
@@ -171,6 +173,12 @@ async def lifespan(app: FastAPI):
 
     # Shutdown — terminate agent subprocesses cleanly
     print(f"🛑 Shutting down {settings.app_name}")
+    if alert_task is not None:
+        alert_task.cancel()
+        try:
+            await alert_task
+        except _alert_asyncio.CancelledError:
+            pass
     for proc in _agent_processes:
         proc.terminate()
         proc.join(timeout=3)
