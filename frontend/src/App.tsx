@@ -310,7 +310,9 @@ function App() {
     setApiPlan(plan)
   }, [plan])
 
-  const conversations = Array.from(conversationsData.values()).map(d => d.conversation)
+  const conversations = Array.from(conversationsData.values())
+    .map(d => d.conversation)
+    .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime())
 
   // Drop a stale active id left over from deleted / corrupted history.
   const validActiveId = activeConversationId && conversationsData.has(activeConversationId)
@@ -351,7 +353,11 @@ function App() {
       const updated = new Map(prev)
       const existing = updated.get(id)
       if (existing) {
-        updated.set(id, { ...existing, messages })
+        updated.set(id, {
+          ...existing,
+          messages,
+          conversation: { ...existing.conversation, timestamp: new Date() },
+        })
       }
       return updated
     })

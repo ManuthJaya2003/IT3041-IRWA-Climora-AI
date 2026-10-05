@@ -10,6 +10,7 @@ from app.agents.recommendation_agent.recommendation_agent import (  # noqa: E402
     RecommendationAgent,
     detect_crop,
 )
+from app.agents.orchestrator.orchestrator_agent import infer_user_type  # noqa: E402
 
 
 def test_usage_is_tracked_separately_per_plan():
@@ -74,3 +75,18 @@ def test_recommendations_keep_role_specific_guidance_for_all_user_types():
             }
             for rec in recommendations
         )
+
+
+def test_query_role_overrides_unchanged_individual_setting():
+    assert infer_user_type(
+        "I am a tea farmer in Nuwara Eliya", "individual"
+    ) == "farmer"
+    assert infer_user_type(
+        "I run a shop in Galle and need continuity advice", "individual"
+    ) == "business"
+    assert infer_user_type(
+        "I am a student in Kandy", "individual"
+    ) == "student"
+    assert infer_user_type(
+        "I manage a hospital in Jaffna", "individual"
+    ) == "institution"

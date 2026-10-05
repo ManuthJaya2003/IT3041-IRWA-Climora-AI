@@ -35,6 +35,26 @@ from app.services.history_service import history_service
 from app.services import usage_service
 
 
+def infer_user_type(query: str, configured_user_type: Optional[str]) -> str:
+    """Use explicit role settings unless the query clearly names another role."""
+    text = query.casefold()
+    role_terms = {
+        "farmer": (
+            "farmer", "farming", "planting", "irrigation", "crop", "rice",
+            "paddy", "tea", "coconut", "rubber", "වී", "ගොවි", "වගා",
+            "நெல்", "விவசாயி", "பயிர்",
+        ),
+        "student": ("student", "school", "university", "exam", "ශිෂ්‍ය", "පාසල", "மாணவர்", "பள்ளி"),
+        "business": ("business", "shop", "company", "supplier", "stock", "වෙළඳ", "ව්‍යාපාර", "வணிகம்", "கடை"),
+        "organization": ("organization", "community group", "ngo", "residents", "ප්‍රජා", "සංවිධානය", "சமூக அமைப்பு"),
+        "institution": ("hospital", "school management", "university", "facility", "institution", "රෝහල", "ආයතනය", "மருத்துவமனை"),
+    }
+    for role, terms in role_terms.items():
+        if any(term in text for term in terms):
+            return role
+    return getattr(configured_user_type, "value", None) or configured_user_type or "individual"
+
+
 class OrchestratorAgent:
     """
     The Orchestrator Agent coordinates all specialized agents to process
@@ -74,6 +94,7 @@ class OrchestratorAgent:
             from app.services import i18n_service as i18n
             # Sinhala/Tamil query -> that language; otherwise the language chosen in the UI.
             detected_language = i18n.resolve_language(request.query, getattr(request, "language", None))
+            effective_user_type = infer_user_type(request.query, request.user_type)
 
             if usage_service.is_free_greeting(request.query):
                 normalized_greeting = " ".join(request.query.strip().lower().split())
@@ -181,7 +202,7 @@ class OrchestratorAgent:
                         synthetic_request = CR(
                             query=synthesised,
                             location=request.location,
-                            user_type=request.user_type,
+                            user_type=effective_user_type,
                             session_id=request.session_id,
                             context=request.context,
                             language=request.language,
@@ -354,7 +375,7 @@ class OrchestratorAgent:
             recommendation_task = asyncio.create_task(
                 self._invoke_recommendation_agent(
                     analysis=analysis_result,
-                    user_type=request.user_type,
+                    user_type=effective_user_type,
                     location=request.location,
                     query=request.query,
                 )
@@ -431,7 +452,7 @@ class OrchestratorAgent:
         task_payload = {
             "query": request.query,
             "location": request.location,
-            "user_type": request.user_type.value if request.user_type else None,
+            "user_type": effective_user_type,
             "context": request.context,
         }
 
@@ -570,7 +591,7 @@ class OrchestratorAgent:
             analysis=analysis_result,
             verification=verification_result,
             language=language,
-            user_type=request.user_type,
+            user_type=effective_user_type,
             location=request.location or nlp_result.get("entities", {}).get("location"),
             evidence=live_docs,
         )
