@@ -15,6 +15,7 @@ by each specialized agent running as an MCP server.
 """
 
 import asyncio
+import logging
 import uuid
 import time
 from typing import Optional
@@ -33,6 +34,8 @@ from app.agents.orchestrator.mcp_client import MCPClientManager
 from app.services.llm_service import llm_service
 from app.services.history_service import history_service
 from app.services import usage_service
+
+logger = logging.getLogger(__name__)
 
 
 def infer_user_type(query: str, configured_user_type: Optional[str]) -> str:
@@ -340,11 +343,14 @@ class OrchestratorAgent:
                     sources=[],
                 )
                 agents_used.append("verification_agent")
+                # Retrieval failure is an infrastructure problem, not proof the
+                # question is non-climate — say so honestly instead of implying
+                # the user asked an off-topic question.
                 return ChatResponse(
                     session_id=session_id,
                     query=request.query,
                     summary=i18n.localize_static(
-                        "I can only answer climate and environmental questions. Please ask about weather, hazards, climate risks, or preparedness.",
+                        "I couldn't retrieve supporting evidence for this question right now. Please try again in a moment, or rephrase with a Sri Lanka district name (for example: 'Is there a flood risk in Kandy?').",
                         detected_language,
                     ),
                     language=detected_language,
@@ -774,14 +780,75 @@ Do not make claims beyond what the evidence supports.
             f"{language_instruction}"
         )
 
-        response = await llm_service.invoke_model(
-            prompt=prompt,
-            system_prompt=system_prompt,
-            max_tokens=500,
-            temperature=0.4,
-        )
+        try:
+            return await self._generate_summary_llm(
+                prompt=prompt,
+                system_prompt=system_prompt,
+            )
+        except Exception:
+            return self._extractive_summary(
+                query=query,
+                analysis=analysis,
+                verification=verification,
+                location=location,
+                evidence=evidence,
+            )
 
-        return response
+    async def _generate_summary_llm(self, prompt: str, system_prompt: str) -> str:
+        """Single LLM summary call (raises when the LLM is unreachable)."""
+        try:
+            return await llm_service.invoke_model(
+                prompt=prompt,
+                system_prompt=system_prompt,
+                max_tokens=500,
+                temperature=0.4,
+            )
+        except Exception as exc:
+            logger.warning("LLM summary unavailable (%s) — using extractive fallback", exc)
+            raise
+
+    def _extractive_summary(
+        self,
+        query: str,
+        analysis: dict,
+        verification: dict,
+        location: Optional[str] = None,
+        evidence: Optional[list[dict]] = None,
+    ) -> str:
+        """Build an honest summary purely from retrieved evidence (no LLM).
+
+        Used when the LLM is unreachable: states only what the evidence and
+        analysis contain (location, risk level, factors, top snippet,
+        verification status). Never invents claims or numbers.
+        """
+        risk = str(analysis.get("risk_level", "unknown"))
+        factors = analysis.get("risk_factors", []) or []
+        factor_txt = "; ".join(str(f) for f in factors[:3]) or "no specific factors identified"
+        # Prefer the snippet with the most query-term overlap so the summary
+        # stays on the user's actual question, not just the first document.
+        terms = {w for w in query.lower().split() if len(w) > 3}
+        snippet, best_score = "", -1
+        for doc in (evidence or [])[:5]:
+            txt = str(doc.get("content") or doc.get("snippet") or "").strip()
+            if len(txt) < 60:
+                continue
+            score = sum(1 for t in terms if t in txt.lower())
+            if score > best_score:
+                snippet, best_score = txt[:400], score
+        verified = "verified against retrieved evidence" if verification.get("verified") else "partially verified"
+        conf = verification.get("confidence", "unknown")
+        parts = [
+            f"For {location or 'the requested area'}: assessed {risk} risk.",
+            f"Key factors: {factor_txt}.",
+        ]
+        if snippet:
+            parts.append(f"Supporting evidence: {snippet}")
+        parts.append(
+            f"This assessment is {verified} (confidence {conf}). "
+            "Generated offline from retrieved evidence without AI synthesis; "
+            "treat it as indicative and check official sources for emergencies."
+        )
+        return " ".join(parts)
 
     # =========================================================================
     # Fallback Methods (when agents are unavailable)
@@ -888,6 +955,20 @@ Do not make claims beyond what the evidence supports.
                 detected_location = canonical
                 break
 
+        # Trilingual backfill: the English gazetteer above misses Sinhala/Tamil
+        # place names. The NLP agent's rule-based extractor covers all three
+        # languages offline (see evaluate_ir.py: 16/16) — reuse it here so the
+        # pipeline stays trilingual when the NLP agent server is down.
+        impl_topic = None
+        if detected_location is None:
+            try:
+                from app.agents.nlp_agent.nlp_agent import NLPAgent
+                impl_entities = NLPAgent()._extract_entities_impl(request.query, None) or {}
+                detected_location = impl_entities.get("location") or None
+                impl_topic = impl_entities.get("climate_topic") or impl_entities.get("hazard_type")
+            except Exception:
+                detected_location, impl_topic = None, None
+
         # Fall back to the separate location field if query has no location
         location = detected_location or request.location or None
 
@@ -930,6 +1011,8 @@ Do not make claims beyond what the evidence supports.
                 climate_topic = topic
                 hazard_type = topic
                 break
+        if climate_topic is None and impl_topic:
+            climate_topic = hazard_type = impl_topic
 
         entities: dict = {}
         if location:
@@ -965,18 +1048,36 @@ Do not make claims beyond what the evidence supports.
         if not has_climate_entities and not any(t in query_lower for t in CLIMATE_QUERY_TERMS):
             return {"documents": [], "message": "No climate-related evidence was retrieved for this query."}
 
-        # Build search query — include location for better embedding match
+        # Build search query from canonical English entities. The document
+        # corpus is English and local embeddings are hashed TF-IDF buckets, so
+        # a raw Sinhala/Tamil query matches mostly noise: enrich with the
+        # NLP-derived English location/topic plus topic vocabulary, and
+        # over-fetch (the location filter below needs headroom).
         location = entities.get("location", "")
         if isinstance(location, list):
             location = location[0] if location else ""
-        search_query = original_query
-        if location and location.lower() not in search_query.lower():
-            search_query = f"{search_query} {location}"
+        topic = entities.get("climate_topic") or entities.get("hazard_type") or ""
+        TOPIC_EXPANSION = {
+            "flood": "flood flooding flood risk river rainfall monsoon overflow water",
+            "drought": "drought dry rainfall water scarcity",
+            "cyclone": "cyclone storm wind",
+            "landslide": "landslide rain hill slope",
+            "heat-wave": "heat temperature hot",
+            "rain": "rain rainfall monsoon precipitation",
+            "temperature": "temperature weather rainfall",
+        }
+        if location or topic:
+            search_query = (
+                f"{TOPIC_EXPANSION.get(topic, topic)} {location} "
+                "Sri Lanka climate weather"
+            ).strip()
+        else:
+            search_query = original_query
 
         # Over-fetch to compensate for post-filter location filtering
         results = await vector_store_service.query_similar(
             query_text=search_query,
-            top_k=15,
+            top_k=40,
         )
 
         # Format and apply location filter
@@ -1053,18 +1154,22 @@ Based ONLY on the evidence above, provide your analysis as a JSON object with th
 IMPORTANT: You MUST assign a risk level based on the evidence — do not say "unknown" if evidence exists.
 Return ONLY the JSON object, no other text."""
 
-        response = await llm_service.invoke_model(
-            prompt=prompt,
-            system_prompt="Return ONLY a valid JSON object. No markdown, no explanation, no code fences. Just the JSON.",
-            max_tokens=1000,
-            temperature=0.2,
-        )
+        try:
+            response = await llm_service.invoke_model(
+                prompt=prompt,
+                system_prompt="Return ONLY a valid JSON object. No markdown, no explanation, no code fences. Just the JSON.",
+                max_tokens=1000,
+                temperature=0.2,
+            )
+        except Exception as exc:
+            logger.warning("LLM analysis unavailable (%s) — using evidence-based fallback", exc)
+            response = ""
 
         # Robust JSON parsing — handle markdown fences, extra text, etc.
         import json
         import re
 
-        parsed = self._parse_json_response(response)
+        parsed = self._parse_json_response(response) if response else None
         if parsed:
             return parsed
 
@@ -1150,14 +1255,14 @@ Each recommendation must have:
 Tailor recommendations to the user type and risk level. Be specific and actionable.
 Return ONLY the JSON object."""
 
-        response = await llm_service.invoke_model(
-            prompt=prompt,
-            system_prompt="Return ONLY a valid JSON object. No markdown, no explanation. Just JSON.",
-            max_tokens=600,
-            temperature=0.3,
-        )
+        try:
+            response = await self._generate_recommendations_llm(
+                prompt=prompt,
+            )
+        except Exception:
+            response = ""
 
-        parsed = self._parse_json_response(response)
+        parsed = self._parse_json_response(response) if response else None
         if parsed and "recommendations" in parsed:
             return parsed
 
@@ -1178,6 +1283,19 @@ Return ONLY the JSON object."""
                     {"action": "Connect with local disaster management resources", "priority": "long-term", "explanation": "Know who to contact and where to get information."},
                 ]
             }
+
+    async def _generate_recommendations_llm(self, prompt: str) -> str:
+        """Single LLM recommendations call (raises when the LLM is unreachable)."""
+        try:
+            return await llm_service.invoke_model(
+                prompt=prompt,
+                system_prompt="Return ONLY a valid JSON object. No markdown, no explanation. Just JSON.",
+                max_tokens=600,
+                temperature=0.3,
+            )
+        except Exception as exc:
+            logger.warning("LLM recommendations unavailable (%s) — using static fallback", exc)
+            raise
 
     # =========================================================================
     # Utility Methods

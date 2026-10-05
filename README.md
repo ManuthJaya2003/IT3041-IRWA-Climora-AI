@@ -297,19 +297,22 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
-- 16 backend regression tests · strict `tsc` + production frontend build
+- End-to-end answer quality: 9 golden queries (EN/SI/TA) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
+- 20 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
 python scripts/evaluate_ir.py
-python tests/test_billing.py && python tests/test_api_guards.py
+python scripts/evaluate_e2e.py
+python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py
 ```
 
 ## Commercialization
 
 | Plan | Price (LKR) | Daily queries | Enforced limits |
 |------|-------------|---------------|-----------------|
-| Free | 0 | 100 | 1 saved location · 7-day history |
+| Free (signed in) | 0 | 100 | 1 saved location · 7-day history |
+| Guest trial (no account) | 0 | 2 | Try before registering |
 | Premium | 1,490/mo · 14,900/yr | 1,000 | Alerts · 5 locations · 90-day history |
 | Business | 9,900/mo · 99,000/yr | 10,000 | 25 locations · 1-year history · API access |
 | Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |

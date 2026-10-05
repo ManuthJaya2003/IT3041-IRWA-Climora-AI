@@ -45,9 +45,58 @@ Trincomalee cyclone (EN), Colombo weather (TA).
 - Sample size is 16 hand-picked queries; a larger annotated set with
   precision@k and inter-annotator agreement is future work.
 
+## End-to-end answer quality (`backend/scripts/evaluate_e2e.py`)
+
+Scores final pipeline answers — not just retrieval — on 9 golden queries
+(3 English, 3 Sinhala, 3 Tamil) across 10 checks: completed, correct answer
+language, location mentioned, aspect coverage (≥1 of 2 evidence terms in the
+answer), ≥1 source cited, risk assessment present, ≥2 recommendations,
+disclaimer present, verification record present, confidence in [0, 1].
+
+Runs offline: without Bedrock credentials the pipeline answers from
+retrieved evidence via labeled extractive/static fallbacks (never silently),
+so examiners can re-run with `python scripts/evaluate_e2e.py`. The harness
+is hermetic — it pins the MCP client to unused ports so scores don't depend
+on whether agent servers happen to be running. With Bedrock configured the
+same script scores full LLM synthesis (higher aspect coverage expected).
+Per-query rows + aggregates print to stdout; full detail is saved
+to `backend/e2e_eval_results.json`.
+
+<!-- E2E-RESULTS: replaced by the latest measured run below. -->
+
+Latest measured run (2026-10-05, hermetic offline-fallback mode, 187 seeded
+documents, Bedrock unreachable so answers come from retrieved evidence via
+labeled extractive/static fallbacks):
+
+| Check | Result |
+|---|---|
+| completed (non-empty answer) | 9/9 = 100% |
+| correct answer language (EN/SI/TA routing) | 9/9 = 100% |
+| location mentioned in answer | 9/9 = 100% |
+| aspect coverage (≥1 of 2 evidence terms) | 9/9 = 100% |
+| ≥1 source cited | 9/9 = 100% |
+| risk assessment present | 9/9 = 100% |
+| ≥2 recommendations | 9/9 = 100% |
+| disclaimer present | 9/9 = 100% |
+| verification record present | 9/9 = 100% |
+| confidence in [0, 1] | 9/9 = 100% |
+
+Avg latency 8.3s/query offline (dominated by MCP port-probe timeouts with
+agent servers down, not model inference). Raw per-query rows:
+`backend/e2e_eval_results.json`.
+
+Honest limits: offline answers quote evidence rather than synthesizing it,
+so aspect depth and fluency are below what Bedrock synthesis produces (the
+same script measures that mode when credentials are configured). Fixing the
+offline path also fixed three real bugs found during this work: LLM failure
+crashed the whole pipeline, empty evidence was misreported as an off-topic
+question, and the fallback NLP/IR chain was English-only despite the
+trilingual promise.
+
 ## Regression tests
 
 - `backend/tests/test_api_guards.py` — 7 tests (auth, rate limits, history)
-- `backend/tests/test_billing.py` — 5 tests (plans, quotas, usage)
+- `backend/tests/test_billing.py` — 7 tests (plans, quotas, usage, refunds)
+- `backend/tests/test_auth.py` — 2 tests (register/login, server-side plans)
 - `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - Frontend: `npm run build` (`tsc -b` + vite) must pass clean.
