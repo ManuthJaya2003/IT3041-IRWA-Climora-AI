@@ -62,6 +62,44 @@ User Query
 - **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, no internal errors leaked
 - **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; runs fully offline in mock mode
 
+### Production integration notes
+
+The local prototype provides plan and subscription UI, and paid checkout now
+opens a server-created Stripe Checkout Session. Paid entitlements are not yet
+bound to authenticated accounts or activated from verified Stripe webhooks.
+Do not treat the client-supplied `X-Plan` header as an entitlement in
+production until identity, payment webhooks, and server-side plan records are
+connected.
+
+Browser alert preferences are implemented, but continuous weather monitoring
+and push delivery require a production scheduler, notification provider, and
+device registration.
+
+The agent servers expose MCP-compatible HTTP tool routes for the current
+development deployment. A production deployment should use authenticated MCP
+transport or an equivalent authenticated service-to-service channel.
+
+### Multi-user Docker deployment
+
+The development stack is in `docker-compose.yml`. For a server deployment, use
+`docker-compose.prod.yml`, which builds immutable backend/frontend images,
+keeps PostgreSQL on the private Compose network, disables reload and source
+bind-mounts, and exposes only the frontend.
+
+On the deployment host:
+
+```bash
+cp .env.prod.example .env.prod
+# Edit .env.prod and provide real random values and provider credentials.
+docker compose --env-file .env.prod -f docker-compose.prod.yml up -d --build
+```
+
+The application is then available at `PUBLIC_ORIGIN` on `HTTP_PORT`. Put a TLS
+reverse proxy in front of the frontend for HTTPS before exposing it publicly.
+This deployment improves process and network isolation, but it does not replace
+the still-pending authenticated user accounts and server-side subscription
+entitlements.
+
 ## Tech stack
 
 | Layer | Technology |
