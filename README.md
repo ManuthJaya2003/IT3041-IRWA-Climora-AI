@@ -148,7 +148,8 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── models/
 │   │   │   └── schemas.py             # Pydantic request/response models
 │   │   ├── routers/
-│   │   │   ├── auth.py                # Register / login / Google / me
+│   │   │   ├── auth.py                # Register / login / Google / SSO / me
+│   │   │   ├── orgs.py                # Organizations, members, SSO config, audit
 │   │   │   ├── chat.py                # Chat API endpoints + session history
 │   │   │   ├── agents.py              # Agent status and listing endpoints
 │   │   │   ├── health.py              # Health check endpoints
@@ -158,6 +159,8 @@ IT3041-IRWA-Climora-AI/
 │   │   │   └── deps.py                # Admin auth, rate limit, quota dependencies
 │   │   └── services/
 │   │       ├── auth_service.py        # Users, PBKDF2 passwords, JWT, Google verify
+│   │       ├── org_service.py         # Orgs, memberships, SSO state/codes, audit
+│   │       ├── oidc_service.py        # Generic OIDC: PKCE flow, JWKS verify
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
 │   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
@@ -181,7 +184,8 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── plans.ts                  # Plan catalogue fallback + saved locations
 │   │   ├── usageBus.ts               # Real-time quota refresh events
 │   │   ├── components/
-│   │   │   ├── AuthModal.tsx          # Sign in / register + Google button
+│   │   │   ├── AuthModal.tsx          # Sign in / register + Google + SSO
+│   │   │   ├── OrganizationPanel.tsx  # Org admin: members, SSO, audit
 │   │   │   ├── ChatInterface.tsx      # Main chat UI
 │   │   │   ├── ChatMessage.tsx        # Message display with rich data
 │   │   │   ├── Header.tsx
@@ -271,7 +275,12 @@ permissive defaults.
 | POST | `/api/v1/auth/register` · `/login` · `/google` | Create account, sign in (JWT) |
 | GET | `/api/v1/auth/me` | Signed-in profile + plan + usage |
 | GET | `/api/v1/auth/config` | Google client ID availability |
+| GET | `/api/v1/auth/sso/start?org=…` | Begin enterprise SSO (IdP redirect) |
 | POST | `/api/v1/billing/subscribe` | Activate plan on account (auth required) |
+| POST | `/api/v1/orgs` · `GET /mine` | Create / list organizations |
+| POST | `/api/v1/orgs/{id}/invite` | Add member (owner/admin) |
+| POST | `/api/v1/orgs/{id}/sso` | Connect OIDC identity provider (owner) |
+| GET | `/api/v1/orgs/{id}/audit` | Audit log (owner/admin) |
 | POST | `/api/v1/chat/query` | Full multi-agent pipeline (rate-limited + quota-enforced) |
 | GET | `/api/v1/chat/history?session_id=…` | Stored conversation turns |
 | POST | `/api/v1/speech/voice-query` | Voice query + TTS audio response |
@@ -298,13 +307,13 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
 - End-to-end answer quality: 9 golden queries (EN/SI/TA) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
-- 20 backend regression tests · strict `tsc` + production frontend build
+- 30 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
 python scripts/evaluate_ir.py
 python scripts/evaluate_e2e.py
-python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py
+python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py
 ```
 
 ## Commercialization
@@ -315,7 +324,7 @@ python tests/test_billing.py && python tests/test_api_guards.py && python tests/
 | Guest trial (no account) | 0 | 2 | Try before registering |
 | Premium | 1,490/mo · 14,900/yr | 1,000 | Alerts · 5 locations · 90-day history |
 | Business | 9,900/mo · 99,000/yr | 10,000 | 25 locations · 1-year history · API access |
-| Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |
+| Enterprise | Custom | Unlimited | Organizations, SSO, audit log, dedicated deploy |
 
 Quotas and limits are enforced server-side per account, not just displayed.
 Annual billing = 10× monthly. Guests get a 2-query/day trial (per IP); signing

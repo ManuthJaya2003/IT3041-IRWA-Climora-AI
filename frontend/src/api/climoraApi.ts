@@ -361,6 +361,76 @@ export async function getAuthConfig(): Promise<{ google_client_id: string | null
   return response.data
 }
 
+// --- Enterprise organizations + SSO ---
+
+export interface Org {
+  id: string
+  slug: string
+  name: string
+  domain: string
+  plan_id: string
+  sso_issuer: string
+  sso_client_id: string
+  sso_configured: boolean
+  role?: string | null
+  created_at: string
+}
+
+export interface OrgMember extends AuthUser {
+  org_role: string
+}
+
+export interface AuditEvent {
+  id: string
+  actor: string
+  action: string
+  detail: string
+  created_at: string
+}
+
+export async function listMyOrgs(): Promise<{ orgs: Org[] }> {
+  const response = await api.get('/orgs/mine')
+  return response.data
+}
+
+export async function createOrg(name: string, slug: string, domain: string): Promise<{ org: Org }> {
+  const response = await api.post('/orgs', { name, slug, domain })
+  return response.data
+}
+
+export async function listOrgMembers(orgId: string): Promise<{ members: OrgMember[] }> {
+  const response = await api.get(`/orgs/${encodeURIComponent(orgId)}/members`)
+  return response.data
+}
+
+export async function inviteOrgMember(orgId: string, email: string, role: string): Promise<{ member: AuthUser }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/invite`, { email, role })
+  return response.data
+}
+
+export async function configureOrgSso(orgId: string, issuer: string, clientId: string, clientSecret: string): Promise<{ org: Org }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/sso`, {
+    issuer, client_id: clientId, client_secret: clientSecret,
+  })
+  return response.data
+}
+
+export async function getOrgAudit(orgId: string): Promise<{ events: AuditEvent[] }> {
+  const response = await api.get(`/orgs/${encodeURIComponent(orgId)}/audit`)
+  return response.data
+}
+
+export async function startSso(orgSlug: string): Promise<{ authorization_url: string; org: Org }> {
+  const response = await api.get('/auth/sso/start', { params: { org: orgSlug } })
+  return response.data
+}
+
+export async function consumeSsoCode(code: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/sso/consume', { code })
+  setAuthToken(response.data.access_token)
+  return response.data
+}
+
 export async function createCheckoutSession(
   planId: string,
   annual: boolean,

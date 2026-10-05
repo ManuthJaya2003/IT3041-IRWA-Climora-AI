@@ -128,13 +128,20 @@ def client_key(request: Request) -> str:
 def resolve_plan(request: Request) -> dict:
     """Server-side plan: authenticated user's plan wins.
 
+    Enterprise is inherited: membership in any enterprise org unlocks it.
     ``X-Plan`` is only honoured for anonymous callers (and unknown values
     fall back to Free), so a signed-in user can never spoof a higher tier.
     """
     user = get_current_user_optional(request)
-    if user is not None:
-        return plans_service.get_plan(user.get("plan_id"))
-    return plans_service.get_plan(request.headers.get("X-Plan"))
+    if user is None:
+        return plans_service.get_plan(request.headers.get("X-Plan"))
+    try:
+        from app.services import org_service
+        if org_service.user_has_enterprise(user["id"]):
+            return plans_service.get_plan("enterprise")
+    except Exception:
+        pass
+    return plans_service.get_plan(user.get("plan_id"))
 
 
 async def enforce_quota(request: Request) -> None:

@@ -1,14 +1,15 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  ArrowLeft, Bell, Check, Crown, Download, Info, Lock, Palette,
+  ArrowLeft, Bell, Building2, Check, Crown, Download, Info, Lock, Palette,
   Search, Shield, SlidersHorizontal, Trash2, User, Sun, Moon, Monitor, FlaskConical, MapPin, X,
 } from 'lucide-react'
 import { AppSettings, LANGUAGES, RETENTION_OPTIONS, Theme, USER_TYPES } from '../settings'
 import { AuthUser, getAlertConfig, getUsage, sendAlertTest, subscribeToAlerts, UsageDto } from '../api/climoraApi'
 import { Subscription } from '../plans'
 import { onUsageChanged } from '../usageBus'
+import OrganizationPanel from './OrganizationPanel'
 
-type SectionId = 'general' | 'appearance' | 'personalization' | 'notifications' | 'data' | 'subscription' | 'about'
+export type SectionId = 'general' | 'appearance' | 'personalization' | 'notifications' | 'data' | 'subscription' | 'organization' | 'about'
 
 const SECTIONS: Array<{ id: SectionId; label: string; icon: typeof Bell; keywords: string }> = [
   { id: 'general', label: 'General', icon: SlidersHorizontal, keywords: 'general language location region default' },
@@ -17,6 +18,7 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: typeof Bell; keyword
   { id: 'notifications', label: 'Notifications', icon: Bell, keywords: 'notifications alerts browser push severe weather test' },
   { id: 'data', label: 'Data & privacy', icon: Shield, keywords: 'data privacy export download history retention delete clear' },
   { id: 'subscription', label: 'Subscription', icon: Crown, keywords: 'subscription plan billing quota usage premium pricing' },
+  { id: 'organization', label: 'Organization', icon: Building2, keywords: 'organization enterprise team sso members audit company' },
   { id: 'about', label: 'About', icon: Info, keywords: 'about version info help' },
 ]
 
@@ -47,6 +49,7 @@ interface SettingsViewProps {
   onClearHistory: () => void
   onViewPlans: () => void
   onBack: () => void
+  initialSection?: SectionId
 }
 
 export default function SettingsView({
@@ -67,8 +70,9 @@ export default function SettingsView({
   onClearHistory,
   onViewPlans,
   onBack,
+  initialSection,
 }: SettingsViewProps) {
-  const [section, setSection] = useState<SectionId>('general')
+  const [section, setSection] = useState<SectionId>(initialSection ?? 'general')
   const [query, setQuery] = useState('')
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
@@ -96,6 +100,10 @@ export default function SettingsView({
       setSection(visibleSections[0].id)
     }
   }, [visibleSections, section])
+
+  useEffect(() => {
+    setSection(initialSection ?? 'general')
+  }, [initialSection])
 
   // Escape returns to chat (unless a modal dialog is open on top).
   useEffect(() => {
@@ -555,6 +563,10 @@ export default function SettingsView({
                 </div>
               )}
 
+              {section === 'organization' && (
+                <OrganizationPanel user={user} onSignIn={onSignIn} />
+              )}
+
               {section === 'about' && (
                 <div className="py-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
                   <p><span className="font-semibold text-slate-800 dark:text-slate-100">Climora AI v0.1.0</span> — Sri Lanka's AI-powered climate intelligence assistant.</p>
@@ -577,6 +589,7 @@ const SECTION_SUBTITLES: Record<SectionId, string> = {
   notifications: 'Get pinged when risk is high. Diagnose issues here.',
   data: 'Retention, export, and deletion of your conversations.',
   subscription: 'Your plan and daily query usage.',
+  organization: 'Team seats, enterprise SSO and audit log.',
   about: 'What Climora AI is and how it works.',
 }
 

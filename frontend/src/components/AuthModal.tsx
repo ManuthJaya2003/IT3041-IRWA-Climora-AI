@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
-import { X, Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff } from 'lucide-react'
-import { getAuthConfig, googleSignIn, login, register } from '../api/climoraApi'
+import { X, Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff, Building2 } from 'lucide-react'
+import { getAuthConfig, googleSignIn, login, register, startSso } from '../api/climoraApi'
 
 interface AuthModalProps {
   open: boolean
@@ -30,6 +30,8 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
   const [error, setError] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [googleId, setGoogleId] = useState<string | null>(null)
+  const [ssoSlug, setSsoSlug] = useState('')
+  const [ssoBusy, setSsoBusy] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -101,6 +103,23 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
       setError(detail || 'Something went wrong. Please try again.')
     } finally {
       setBusy(false)
+    }
+  }
+
+  const submitSso = async () => {
+    setError(null)
+    if (!ssoSlug.trim()) {
+      setError('Enter your organization slug (e.g. ministry).')
+      return
+    }
+    setSsoBusy(true)
+    try {
+      const { authorization_url } = await startSso(ssoSlug.trim().toLowerCase())
+      window.location.href = authorization_url
+    } catch (e) {
+      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      setError(detail || 'Could not start SSO. Check the organization slug.')
+      setSsoBusy(false)
     }
   }
 
@@ -195,7 +214,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
           {mode === 'register' ? 'Already have an account? Sign in' : "Don't have an account? Create one"}
         </button>
 
-        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800">
+        <div className="mt-4 pt-4 border-t border-slate-100 dark:border-slate-800 space-y-3">
           {googleId ? (
             <>
               <div id="climora-google-btn" className="flex justify-center min-h-[40px]" />
@@ -206,6 +225,29 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
               Google sign-in is disabled (no <code>VITE_GOOGLE_CLIENT_ID</code> / <code>GOOGLE_CLIENT_ID</code> configured).
             </p>
           )}
+          <div className="rounded-xl border border-slate-200 dark:border-slate-700 p-3">
+            <p className="flex items-center gap-1.5 text-xs font-medium text-slate-700 dark:text-slate-200 mb-2">
+              <Building2 className="w-3.5 h-3.5" /> Enterprise SSO
+            </p>
+            <div className="flex gap-2">
+              <input
+                value={ssoSlug}
+                onChange={e => setSsoSlug(e.target.value)}
+                placeholder="Organization slug"
+                aria-label="Organization slug"
+                className="flex-1 min-w-0 rounded-lg border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2.5 py-1.5 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500"
+                onKeyDown={e => { if (e.key === 'Enter') submitSso() }}
+              />
+              <button
+                onClick={submitSso}
+                disabled={ssoBusy}
+                className="px-3 py-1.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:border-climora-400 disabled:opacity-60 shrink-0"
+              >
+                {ssoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
+              </button>
+            </div>
+            <p className="text-[11px] text-slate-400 mt-1.5">Redirects to your organization's identity provider.</p>
+          </div>
         </div>
       </div>
     </div>

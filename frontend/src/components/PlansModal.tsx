@@ -11,10 +11,11 @@ interface PlansModalProps {
   onSelectPlan: (planId: string) => void
   onCheckout: (plan: Plan, annual: boolean) => void
   onRequireAuth: () => void
+  onEnterprise: () => void
   onClose: () => void
 }
 
-export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCheckout, onRequireAuth, onClose }: PlansModalProps) {
+export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCheckout, onRequireAuth, onEnterprise, onClose }: PlansModalProps) {
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [annual, setAnnual] = useState(false)
@@ -65,7 +66,10 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
   if (!open) return null
 
   const handleSelect = (plan: Plan) => {
-    if (plan.id === 'enterprise') return // contact-sales path, no plan switch
+    if (plan.id === 'enterprise') {
+      onEnterprise()
+      return
+    }
     if (!user) {
       // Real-world rule: paid plans live on an account. Guests stay on Free.
       onRequireAuth()
@@ -178,12 +182,12 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
                   ))}
                 </ul>
                 {plan.id === 'enterprise' ? (
-                  <a
-                    href="mailto:hello@climora.ai?subject=Climora%20AI%20Enterprise%20enquiry"
-                    className="block text-center px-4 py-2 text-sm font-medium border border-climora-600 text-climora-700 dark:text-climora-300 rounded-xl hover:bg-climora-50 dark:hover:bg-climora-900/30 transition-colors"
+                  <button
+                    onClick={() => handleSelect(plan)}
+                    className="block w-full text-center px-4 py-2 text-sm font-medium border border-climora-600 text-climora-700 dark:text-climora-300 rounded-xl hover:bg-climora-50 dark:hover:bg-climora-900/30 transition-colors"
                   >
-                    {plan.cta}
-                  </a>
+                    {isCurrent ? 'Current plan' : 'Set up organization'}
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleSelect(plan)}

@@ -8,11 +8,12 @@ import type { AgentStreamEvent } from './api/climoraApi'
 import PlansModal from './components/PlansModal'
 import AuthModal from './components/AuthModal'
 import CheckoutModal, { CheckoutResult } from './components/CheckoutModal'
-import SettingsView from './components/SettingsView'
+import SettingsView, { SectionId } from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { FALLBACK_PLANS, Plan, Subscription, addLocation, clearSubscription, loadLocations, loadPlan, loadSubscription, removeLocation, savePlan, saveSubscription } from './plans'
 import {
   AuthUser,
+  consumeSsoCode,
   fetchMe,
   getAuthToken,
   getPlans,
@@ -117,6 +118,7 @@ function persist(key: string, value: string | null) {
 
 function App() {
   const [view, setView] = useState<'chat' | 'settings'>('chat')
+  const [settingsSection, setSettingsSection] = useState<SectionId>('general')
   // On phones the sidebar starts closed (it opens as an overlay drawer).
   const [sidebarOpen, setSidebarOpen] = useState(
     () => typeof window === 'undefined' || !window.matchMedia('(max-width: 767px)').matches,
@@ -220,6 +222,30 @@ function App() {
   // Restore session: if a token was saved, the server is the source of truth
   // for the plan (localStorage plan is only for anonymous guests).
   useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const ssoCode = params.get('sso_code')
+    const ssoError = params.get('sso_error')
+    window.history.replaceState({}, document.title, window.location.pathname)
+    if (ssoError) {
+      setPaymentNotice(
+        ssoError === 'domain_not_allowed'
+          ? 'SSO sign-in refused: your email domain is not allowed in that organization.'
+          : 'SSO sign-in failed. Please try again or contact your administrator.',
+      )
+      return
+    }
+    if (ssoCode) {
+      consumeSsoCode(ssoCode)
+        .then(({ user: me }) => {
+          setUser(me)
+          setPlan(me.plan_id)
+          setApiPlan(me.plan_id)
+          setPaymentNotice(`${me.plan_name} access ready — signed in via enterprise SSO.`)
+          notifyUsageChanged()
+        })
+        .catch(() => setPaymentNotice('SSO sign-in expired. Please try again.'))
+      return
+    }
     if (!getAuthToken()) return
     fetchMe()
       .then(({ user: me }) => {
@@ -256,6 +282,22 @@ function App() {
     setConversationsData(prev => pruneMap(prev, effectiveDays))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [effectivePlan, plans, settings.retentionDays])
+
+  const openSettings = useCallback((section: SectionId = 'general') => {
+    setSettingsSection(section)
+    setView('settings')
+  }, [])
+
+  const handleEnterpriseSetup = useCallback(() => {
+    if (!user) {
+      setPlansOpen(false)
+      setAuthMode('register')
+      setAuthOpen(true)
+      return
+    }
+    setPlansOpen(false)
+    openSettings('organization')
+  }, [user, openSettings])
 
   const handleChangeSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings(prev => {
@@ -549,7 +591,7 @@ function App() {
         <Header
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
-          onOpenSettings={() => setView('settings')}
+          onOpenSettings={() => openSettings('general')}
           user={user}
           onSignIn={() => { setAuthMode('login'); setAuthOpen(true) }}
           onSignOut={handleSignOut}
@@ -611,6 +653,7 @@ function App() {
                 onClearHistory={handleClearHistory}
                 onViewPlans={() => setPlansOpen(true)}
                 onBack={() => setView('chat')}
+                initialSection={settingsSection}
               />
             ) : (
               <ChatInterface
@@ -648,6 +691,7 @@ function App() {
         onSelectPlan={handleSelectPlan}
         onCheckout={(p, annual) => { setPlansOpen(false); setCheckout({ plan: p, annual }) }}
         onRequireAuth={() => { setPlansOpen(false); setAuthMode('register'); setAuthOpen(true) }}
+        onEnterprise={handleEnterpriseSetup}
         onClose={() => setPlansOpen(false)}
       />
 
