@@ -391,6 +391,23 @@ class OrchestratorAgent:
                 self._store_session(session_id, request.query, ask_response)
                 return ask_response
 
+            # --- Step 2e: Default topic for topic-less but in-scope queries ---
+            # Safety questions ("is it safe to go sightseeing?") and role
+            # questions ("should I start planting?") pass the gate via intent
+            # or role inference but carry no topic word, which would make IR
+            # return nothing. Default them: farmers get the agriculture topic
+            # (rain/flood/drought-compatible), everyone else gets general
+            # weather (temperature), so retrieval always has a topic filter.
+            if not entities.get("climate_topic") and not entities.get("hazard_type"):
+                _default_topic = (
+                    "agriculture" if effective_user_type == "farmer" else "temperature"
+                )
+                entities = {**entities,
+                            "climate_topic": _default_topic,
+                            "hazard_type": _default_topic}
+                logger.info("Defaulted topic to %s for topic-less query",
+                            _default_topic)
+
             # --- Step 3: Information Retrieval ---
             ir_result = await self._invoke_ir_agent(structured_query, entities)
             agents_used.append("ir_agent")
