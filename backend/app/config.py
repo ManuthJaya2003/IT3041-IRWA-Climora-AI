@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Retained only for backwards-compatible environment parsing. All AI
     # generation is required to use AWS Bedrock.
     gemini_api_key: Optional[str] = None
-    gemini_model_id: str = "gemini-3.6-flash"
+    gemini_model_id: str = "gemini-2.5-flash"
 
     # Weather APIs
     openweather_api_key: Optional[str] = None
