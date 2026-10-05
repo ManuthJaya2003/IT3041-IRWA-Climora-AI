@@ -249,6 +249,11 @@ See [DEPLOYMENT.md](./DEPLOYMENT.md) for the production checklist and cloud sket
 | `RATE_LIMIT_REQUESTS` / `RATE_LIMIT_WINDOW_SECONDS` | Per-IP rate limiting (default 100/min) | No |
 | `CORS_ORIGINS` | Allowed frontend origins | Yes for prod |
 
+When `ENVIRONMENT=production`, the backend fails closed unless `DEBUG=false`,
+`SECRET_KEY` and `ADMIN_TOKEN` are at least 32 characters, and every
+`CORS_ORIGINS` value is an explicit HTTPS origin. Local development keeps its
+permissive defaults.
+
 ## API endpoints
 
 | Method | Endpoint | Description |

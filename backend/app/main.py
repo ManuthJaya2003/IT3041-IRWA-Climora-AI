@@ -58,10 +58,37 @@ def _run_recommendation_agent():
 _agent_processes: list[multiprocessing.Process] = []
 
 
+def _validate_production_security() -> None:
+    """Reject unsafe settings before a production instance accepts traffic."""
+    if settings.environment.lower() not in {"production", "prod"}:
+        return
+
+    if (
+        settings.debug
+        or settings.secret_key == "replace-with-a-random-production-secret"
+        or len(settings.secret_key) < 32
+    ):
+        raise RuntimeError(
+            "Production requires DEBUG=false and a SECRET_KEY of at least 32 characters."
+        )
+    if not settings.admin_token or len(settings.admin_token) < 32:
+        raise RuntimeError(
+            "Production requires an ADMIN_TOKEN of at least 32 characters."
+        )
+    if not settings.cors_origins or any(
+        origin == "*" or not origin.lower().startswith("https://")
+        for origin in settings.cors_origins
+    ):
+        raise RuntimeError(
+            "Production CORS_ORIGINS must contain only explicit HTTPS origins."
+        )
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
+    _validate_production_security()
     print(f"🌍 Starting {settings.app_name} v{settings.app_version}")
     print(f"   Environment: {settings.environment}")
     print(f"   Debug: {settings.debug}")
