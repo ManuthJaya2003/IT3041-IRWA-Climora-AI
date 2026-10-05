@@ -30,7 +30,7 @@ export default function Header({ sidebarOpen, onToggleSidebar, onOpenSettings, u
         </span>
         {user && (
           <span className="hidden md:inline px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full shrink-0">
-            {user.plan_name}
+            {user.effective_plan_name || user.plan_name}
           </span>
         )}
       </div>

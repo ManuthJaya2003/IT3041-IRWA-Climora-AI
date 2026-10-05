@@ -214,7 +214,7 @@ function App() {
     persist(ACTIVE_CONVERSATION_KEY, activeConversationId)
   }, [activeConversationId])
 
-  const effectivePlan = user ? user.plan_id : plan
+  const effectivePlan = user ? (user.effective_plan_id || user.plan_id) : plan
   const planDef = planById(plans, effectivePlan)
   const locationLimit = planDef.max_saved_locations
   const effectiveDays = effectiveRetention(settings.retentionDays, planDef.history_days)
@@ -318,18 +318,22 @@ function App() {
     setSavedLocations(prev => removeLocation(prev, name))
   }, [])
 
-  const handleAuthSuccess = useCallback(() => {
-    // Token already stored by the api layer - pull the server-side profile.
+  const refreshMe = useCallback(() => {
     fetchMe()
       .then(({ user: me }) => {
         setUser(me)
         setPlan(me.plan_id)
-        setApiPlan(me.plan_id)
+        setApiPlan(me.effective_plan_id || me.plan_id)
         setAuthOpen(false)
         notifyUsageChanged()
       })
       .catch(() => setAuthOpen(false))
   }, [])
+
+  const handleAuthSuccess = useCallback(() => {
+    // Token already stored by the api layer — pull the server-side profile.
+    refreshMe()
+  }, [refreshMe])
 
   const handleSignOut = useCallback(() => {
     apiLogout()
@@ -447,8 +451,8 @@ function App() {
   // Attach the auth token + plan to every API request.
   // Server ignores X-Plan for signed-in users (their account plan wins).
   useEffect(() => {
-    setApiPlan(user ? user.plan_id : plan)
-  }, [plan, user])
+    setApiPlan(effectivePlan)
+  }, [effectivePlan])
 
   const conversations = Array.from(conversationsData.values())
     .map(d => d.conversation)
