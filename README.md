@@ -70,9 +70,12 @@ PostgreSQL — `POST /api/v1/billing/subscribe` activates it server-side, daily
 quotas are keyed by user id, and `X-Plan` is only honoured for anonymous
 guests (always Free). A signed-in user cannot spoof a higher tier.
 
-The demo card form never sends card data to the server. For real money,
-connect a Stripe webhook to call `auth_service.set_plan()` after verified
-payment, then remove the demo activation path.
+Payments are real when configured: with `STRIPE_SECRET_KEY` set, checkout
+creates a Stripe-hosted Checkout Session bound to the account
+(`client_reference_id` = user id), the plan activates server-side only after
+verified payment (`GET /checkout-session/{id}` + `POST /webhook` with HMAC
+signature check → `set_plan()`). Without keys the UI falls back to the
+clearly-labeled demo checkout so evaluation works offline.
 
 Browser alert preferences are implemented, but continuous weather monitoring
 and push delivery require a production scheduler, notification provider, and
@@ -307,13 +310,13 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
 - End-to-end answer quality: 9 golden queries (EN/SI/TA) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
-- 31 backend regression tests · strict `tsc` + production frontend build
+- 34 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
 python scripts/evaluate_ir.py
 python scripts/evaluate_e2e.py
-python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py
+python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py && python tests/test_stripe.py
 ```
 
 ## Commercialization

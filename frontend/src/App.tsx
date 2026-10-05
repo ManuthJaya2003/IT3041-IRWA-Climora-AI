@@ -427,11 +427,12 @@ function App() {
         saveSubscription(sub)
         setSubscription(sub)
         // Server is authoritative - re-pull the account so quota updates.
+        // (With real Stripe, the server activated the plan during verify.)
         fetchMe()
           .then(({ user: me }) => {
             setUser(me)
             setPlan(me.plan_id)
-            setApiPlan(me.plan_id)
+            setApiPlan(me.effective_plan_id || me.plan_id)
           })
           .catch(() => {
             setPlan(selectedPlan.id)

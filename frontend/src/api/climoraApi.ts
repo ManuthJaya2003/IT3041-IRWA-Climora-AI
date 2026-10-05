@@ -325,6 +325,11 @@ export async function getPlans(): Promise<{ plans: PlanDto[] }> {
   return response.data
 }
 
+export async function getPaymentConfig(): Promise<{ stripe_enabled: boolean }> {
+  const response = await api.get('/billing/payment-config')
+  return response.data
+}
+
 export async function getUsage(): Promise<UsageDto> {
   const response = await api.get('/billing/usage')
   return response.data

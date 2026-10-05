@@ -99,6 +99,7 @@ trilingual promise.
 - `backend/tests/test_billing.py` — 7 tests (plans, quotas, usage, refunds)
 - `backend/tests/test_auth.py` — 2 tests (register/login, server-side plans)
 - `backend/tests/test_enterprise.py` — 5 tests (orgs, trial/activation, quota inheritance, OIDC verify, SSO flow)
+- `backend/tests/test_stripe.py` — 3 tests (config gating, checkout flow, webhook)
 - `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - `backend/tests/test_usage_plan.py` — 6 tests (per-plan tracking, greetings, role guidance)
 - Frontend: `npm run build` (`tsc -b` + vite) must pass clean.
