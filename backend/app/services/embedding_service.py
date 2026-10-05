@@ -11,7 +11,7 @@ Model: amazon.titan-embed-text-v2:0
 - High quality embeddings
 - Uses your existing AWS credentials
 
-Falls back to TF-IDF-like embeddings if Bedrock is unavailable.
+Bedrock is mandatory; embedding failures are surfaced to the caller.
 """
 
 import json
@@ -23,7 +23,7 @@ from app.config import settings
 
 
 class EmbeddingService:
-    """Service for generating text embeddings via Bedrock Titan or TF-IDF fallback."""
+    """Service for generating text embeddings exclusively via Bedrock Titan."""
 
     def __init__(self):
         self._client = None
@@ -56,10 +56,9 @@ class EmbeddingService:
             except Exception as e:
                 print(f"   ⚠ Embedding service: Bedrock init failed ({e})")
 
-        # Fallback to TF-IDF-like embeddings (no dependencies needed)
-        self._available = True
+        self._available = False
         self._use_bedrock = False
-        print(f"   ⚠ Embedding service: Using TF-IDF fallback embeddings (dim: {self._dimension})")
+        print("   ✗ Embedding service: AWS Bedrock is unavailable")
 
     def is_available(self) -> bool:
         return self._available
@@ -76,7 +75,7 @@ class EmbeddingService:
         text = to_english_query(text)
         if self._use_bedrock:
             return self._bedrock_embed(text)
-        return self._tfidf_embed(text)
+        raise RuntimeError("AWS Bedrock embeddings are unavailable; no alternate provider is permitted")
 
     def embed_texts(self, texts: list[str]) -> list[list[float]]:
         """Generate embeddings for multiple texts."""
@@ -112,9 +111,8 @@ class EmbeddingService:
             return embedding
 
         except Exception as e:
-            # If Bedrock fails (expired token, etc.), use fallback
-            print(f"   ✗ Bedrock embedding error: {e}")
-            return self._tfidf_embed(text)
+            print(f"   ✗ Bedrock embedding error: {type(e).__name__}")
+            raise RuntimeError("AWS Bedrock embedding invocation failed") from e
 
     def _tfidf_embed(self, text: str) -> list[float]:
         """

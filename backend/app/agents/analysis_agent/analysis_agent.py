@@ -253,6 +253,21 @@ class AnalysisAgent(BaseAgentServer):
                 risk_factors.append(factor)
         if not risk_factors and rule_assessment["hazard"]:
             risk_factors = [rule_assessment["hazard"]]
+        if risk_factors and rule_assessment["hazard"] not in risk_factors:
+            # Keep the explanation aligned with the factors shown to the user.
+            # Background documents can contain unrelated hazards (for example,
+            # drought references alongside a flood query).
+            rule_assessment["hazard"] = risk_factors[0]
+            rule_assessment["explanation"] = re.sub(
+                r" driven primarily by [^.]+[.]?$",
+                f" driven primarily by {risk_factors[0]}.",
+                rule_assessment["explanation"],
+            )
+            if " based on the retrieved climate evidence." in rule_assessment["explanation"]:
+                rule_assessment["explanation"] = rule_assessment["explanation"].replace(
+                    " based on the retrieved climate evidence.",
+                    f" driven primarily by {risk_factors[0]}.",
+                )
         if risk_factors and not rule_assessment["hazard"]:
             rule_assessment["hazard"] = risk_factors[0]
             rule_assessment["explanation"] = rule_assessment["explanation"].replace(

@@ -42,7 +42,8 @@ class Settings(BaseSettings):
     aws_region: str = "us-east-1"
     bedrock_model_id: str = "anthropic.claude-3-sonnet-20240229-v1:0"
 
-    # Google Gemini (free tier - use while waiting for Bedrock access)
+    # Retained only for backwards-compatible environment parsing. All AI
+    # generation is required to use AWS Bedrock.
     gemini_api_key: Optional[str] = None
     gemini_model_id: str = "gemini-3.6-flash"
 

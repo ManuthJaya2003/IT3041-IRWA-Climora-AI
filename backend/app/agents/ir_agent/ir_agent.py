@@ -273,8 +273,7 @@ class IRAgent(BaseAgentServer):
         """
         Initialize the embedding and vector store services this agent depends on.
 
-        Tries sentence-transformers first for high-quality local embeddings.
-        Falls back to the configured EmbeddingService (Bedrock Titan or TF-IDF).
+        Uses the configured Bedrock Titan embedding service.
         """
         from app.services.embedding_service import embedding_service
         from app.services.vector_store_service import vector_store_service
@@ -282,27 +281,6 @@ class IRAgent(BaseAgentServer):
         await embedding_service.initialize()
         await vector_store_service.initialize()
 
-        # Attempt to upgrade to sentence-transformers for better semantic quality
-        try:
-            import importlib
-            st_module = importlib.import_module("sentence_transformers")
-            SentenceTransformer = getattr(st_module, "SentenceTransformer")
-            _st_model = SentenceTransformer("all-MiniLM-L6-v2")
-
-            # Monkey-patch embed_text so the vector store uses real neural embeddings
-            def _st_embed(text: str) -> list[float]:
-                return _st_model.encode(text, normalize_embeddings=True).tolist()
-
-            embedding_service.embed_text = _st_embed
-            embedding_service._available = True
-            embedding_service._use_bedrock = False
-            logger.info("Embedding service upgraded to sentence-transformers (all-MiniLM-L6-v2)")
-        except Exception as exc:
-            logger.info(
-                "sentence-transformers not available (%s) — using configured EmbeddingService "
-                "(Bedrock Titan or TF-IDF fallback)",
-                exc,
-            )
 
     async def retrieve_documents(self, arguments: dict) -> dict:
         """

@@ -1,7 +1,6 @@
 """
 AWS Bedrock LLM Service.
 Provides access to foundation models (Claude, etc.) via Amazon Bedrock.
-Includes a fallback mock mode for development when Bedrock access is pending.
 """
 
 import json
@@ -16,7 +15,6 @@ class BedrockService:
     def __init__(self):
         self._client = None
         self._available = False
-        self._mock_mode = False
 
     async def initialize(self):
         """Initialize the Bedrock client."""
@@ -24,27 +22,24 @@ class BedrockService:
             import boto3
 
             if settings.aws_access_key_id and settings.aws_secret_access_key:
-                self._client = boto3.client(
-                    "bedrock-runtime",
-                    aws_access_key_id=settings.aws_access_key_id,
-                    aws_secret_access_key=settings.aws_secret_access_key,
-                    region_name=settings.aws_region,
-                )
+                client_kwargs = {
+                    "service_name": "bedrock-runtime",
+                    "aws_access_key_id": settings.aws_access_key_id,
+                    "aws_secret_access_key": settings.aws_secret_access_key,
+                    "region_name": settings.aws_region,
+                }
+                if settings.aws_session_token:
+                    client_kwargs["aws_session_token"] = settings.aws_session_token
+                self._client = boto3.client(**client_kwargs)
                 self._available = True
                 print("   ✓ Bedrock service initialized")
             else:
-                self._mock_mode = True
-                self._available = True
-                print("   ⚠ Bedrock: No AWS credentials found - running in MOCK mode")
+                print("   ✗ Bedrock: No AWS credentials found")
 
         except ImportError:
-            self._mock_mode = True
-            self._available = True
-            print("   ⚠ Bedrock: boto3 not installed - running in MOCK mode")
+            print("   ✗ Bedrock: boto3 is not installed")
         except Exception as e:
-            self._mock_mode = True
-            self._available = True
-            print(f"   ⚠ Bedrock: Init failed ({e}) - running in MOCK mode")
+            print(f"   ✗ Bedrock: Init failed ({type(e).__name__})")
 
     def is_available(self) -> bool:
         """Check if service is available."""
@@ -69,9 +64,6 @@ class BedrockService:
         Returns:
             Model response text.
         """
-        if self._mock_mode:
-            return await self._mock_response(prompt, system_prompt)
-
         try:
             # Claude model via Bedrock Messages API
             messages = [{"role": "user", "content": prompt}]
@@ -97,20 +89,8 @@ class BedrockService:
             return response_body["content"][0]["text"]
 
         except Exception as e:
-            print(f"   ✗ Bedrock invocation error: {e}")
-            # Fallback to mock if real call fails
-            return await self._mock_response(prompt, system_prompt)
-
-    async def _mock_response(self, prompt: str, system_prompt: Optional[str] = None) -> str:
-        """
-        Generate a mock response for development/testing.
-        This allows the pipeline to work end-to-end without Bedrock access.
-        """
-        return (
-            f"[MOCK LLM RESPONSE] This is a development placeholder. "
-            f"In production, this would be processed by {settings.bedrock_model_id}. "
-            f"Query received: '{prompt[:100]}...'"
-        )
+            print(f"   ✗ Bedrock invocation error: {type(e).__name__}")
+            raise RuntimeError("AWS Bedrock invocation failed") from e
 
 
 # Singleton instance

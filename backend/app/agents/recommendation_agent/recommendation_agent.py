@@ -18,8 +18,8 @@ Design notes:
   keyed off the risk level, the identified hazards, and the user type. This
   guarantees the agent works with zero external dependencies (matching the
   reliability approach of the NLP/Security/Analysis agents).
-- When the LLM is available (non-mock) it generates richer, more tailored
-  recommendations. Any failure or mock mode falls back to the templates.
+- When the LLM is available it generates richer, more tailored recommendations.
+  Any failure falls back to the templates.
 - For high/critical risk an emergency_notice is always attached and at least
   one "immediate" action is guaranteed, regardless of the LLM output.
 
@@ -89,6 +89,87 @@ USER_TYPE_ACTIONS: dict[str, tuple[str, str, str]] = {
         "continuity",
     ),
 }
+
+# Keep LLM and hazard-template output aligned with the selected audience.
+# These are intentionally phrase-based because recommendations are model
+# output, while the final response contract remains provider-independent.
+USER_TYPE_GUARDRAILS: dict[str, dict[str, tuple[str, ...]]] = {
+    "individual": {
+        "required_categories": ("preparedness", "safety", "protection"),
+        "blocked_phrases": ("supplier", "supply chain", "staff roster", "policy response"),
+    },
+    "student": {
+        "required_categories": ("awareness", "safety", "preparedness"),
+        "blocked_phrases": ("supplier", "supply chain", "fertilizer", "irrigation"),
+    },
+    "farmer": {
+        "required_categories": ("agriculture",),
+        "blocked_phrases": (
+            "valuables and important documents",
+            "grab bag with water, medicine, and documents",
+            "household emergency supplies",
+            "household preparedness",
+            "supplier",
+            "staff roster",
+        ),
+    },
+    "business": {
+        "required_categories": ("continuity", "operations", "safety"),
+        "blocked_phrases": ("planting", "irrigation", "fertilizer", "school safety"),
+    },
+    "organization": {
+        "required_categories": ("community", "coordination", "preparedness"),
+        "blocked_phrases": ("planting", "irrigation", "fertilizer", "supplier delivery"),
+    },
+    "institution": {
+        "required_categories": ("continuity", "facility", "safety"),
+        "blocked_phrases": ("planting", "irrigation", "fertilizer", "household"),
+    },
+}
+
+CROP_ACTIONS: dict[str, tuple[str, str]] = {
+    "rice": (
+        "For rice, keep bunds and outlets maintained, avoid planting into saturated clay, "
+        "and adjust field water only after checking soil and rainfall.",
+        "Rice fields need controlled standing water, not uncontrolled flooding.",
+    ),
+    "tea": (
+        "For tea, keep drains and contour channels clear, avoid fertilizer before heavy rain, "
+        "and inspect wet slopes for erosion or root exposure.",
+        "Excess rain can leach nutrients and increase erosion and disease pressure in tea fields.",
+    ),
+    "coconut": (
+        "For coconut, maintain drainage around palms, protect soil with mulch or cover, "
+        "and avoid fertilizer application immediately before heavy rain.",
+        "Good drainage protects roots while mulch reduces moisture and nutrient loss.",
+    ),
+    "rubber": (
+        "For rubber, keep plantation drains clear, avoid tapping during wet conditions, "
+        "and monitor slopes and trees for wind or water damage.",
+        "Wet conditions increase access, disease, and tree-stability risks in rubber plantations.",
+    ),
+    "vegetables": (
+        "For vegetables, use raised beds and drainage, protect seedlings from intense rain, "
+        "and delay nutrient application until rain has eased.",
+        "Young vegetable roots are especially vulnerable to waterlogging and nutrient washout.",
+    ),
+}
+
+
+def detect_crop(query: str) -> str | None:
+    normalized = query.lower()
+    aliases = {
+        "rice": ("rice", "paddy", "වී", "සහල්", "நெல்", "அரிசி"),
+        "tea": ("tea", "තේ", "தேயிலை"),
+        "coconut": ("coconut", "coco", "පොල්", "தேங்காய்"),
+        "rubber": ("rubber", "රබර්", "ரப்பர்"),
+        "vegetables": (
+            "vegetable", "tomato", "onion", "carrot", "cabbage",
+            "එළවළු", "තක්කාලි", "ලූනු", "කැරට්", "ගෝවා",
+            "காய்கறி", "தக்காளி", "வெங்காயம்", "கேரட்", "முட்டைக்கோஸ்",
+        ),
+    }
+    return next((crop for crop, terms in aliases.items() if any(term in normalized for term in terms)), None)
 
 # ---------------------------------------------------------------------------
 # Priority policy per risk level.
@@ -282,6 +363,7 @@ class RecommendationAgent(BaseAgentServer):
         analysis = arguments.get("analysis") or {}
         user_type = (arguments.get("user_type") or "individual").lower()
         location = arguments.get("location")
+        crop = detect_crop(arguments.get("query") or "")
 
         risk_level = str(analysis.get("risk_level", "unknown")).lower()
         if risk_level not in RISK_PRIORITY_POLICY:
@@ -291,6 +373,14 @@ class RecommendationAgent(BaseAgentServer):
 
         # 1. Rule-based baseline (always available).
         rule_recs = self._rule_recommendations(risk_level, risk_factors, user_type)
+        if user_type == "farmer" and crop:
+            action, explanation = CROP_ACTIONS[crop]
+            rule_recs.insert(0, {
+                "action": action,
+                "priority": "short-term",
+                "explanation": explanation,
+                "category": "agriculture",
+            })
 
         # 2. Optional LLM enrichment.
         llm_recs = await self._llm_recommendations(
@@ -298,6 +388,8 @@ class RecommendationAgent(BaseAgentServer):
         )
 
         recommendations = llm_recs if llm_recs else rule_recs
+
+        recommendations = self._filter_for_user_type(recommendations, user_type)
 
         # 3. Guarantee an immediate action exists for high/critical risk.
         if policy["needs_emergency"] and not any(
@@ -315,6 +407,39 @@ class RecommendationAgent(BaseAgentServer):
             "recommendations": recommendations,
             "emergency_notice": emergency_notice,
         }
+
+    @staticmethod
+    def _filter_for_user_type(recommendations: list[dict], user_type: str) -> list[dict]:
+        """Remove audience-inappropriate advice after rule or LLM generation."""
+        if user_type not in USER_TYPE_GUARDRAILS:
+            user_type = "individual"
+
+        guardrails = USER_TYPE_GUARDRAILS[user_type]
+        blocked_phrases = guardrails["blocked_phrases"]
+        filtered = [
+            rec for rec in recommendations
+            if not any(
+                term in (
+                    f"{rec.get('action', '')} {rec.get('explanation', '')}"
+                ).lower()
+                for term in blocked_phrases
+            )
+        ]
+
+        required_categories = guardrails["required_categories"]
+        has_role_action = any(
+            str(rec.get("category", "")).lower() in required_categories
+            for rec in filtered
+        )
+        if not has_role_action:
+            action, explanation, category = USER_TYPE_ACTIONS[user_type]
+            filtered.append({
+                "action": action,
+                "priority": "short-term",
+                "explanation": explanation,
+                "category": category,
+            })
+        return filtered
 
     # =========================================================================
     # Tool: prioritize_actions
@@ -418,6 +543,11 @@ class RecommendationAgent(BaseAgentServer):
         # Always include generic actions matching the focus band so the user has
         # a well-rounded set (and there's a baseline when no hazard matched).
         for action, base_priority, explanation, category in GENERIC_ACTIONS[focus]:
+            if user_type == "farmer" and action in {
+                "Check and refresh your household emergency supplies",
+                "Review your property and household resilience to climate events",
+            }:
+                continue
             recs.append({
                 "action": action,
                 "priority": self._adjust_priority(base_priority, focus, risk_level),

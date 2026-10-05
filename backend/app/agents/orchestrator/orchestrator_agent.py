@@ -356,6 +356,7 @@ class OrchestratorAgent:
                     analysis=analysis_result,
                     user_type=request.user_type,
                     location=request.location,
+                    query=request.query,
                 )
             )
             verification_result, recommendation_result = await asyncio.gather(
@@ -508,7 +509,11 @@ class OrchestratorAgent:
         return {"verified": True, "confidence": 0.5, "message": "Verification agent unavailable"}
 
     async def _invoke_recommendation_agent(
-        self, analysis: dict, user_type: Optional[str], location: Optional[str]
+        self,
+        analysis: dict,
+        user_type: Optional[str],
+        location: Optional[str],
+        query: str = "",
     ) -> dict:
         """Invoke the Recommendation Agent to generate actionable guidance."""
         # user_type may be a UserType enum (from ChatRequest) or a plain string.
@@ -519,6 +524,7 @@ class OrchestratorAgent:
             "analysis": analysis,
             "user_type": user_type_str,
             "location": location,
+            "query": query,
         }
 
         result = await self.mcp_client.call_agent_tool(
@@ -553,6 +559,10 @@ class OrchestratorAgent:
         """Assemble the final response from all agent outputs."""
 
         processing_time = (time.time() - start_time) * 1000
+        live_docs = [
+            d for d in ir_result.get("documents", [])
+            if d.get("evidence_type") == "live" or d.get("date") == "live"
+        ]
 
         # Build summary using LLM to synthesize all agent outputs
         summary = await self._generate_summary(
@@ -562,6 +572,7 @@ class OrchestratorAgent:
             language=language,
             user_type=request.user_type,
             location=request.location or nlp_result.get("entities", {}).get("location"),
+            evidence=live_docs,
         )
 
         # Build risk assessment
@@ -605,10 +616,6 @@ class OrchestratorAgent:
         # --- Language handling -------------------------------------------------
         from app.services import i18n_service as i18n
         entities = nlp_result.get("entities", {}) or {}
-        live_docs = [
-            d for d in ir_result.get("documents", [])
-            if d.get("evidence_type") == "live" or d.get("date") == "live"
-        ]
 
         # No LLM (mock mode), or the LLM did not answer in the requested language:
         # build a data-based summary from the live readings instead of a canned line.
@@ -667,6 +674,7 @@ class OrchestratorAgent:
         language: str = "en",
         user_type: Optional[str] = None,
         location: Optional[str] = None,
+        evidence: Optional[list[dict]] = None,
     ) -> str:
         """Use the LLM to generate a user-friendly summary from agent outputs."""
         from app.services.language_service import get_response_instruction
@@ -684,6 +692,27 @@ class OrchestratorAgent:
             "organization": "community planning, vulnerable groups, infrastructure, and resource allocation",
             "institution": "occupant safety, service continuity, facilities, and coordination with authorities",
         }.get(audience, "personal safety and practical decisions")
+        crop_guidance = (
+            "Identify the crop mentioned in the question (for example rice, tea, coconut, "
+            "rubber, or vegetables) and tailor planting, fertilizer, irrigation, drainage, "
+            "pest/disease, and harvest advice to it. If no crop is named, ask for it or "
+            "keep the advice crop-agnostic."
+            if audience == "farmer"
+            else ""
+        )
+        evidence_context = "\n".join(
+            str(doc.get("content") or doc.get("snippet") or "")
+            for doc in (evidence or [])
+        )[:5000]
+        farmer_instruction = (
+            "For a farmer, use the live forecast details below when available. State the "
+            "actual short-range rainfall/temperature information, then explain that exact "
+            "weather several months ahead is not available from this data. Do not say that "
+            "no risk factors were identified if the evidence contains rainfall, flooding, "
+            "or other relevant signals."
+            if audience == "farmer"
+            else ""
+        )
 
         prompt = f"""Based on the following climate analysis, provide a clear and concise summary 
 for the user who asked: "{query}"
@@ -696,11 +725,15 @@ Confidence: {verification.get('confidence', 'Unknown')}
 Audience: {audience}
 Audience-specific focus: {audience_guidance}
 Location: {location or 'Not specified'}
+Live evidence:
+{evidence_context or 'No live evidence available'}
 
 Provide a helpful, evidence-based summary in 3-5 sentences. Tailor the practical meaning
 to the audience, not just the recommendations. For a farmer asking about upcoming months,
 separate the available short-range weather forecast from longer-range seasonal tendencies;
 never invent exact monthly rainfall or temperature values when seasonal data is unavailable.
+{farmer_instruction}
+{crop_guidance}
 Be specific about the risks and what the user should know. Be clear about what is known and what is uncertain.
 Do not make claims beyond what the evidence supports.
 

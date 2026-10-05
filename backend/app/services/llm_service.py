@@ -1,14 +1,8 @@
 """
-LLM Service - Claude via AWS Bedrock, with Google Gemini fallback.
+LLM Service - Claude via AWS Bedrock only.
 
-Priority order:
-  1. AWS Bedrock (Claude) — primary, validated with a live test call on startup
-  2. Google Gemini     — free-tier fallback, if GEMINI_API_KEY is set in .env
-  3. Mock              — returns structured placeholders when neither is available
-
-IMPORTANT — Gemini free tier:
-  gemini-3.6-flash allows only 20 requests/day on the free tier.
-  Do NOT make probe/test calls during initialize() — preserve all 20 for real queries.
+There are no alternate provider or mock fallbacks. A Bedrock failure is surfaced
+to the caller so the application cannot silently answer with another model.
 
 To refresh AWS credentials:
   1. Get new AWS keys + session token
@@ -26,23 +20,17 @@ logger = logging.getLogger(__name__)
 
 
 class LLMService:
-    """LLM service: Bedrock (Claude) → Gemini → Mock fallback chain."""
+    """LLM service backed exclusively by AWS Bedrock."""
 
     def __init__(self):
         self._bedrock_client = None
-        self._gemini_client = None
         self._available = False
-        self._provider = "mock"
+        self._provider = "bedrock"
 
     async def initialize(self):
         """
-        Initialize the best available LLM provider.
-
-        Bedrock: validated with a live probe call (cheap — just 10 tokens).
-        Gemini: client is instantiated WITHOUT a probe call to preserve the
-                20 req/day free-tier quota for actual user queries.
+        Initialize and validate the Bedrock provider.
         """
-        # --- 1. Try AWS Bedrock (live validation) ---
         if settings.aws_access_key_id and settings.aws_secret_access_key:
             try:
                 import boto3
@@ -74,50 +62,12 @@ class LLMService:
                 print(f"   ✓ LLM service initialized (provider: Bedrock - {settings.bedrock_model_id})")
                 return
             except Exception as e:
-                print(f"   ⚠ LLM service: Bedrock unavailable ({type(e).__name__}) — trying Gemini")
+                self._available = False
+                print(f"   ✗ LLM service: Bedrock unavailable ({type(e).__name__})")
+                return
 
-        # --- 2. Try Google Gemini (no probe call — preserves daily quota) ---
-        if settings.gemini_api_key:
-            try:
-                import google.generativeai as genai
-
-                genai.configure(api_key=settings.gemini_api_key)
-                model_id = settings.gemini_model_id or "gemini-3.6-flash"
-
-                # Just instantiate — no API call made here
-                candidates = list(dict.fromkeys([
-                    model_id,
-                    "gemini-3.6-flash",
-                    "gemini-2.0-flash-exp",
-                    "gemini-1.5-flash",
-                ]))
-                chosen = None
-                for candidate in candidates:
-                    try:
-                        genai.GenerativeModel(candidate)
-                        chosen = candidate
-                        break
-                    except Exception:
-                        continue
-
-                if chosen:
-                    self._gemini_client = genai.GenerativeModel(chosen)
-                    self._provider = "gemini"
-                    self._available = True
-                    print(f"   ✓ LLM service initialized (provider: Gemini - {chosen})")
-                    print(f"      ⚠ Free tier: 20 req/day — queries will fall back to mock when exhausted")
-                    return
-                else:
-                    print("   ⚠ LLM service: Gemini key set but could not instantiate any model")
-            except ImportError:
-                print("   ⚠ LLM service: google-generativeai not installed — run: pip install google-generativeai")
-            except Exception as e:
-                print(f"   ⚠ LLM service: Gemini init failed ({e})")
-
-        # --- 3. Mock fallback ---
-        self._provider = "mock"
-        self._available = True
-        print("   ⚠ LLM service: No working LLM — running in MOCK mode")
+        self._available = False
+        print("   ✗ LLM service: AWS Bedrock credentials are not configured")
 
     def is_available(self) -> bool:
         return self._available
@@ -136,12 +86,10 @@ class LLMService:
         max_tokens: int = 2048,
         temperature: float = 0.7,
     ) -> str:
-        """Invoke the best available LLM."""
-        if self._provider == "bedrock":
-            return await self._invoke_bedrock(prompt, system_prompt, max_tokens, temperature)
-        if self._provider == "gemini":
-            return await self._invoke_gemini(prompt, system_prompt, max_tokens, temperature)
-        return self._mock_response(prompt)
+        """Invoke AWS Bedrock; fail explicitly if it is unavailable."""
+        if self._provider != "bedrock" or not self._available or self._bedrock_client is None:
+            raise RuntimeError("AWS Bedrock is unavailable; no alternate AI provider is permitted")
+        return await self._invoke_bedrock(prompt, system_prompt, max_tokens, temperature)
 
     # -------------------------------------------------------------------------
     # Provider implementations
@@ -178,98 +126,8 @@ class LLMService:
             if "ExpiredToken" in error_msg or "expired" in error_msg.lower():
                 logger.warning("AWS session token expired — update .env and restart.")
             else:
-                logger.warning("Bedrock error: %s — falling back to Gemini/mock", error_msg)
-
-            if self._gemini_client:
-                return await self._invoke_gemini(prompt, system_prompt, max_tokens, temperature)
-            return self._mock_response(prompt)
-
-    async def _invoke_gemini(
-        self,
-        prompt: str,
-        system_prompt: Optional[str],
-        max_tokens: int,
-        temperature: float,
-    ) -> str:
-        try:
-            import google.generativeai as genai
-
-            # Use system_instruction parameter — do NOT prepend to prompt.
-            # Concatenating system+user prompt triggers Gemini's safety filter
-            # on climate/disaster content (finish_reason=2/SAFETY).
-            if system_prompt:
-                model = genai.GenerativeModel(
-                    self._gemini_client.model_name,
-                    system_instruction=system_prompt,
-                )
-            else:
-                model = self._gemini_client
-
-            generation_config = genai.types.GenerationConfig(
-                max_output_tokens=max_tokens,
-                temperature=temperature,
-            )
-            response = model.generate_content(
-                prompt,
-                generation_config=generation_config,
-            )
-
-            if not response.candidates:
-                logger.warning("Gemini returned no candidates — using mock")
-                return self._mock_response(prompt)
-
-            candidate = response.candidates[0]
-            # finish_reason 2 = SAFETY block
-            if candidate.finish_reason == 2:
-                logger.warning("Gemini safety block — using mock")
-                return self._mock_response(prompt)
-
-            return response.text
-
-        except Exception as e:
-            err_str = str(e)
-            if "429" in err_str or "quota" in err_str.lower() or "ResourceExhausted" in err_str:
-                logger.warning("Gemini daily quota exhausted (20 req/day free tier) — using mock")
-            else:
-                logger.warning("Gemini error: %s — using mock", e)
-            return self._mock_response(prompt)
-
-    def _mock_response(self, prompt: str) -> str:
-        """Structured mock so the pipeline produces readable output when no LLM is available."""
-        prompt_lower = prompt.lower()
-
-        if '"summary"' in prompt or "risk_level" in prompt_lower or "json object" in prompt_lower:
-            return json.dumps({
-                "summary": "Live climate data has been retrieved for your location. Full AI analysis is temporarily unavailable — please check the evidence sources below for current conditions.",
-                "risk_level": "moderate",
-                "risk_factors": ["live_data_available"],
-                "risk_explanation": "Evidence suggests elevated risk based on retrieved climate data.",
-                "detailed_analysis": "Live weather data has been successfully retrieved. Full AI-powered analysis will be available shortly.",
-                "claims": ["Climate data was successfully retrieved from live sources."],
-            })
-
-        if '"status"' in prompt or "fact-check" in prompt_lower or "verdicts" in prompt_lower:
-            return json.dumps({
-                "status": "partially_supported",
-                "confidence": 0.7,
-                "explanation": "Verification based on available evidence.",
-                "verdicts": [],
-            })
-
-        if "recommendations" in prompt_lower and "json" in prompt_lower:
-            return json.dumps({
-                "recommendations": [
-                    {"action": "Monitor official weather alerts for your area",
-                     "priority": "short-term",
-                     "explanation": "Stay informed about local conditions.",
-                     "category": "awareness"},
-                ]
-            })
-
-        return (
-            "Live climate data has been retrieved for your location. "
-            "Please check the evidence sources below for current conditions."
-        )
+                logger.warning("Bedrock error: %s", error_msg)
+            raise RuntimeError("AWS Bedrock invocation failed") from e
 
 
 # Singleton instance
