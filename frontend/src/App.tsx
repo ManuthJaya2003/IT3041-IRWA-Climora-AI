@@ -6,11 +6,22 @@ import Header from './components/Header'
 import AgentMesh from './components/AgentMesh'
 import type { AgentStreamEvent } from './api/climoraApi'
 import PlansModal from './components/PlansModal'
+import AuthModal from './components/AuthModal'
 import CheckoutModal, { CheckoutResult } from './components/CheckoutModal'
 import SettingsView from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { FALLBACK_PLANS, Plan, Subscription, addLocation, clearSubscription, loadLocations, loadPlan, loadSubscription, removeLocation, savePlan, saveSubscription } from './plans'
-import { getPlans, setApiPlan, verifyCheckoutSession } from './api/climoraApi'
+import {
+  AuthUser,
+  fetchMe,
+  getAuthToken,
+  getPlans,
+  logout as apiLogout,
+  setApiPlan,
+  setAuthToken,
+  subscribePlan,
+  verifyCheckoutSession,
+} from './api/climoraApi'
 import { notifyUsageChanged } from './usageBus'
 
 interface ConversationData {
@@ -139,6 +150,9 @@ function App() {
   }, [])
 
   const [plansOpen, setPlansOpen] = useState(false)
+  const [authOpen, setAuthOpen] = useState(false)
+  const [authMode, setAuthMode] = useState<'login' | 'register'>('login')
+  const [user, setUser] = useState<AuthUser | null>(null)
   const [settings, setSettings] = useState<AppSettings>(loadSettings)
   const [plan, setPlan] = useState<string>(loadPlan)
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
@@ -198,9 +212,27 @@ function App() {
     persist(ACTIVE_CONVERSATION_KEY, activeConversationId)
   }, [activeConversationId])
 
-  const planDef = planById(plans, plan)
+  const effectivePlan = user ? user.plan_id : plan
+  const planDef = planById(plans, effectivePlan)
   const locationLimit = planDef.max_saved_locations
   const effectiveDays = effectiveRetention(settings.retentionDays, planDef.history_days)
+
+  // Restore session: if a token was saved, the server is the source of truth
+  // for the plan (localStorage plan is only for anonymous guests).
+  useEffect(() => {
+    if (!getAuthToken()) return
+    fetchMe()
+      .then(({ user: me }) => {
+        setUser(me)
+        setPlan(me.plan_id)
+        setApiPlan(me.plan_id)
+        notifyUsageChanged()
+      })
+      .catch(() => {
+        setAuthToken(null)
+        setUser(null)
+      })
+  }, [])
 
   // Live plan catalogue for limits (falls back to bundled data offline).
   useEffect(() => {
@@ -223,7 +255,7 @@ function App() {
   useEffect(() => {
     setConversationsData(prev => pruneMap(prev, effectiveDays))
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [plan, plans, settings.retentionDays])
+  }, [effectivePlan, plans, settings.retentionDays])
 
   const handleChangeSettings = useCallback((patch: Partial<AppSettings>) => {
     setSettings(prev => {
@@ -234,31 +266,91 @@ function App() {
   }, [])
 
   const handleAddLocation = useCallback((name: string): string | null => {
-    const limit = planById(plans, plan).max_saved_locations
+    const limit = planById(plans, effectivePlan).max_saved_locations
     const { locations, error } = addLocation(savedLocations, name, limit)
     if (!error) setSavedLocations(locations)
     return error
-  }, [plan, plans, savedLocations])
+  }, [effectivePlan, plans, savedLocations])
 
   const handleRemoveLocation = useCallback((name: string) => {
     setSavedLocations(prev => removeLocation(prev, name))
   }, [])
 
-  const handleSelectPlan = useCallback((planId: string) => {
-    setPlan(planId)
-    savePlan(planId)
-    setApiPlan(planId)
-    if (planId === 'free') {
-      // Downgrade cancels any demo subscription.
-      setSubscription(null)
-      clearSubscription()
-    }
-    // New quota applies immediately — refresh every usage display.
+  const handleAuthSuccess = useCallback(() => {
+    // Token already stored by the api layer — pull the server-side profile.
+    fetchMe()
+      .then(({ user: me }) => {
+        setUser(me)
+        setPlan(me.plan_id)
+        setApiPlan(me.plan_id)
+        setAuthOpen(false)
+        notifyUsageChanged()
+      })
+      .catch(() => setAuthOpen(false))
+  }, [])
+
+  const handleSignOut = useCallback(() => {
+    apiLogout()
+    setUser(null)
+    setPlan('free')
+    savePlan('free')
+    setApiPlan('free')
+    setSubscription(null)
+    clearSubscription()
     notifyUsageChanged()
   }, [])
 
-  const handleCheckoutSuccess = useCallback((result: CheckoutResult) => {
+  const handleSelectPlan = useCallback(async (planId: string) => {
+    if (planId === 'free') {
+      if (user) {
+        // Server-side downgrade so quota drops immediately for the account.
+        try {
+          const { user: updated } = await subscribePlan('free', 'monthly')
+          setUser(updated)
+          setPlan(updated.plan_id)
+          setApiPlan(updated.plan_id)
+        } catch {
+          // fall through to local update
+          setPlan('free')
+          setApiPlan('free')
+        }
+      } else {
+        setPlan('free')
+        savePlan('free')
+        setApiPlan('free')
+      }
+      setSubscription(null)
+      clearSubscription()
+      notifyUsageChanged()
+      return
+    }
+    // Paid plans without an account → ask to sign in first (real-world rule).
+    if (!user) {
+      setAuthMode('register')
+      setAuthOpen(true)
+      setPlansOpen(false)
+    }
+  }, [user])
+
+  const handleCheckoutSuccess = useCallback(async (result: CheckoutResult) => {
     if (!checkout) return
+    if (!user) {
+      setAuthMode('register')
+      setAuthOpen(true)
+      return
+    }
+    // Server is the source of truth — record the entitlement on the account.
+    try {
+      const { user: updated } = await subscribePlan(checkout.plan.id, result.cycle)
+      setUser(updated)
+      setPlan(updated.plan_id)
+      setApiPlan(updated.plan_id)
+    } catch (e) {
+      console.error('Server plan activation failed:', e)
+      setPaymentNotice('Payment demo finished, but the server refused the upgrade. Please try again.')
+      setCheckout(null)
+      return
+    }
     const sub: Subscription = {
       planId: checkout.plan.id,
       cycle: result.cycle,
@@ -267,12 +359,9 @@ function App() {
     }
     saveSubscription(sub)
     setSubscription(sub)
-    setPlan(checkout.plan.id)
-    savePlan(checkout.plan.id)
-    setApiPlan(checkout.plan.id)
     notifyUsageChanged()
     setCheckout(null)
-  }, [checkout])
+  }, [checkout, user])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -291,9 +380,17 @@ function App() {
         }
         saveSubscription(sub)
         setSubscription(sub)
-        setPlan(selectedPlan.id)
-        savePlan(selectedPlan.id)
-        setApiPlan(selectedPlan.id)
+        // Server is authoritative — re-pull the account so quota updates.
+        fetchMe()
+          .then(({ user: me }) => {
+            setUser(me)
+            setPlan(me.plan_id)
+            setApiPlan(me.plan_id)
+          })
+          .catch(() => {
+            setPlan(selectedPlan.id)
+            setApiPlan(selectedPlan.id)
+          })
         notifyUsageChanged()
         setPaymentNotice(`${selectedPlan.name} plan activated successfully. Your new benefits are now available.`)
         window.history.replaceState({}, document.title, window.location.pathname)
@@ -305,10 +402,11 @@ function App() {
       })
   }, [plans])
 
-  // Attach the commercial plan to every API request (quota enforcement).
+  // Attach the auth token + plan to every API request.
+  // Server ignores X-Plan for signed-in users (their account plan wins).
   useEffect(() => {
-    setApiPlan(plan)
-  }, [plan])
+    setApiPlan(user ? user.plan_id : plan)
+  }, [plan, user])
 
   const conversations = Array.from(conversationsData.values())
     .map(d => d.conversation)
@@ -436,7 +534,7 @@ function App() {
           <Sidebar
             conversations={conversations}
             activeConversationId={validActiveId}
-            currentPlan={plan}
+            currentPlan={effectivePlan}
             onNewChat={handleNewChat}
             onSelectConversation={handleSelectConversation}
             onDeleteConversation={handleDeleteConversation}
@@ -452,6 +550,9 @@ function App() {
           sidebarOpen={sidebarOpen}
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setView('settings')}
+          user={user}
+          onSignIn={() => { setAuthMode('login'); setAuthOpen(true) }}
+          onSignOut={handleSignOut}
         />
         {paymentNotice && (
           <div
@@ -495,8 +596,11 @@ function App() {
               <SettingsView
                 settings={settings}
                 onChange={handleChangeSettings}
-                plan={plan}
+                plan={user ? user.plan_id : plan}
                 subscription={subscription}
+                user={user}
+                onSignIn={() => { setAuthMode('login'); setAuthOpen(true) }}
+                onSignOut={handleSignOut}
                 locationLimit={locationLimit}
                 planHistoryDays={planDef.history_days}
                 savedLocations={savedLocations}
@@ -539,10 +643,20 @@ function App() {
 
       <PlansModal
         open={plansOpen}
-        currentPlan={plan}
+        currentPlan={user ? user.plan_id : plan}
+        user={user}
         onSelectPlan={handleSelectPlan}
-        onCheckout={(p, annual) => setCheckout({ plan: p, annual })}
+        onCheckout={(p, annual) => { setPlansOpen(false); setCheckout({ plan: p, annual }) }}
+        onRequireAuth={() => { setPlansOpen(false); setAuthMode('register'); setAuthOpen(true) }}
         onClose={() => setPlansOpen(false)}
+      />
+
+      <AuthModal
+        open={authOpen}
+        mode={authMode}
+        onModeChange={setAuthMode}
+        onSuccess={handleAuthSuccess}
+        onClose={() => setAuthOpen(false)}
       />
 
       <CheckoutModal

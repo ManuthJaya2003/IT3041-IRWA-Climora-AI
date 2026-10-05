@@ -185,10 +185,16 @@ export default function ChatInterface({
         onUpdateConversation(sessionId, updatedMessages)
       }
     } catch (error) {
+      // Show the server's real reason (e.g. guest-trial exhausted tells the
+      // user to sign in) instead of always hiding it behind a generic message.
+      const detail = error instanceof Error && error.message ? error.message : null
+      const fallback = 'Sorry, I encountered an error processing your request. Please try again.'
+      // Raw "Stream request failed: 429" carries no meaning — use the fallback.
+      const content = detail && !/^Stream request failed/.test(detail) ? detail : fallback
       const errorMessage: Message = {
         id: newId(),
         role: 'assistant',
-        content: 'Sorry, I encountered an error processing your request. Please try again.',
+        content,
         timestamp: new Date(),
       }
       messagesRef.current = [...messagesRef.current, errorMessage]
@@ -261,6 +267,9 @@ export default function ChatInterface({
         content: 'Sorry, I encountered an error processing your voice query.',
         timestamp: new Date(),
       }
+      // Axios errors carry the server's reason at response.data.detail.
+      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
+      if (detail) errorMessage.content = detail
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {

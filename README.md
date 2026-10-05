@@ -64,12 +64,15 @@ User Query
 
 ### Production integration notes
 
-The local prototype provides plan and subscription UI, and paid checkout now
-opens a server-created Stripe Checkout Session. Paid entitlements are not yet
-bound to authenticated accounts or activated from verified Stripe webhooks.
-Do not treat the client-supplied `X-Plan` header as an entitlement in
-production until identity, payment webhooks, and server-side plan records are
-connected.
+User accounts are real: email + password (JWT, PBKDF2 hashing) and Google
+Sign-In (`POST /api/v1/auth/*`). The plan lives on the user row in
+PostgreSQL — `POST /api/v1/billing/subscribe` activates it server-side, daily
+quotas are keyed by user id, and `X-Plan` is only honoured for anonymous
+guests (always Free). A signed-in user cannot spoof a higher tier.
+
+The demo card form never sends card data to the server. For real money,
+connect a Stripe webhook to call `auth_service.set_plan()` after verified
+payment, then remove the demo activation path.
 
 Browser alert preferences are implemented, but continuous weather monitoring
 and push delivery require a production scheduler, notification provider, and
@@ -145,6 +148,7 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── models/
 │   │   │   └── schemas.py             # Pydantic request/response models
 │   │   ├── routers/
+│   │   │   ├── auth.py                # Register / login / Google / me
 │   │   │   ├── chat.py                # Chat API endpoints + session history
 │   │   │   ├── agents.py              # Agent status and listing endpoints
 │   │   │   ├── health.py              # Health check endpoints
@@ -153,6 +157,7 @@ IT3041-IRWA-Climora-AI/
 │   │   │   ├── billing.py             # Plans catalogue + quota usage API
 │   │   │   └── deps.py                # Admin auth, rate limit, quota dependencies
 │   │   └── services/
+│   │       ├── auth_service.py        # Users, PBKDF2 passwords, JWT, Google verify
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
 │   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
@@ -176,6 +181,7 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── plans.ts                  # Plan catalogue fallback + saved locations
 │   │   ├── usageBus.ts               # Real-time quota refresh events
 │   │   ├── components/
+│   │   │   ├── AuthModal.tsx          # Sign in / register + Google button
 │   │   │   ├── ChatInterface.tsx      # Main chat UI
 │   │   │   ├── ChatMessage.tsx        # Message display with rich data
 │   │   │   ├── Header.tsx
@@ -262,6 +268,10 @@ permissive defaults.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/api/v1/auth/register` · `/login` · `/google` | Create account, sign in (JWT) |
+| GET | `/api/v1/auth/me` | Signed-in profile + plan + usage |
+| GET | `/api/v1/auth/config` | Google client ID availability |
+| POST | `/api/v1/billing/subscribe` | Activate plan on account (auth required) |
 | POST | `/api/v1/chat/query` | Full multi-agent pipeline (rate-limited + quota-enforced) |
 | GET | `/api/v1/chat/history?session_id=…` | Stored conversation turns |
 | POST | `/api/v1/speech/voice-query` | Voice query + TTS audio response |
@@ -304,10 +314,12 @@ python tests/test_billing.py && python tests/test_api_guards.py
 | Business | 9,900/mo · 99,000/yr | 10,000 | 25 locations · 1-year history · API access |
 | Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |
 
-Quotas and limits are enforced in code, not just displayed. Annual billing = 10× monthly.
-Upgrades go through a demo checkout (order summary → card form → receipt, clearly
-labeled — no payment provider); chat history persists to PostgreSQL when configured,
-memory otherwise.
+Quotas and limits are enforced server-side per account, not just displayed.
+Annual billing = 10× monthly. Guests get a 2-query/day trial (per IP); signing
+in unlocks 100 free queries/day, and paid plans activate via
+`POST /billing/subscribe` after the demo checkout (card never leaves the
+browser — no payment provider). Chat history and accounts persist to
+PostgreSQL when configured, memory otherwise.
 
 ## Responsible AI
 

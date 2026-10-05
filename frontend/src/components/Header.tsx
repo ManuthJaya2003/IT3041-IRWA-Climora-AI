@@ -1,12 +1,16 @@
-import { Menu, Globe, Settings } from 'lucide-react'
+import { Menu, Globe, Settings, LogOut, User as UserIcon } from 'lucide-react'
+import type { AuthUser } from '../api/climoraApi'
 
 interface HeaderProps {
   sidebarOpen: boolean
   onToggleSidebar: () => void
   onOpenSettings: () => void
+  user: AuthUser | null
+  onSignIn: () => void
+  onSignOut: () => void
 }
 
-export default function Header({ sidebarOpen, onToggleSidebar, onOpenSettings }: HeaderProps) {
+export default function Header({ sidebarOpen, onToggleSidebar, onOpenSettings, user, onSignIn, onSignOut }: HeaderProps) {
   return (
     <header className="flex items-center justify-between px-3 sm:px-6 py-3 bg-white dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
       <div className="flex items-center gap-2 sm:gap-3 min-w-0">
@@ -24,9 +28,37 @@ export default function Header({ sidebarOpen, onToggleSidebar, onOpenSettings }:
         <span className="hidden sm:inline px-2 py-0.5 text-xs font-medium bg-climora-100 dark:bg-climora-900/50 text-climora-700 dark:text-climora-300 rounded-full shrink-0">
           Beta
         </span>
+        {user && (
+          <span className="hidden md:inline px-2 py-0.5 text-xs font-medium bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 rounded-full shrink-0">
+            {user.plan_name}
+          </span>
+        )}
       </div>
 
       <div className="flex items-center gap-2">
+        {user ? (
+          <div className="flex items-center gap-2">
+            <span className="hidden sm:flex items-center gap-1.5 text-xs text-slate-600 dark:text-slate-300 max-w-[180px] truncate" title={user.email}>
+              <UserIcon className="w-4 h-4 shrink-0" />
+              <span className="truncate">{user.name || user.email}</span>
+            </span>
+            <button
+              onClick={onSignOut}
+              className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+              aria-label="Sign out"
+              title="Sign out"
+            >
+              <LogOut className="w-5 h-5 text-slate-600 dark:text-slate-300" />
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={onSignIn}
+            className="px-3 py-1.5 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors"
+          >
+            Sign in
+          </button>
+        )}
         <button
           onClick={onOpenSettings}
           className="p-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"

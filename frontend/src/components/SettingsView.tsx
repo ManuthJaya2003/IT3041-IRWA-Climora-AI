@@ -4,7 +4,7 @@ import {
   Search, Shield, SlidersHorizontal, Trash2, User, Sun, Moon, Monitor, FlaskConical, MapPin, X,
 } from 'lucide-react'
 import { AppSettings, LANGUAGES, RETENTION_OPTIONS, Theme, USER_TYPES } from '../settings'
-import { getAlertConfig, getUsage, sendAlertTest, subscribeToAlerts, UsageDto } from '../api/climoraApi'
+import { AuthUser, getAlertConfig, getUsage, sendAlertTest, subscribeToAlerts, UsageDto } from '../api/climoraApi'
 import { Subscription } from '../plans'
 import { onUsageChanged } from '../usageBus'
 
@@ -31,6 +31,9 @@ interface SettingsViewProps {
   onChange: (patch: Partial<AppSettings>) => void
   plan: string
   subscription: Subscription | null
+  user: AuthUser | null
+  onSignIn: () => void
+  onSignOut: () => void
   /** Max saved locations for the current plan (0 = unlimited). */
   locationLimit: number
   /** History cap in days for the current plan (0 = unlimited). */
@@ -51,6 +54,9 @@ export default function SettingsView({
   onChange,
   plan,
   subscription,
+  user,
+  onSignIn,
+  onSignOut,
   locationLimit,
   planHistoryDays,
   savedLocations,
@@ -487,6 +493,27 @@ export default function SettingsView({
 
               {section === 'subscription' && (
                 <div className="py-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4 bg-slate-50 dark:bg-slate-800/60 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2">
+                    <div>
+                      <p className="text-sm font-medium text-slate-700 dark:text-slate-200">
+                        {user ? user.email : 'Browsing as guest'}
+                      </p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400">
+                        {user
+                          ? `Signed in${user.provider === 'google' ? ' with Google' : ''} — plan is stored on your account.`
+                          : 'Sign in to upgrade — paid plans require an account.'}
+                      </p>
+                    </div>
+                    {user ? (
+                      <button onClick={onSignOut} className="px-3 py-1.5 text-sm border border-slate-300 dark:border-slate-600 rounded-lg shrink-0">
+                        Sign out
+                      </button>
+                    ) : (
+                      <button onClick={onSignIn} className="px-3 py-1.5 text-sm font-medium bg-climora-600 text-white rounded-lg shrink-0">
+                        Sign in
+                      </button>
+                    )}
+                  </div>
                   <div className="flex items-center justify-between gap-4">
                     <div>
                       <p className="text-sm font-medium text-slate-700 dark:text-slate-200">

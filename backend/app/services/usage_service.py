@@ -139,6 +139,40 @@ def check_and_consume(client_key: str, plan_id: str) -> tuple[bool, int, int]:
     return True, remaining, limit
 
 
+# --- Guest trial: signed-out callers get a tiny daily allowance, not the
+# full Free plan. Signing in unlocks the real Free quota (100/day). ---
+
+ANONYMOUS_DAILY_LIMIT = 2
+_ANON_PLAN_ID = "guest"
+
+
+def check_and_consume_anonymous(client_key: str) -> tuple[bool, int, int]:
+    """Consume one guest-trial unit. Returns (allowed, remaining, limit)."""
+    today = _today()
+    _prune(today)
+    used = _get_used(client_key, _ANON_PLAN_ID, today)
+    if used >= ANONYMOUS_DAILY_LIMIT:
+        return False, 0, ANONYMOUS_DAILY_LIMIT
+    _set_used(client_key, _ANON_PLAN_ID, today, used + 1)
+    return True, ANONYMOUS_DAILY_LIMIT - used - 1, ANONYMOUS_DAILY_LIMIT
+
+
+def get_anonymous_usage(client_key: str) -> dict:
+    """Quota state for a signed-out caller (does not consume)."""
+    today = _today()
+    _prune(today)
+    used = _get_used(client_key, _ANON_PLAN_ID, today)
+    return {
+        "plan": "free",
+        "plan_name": "Free",
+        "used_today": used,
+        "remaining_today": max(0, ANONYMOUS_DAILY_LIMIT - used),
+        "daily_limit": ANONYMOUS_DAILY_LIMIT,
+        "day": today,
+        "guest_trial": True,
+    }
+
+
 def get_usage(client_key: str, plan_id: str) -> dict:
     """Current quota state without consuming."""
     plan = plans_service.get_plan(plan_id)
@@ -166,6 +200,35 @@ def reset_usage_state() -> None:
                 conn.execute(_table.delete())
         except Exception:
             logger.exception("Failed to reset persistent usage state")
+
+
+def refund(client_key: str, plan_id: str) -> None:
+    """Give back one consumed unit (pipeline failed — user got no answer).
+
+    Never drops below zero. Failed requests must not burn quota.
+    """
+    today = _today()
+    key = (client_key, plans_service.get_plan(plan_id)["id"] if plan_id != _ANON_PLAN_ID else _ANON_PLAN_ID, today)
+    current = _counters.get(key, 0)
+    if current > 0:
+        _counters[key] = current - 1
+    if _engine is not None and _table is not None:
+        try:
+            usage_day = datetime.strptime(today, "%Y-%m-%d").date()
+            with _engine.begin() as conn:
+                row = conn.execute(
+                    select(_table.c.id, _table.c.used).where(
+                        (_table.c.client_key == client_key)
+                        & (_table.c.plan_id == key[1])
+                        & (_table.c.usage_day == usage_day)
+                    )
+                ).first()
+                if row and int(row.used) > 0:
+                    conn.execute(
+                        _table.update().where(_table.c.id == row.id).values(used=int(row.used) - 1)
+                    )
+        except Exception:
+            logger.exception("Failed to refund usage")
 
 
 def _get_used(client_key: str, plan_id: str, today: str) -> int:

@@ -1,18 +1,20 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Sparkles } from 'lucide-react'
-import { getPlans, getUsage, UsageDto } from '../api/climoraApi'
+import { AuthUser, getPlans, getUsage, UsageDto } from '../api/climoraApi'
 import { onUsageChanged } from '../usageBus'
 import { FALLBACK_PLANS, Plan, formatPrice, priceSubtext } from '../plans'
 
 interface PlansModalProps {
   open: boolean
   currentPlan: string
+  user: AuthUser | null
   onSelectPlan: (planId: string) => void
   onCheckout: (plan: Plan, annual: boolean) => void
+  onRequireAuth: () => void
   onClose: () => void
 }
 
-export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout, onClose }: PlansModalProps) {
+export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCheckout, onRequireAuth, onClose }: PlansModalProps) {
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [annual, setAnnual] = useState(false)
@@ -64,12 +66,17 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
 
   const handleSelect = (plan: Plan) => {
     if (plan.id === 'enterprise') return // contact-sales path, no plan switch
+    if (!user) {
+      // Real-world rule: paid plans live on an account. Guests stay on Free.
+      onRequireAuth()
+      return
+    }
     if (plan.id === 'free') {
       onSelectPlan('free')
       setNotice('Switched to the Free plan.')
       return
     }
-    // Paid plans go through the (demo) checkout — activation happens on success.
+    // Paid plans go through checkout — server activates on the account.
     onCheckout(plan, annual)
   }
 
@@ -96,7 +103,11 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
           </button>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Start free. Upgrade when you need monitoring, API access, or team features.
+          {user ? (
+            <>Signed in as <span className="font-medium">{user.email}</span> — your plan is stored on your account.</>
+          ) : (
+            <>Try 2 queries as a guest. Sign in for 100 free queries/day — paid plans are tied to your account.</>
+          )}
         </p>
 
         {/* Billing toggle */}
@@ -121,9 +132,13 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
         {/* Quota status */}
         {usage && (
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">
-            Today's usage: {usage.used_today}
-            {usage.daily_limit > 0 ? ` / ${usage.daily_limit}` : ' (unlimited)'} queries
-            {' '}· {usage.plan_name} plan
+            {usage.authenticated === false ? (
+              <>Guest trial: {usage.used_today} / {usage.daily_limit} queries used today — sign in for 100 free/day.</>
+            ) : (
+              <>Today's usage: {usage.used_today}
+              {usage.daily_limit > 0 ? ` / ${usage.daily_limit}` : ' (unlimited)'} queries
+              {' '}· {usage.plan_name} plan</>
+            )}
           </p>
         )}
         {notice && (
@@ -189,7 +204,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
           })}
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-5">
-          Prices in Sri Lankan Rupees. Plan changes apply instantly to your daily query quota.
+          Prices in Sri Lankan Rupees. Paid plans require an account; the server — not your browser — decides your quota.
         </p>
       </div>
     </div>

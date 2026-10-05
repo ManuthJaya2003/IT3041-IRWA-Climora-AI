@@ -69,6 +69,9 @@ class Settings(BaseSettings):
     # Security
     secret_key: str = "replace-with-a-random-production-secret"
     access_token_expire_minutes: int = 60
+    # Google Sign-In (optional — enables the frontend Google button + POST /auth/google).
+    # Get one at https://console.cloud.google.com/apis/credentials (OAuth client, Web).
+    google_client_id: Optional[str] = None
     # Token for protected (mutating) endpoints, sent as X-Admin-Token header.
     # When unset, those endpoints are open (local development only).
     admin_token: Optional[str] = None
