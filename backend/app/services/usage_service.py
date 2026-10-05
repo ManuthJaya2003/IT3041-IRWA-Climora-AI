@@ -7,6 +7,7 @@ returns 429 with an upgrade hint instead of processing the query.
 
 from collections import OrderedDict
 from datetime import datetime, timezone
+import unicodedata
 
 from app.services import plans_service
 from app.config import settings
@@ -33,14 +34,52 @@ _FREE_GREETINGS = {
     "good morning",
     "good afternoon",
     "good evening",
+    "good day",
+    "how are you",
+    "how are you doing",
     "ආයුබෝවන්",
+    "ආයුබෝවන් ඔබට",
+    "සුභ උදෑසනක්",
+    "සුභ දවසක්",
+    "සුභ සන්ධ්‍යාවක්",
+    "කොහොමද",
+    "හෙලෝ",
     "வணக்கம்",
+    "காலை வணக்கம்",
+    "மாலை வணக்கம்",
+    "இனிய காலை வணக்கம்",
+    "இனிய நாள்",
+    "எப்படி இருக்கிறீர்கள்",
+    "எப்படி இருக்கீங்க",
 }
+_GREETING_PREFIXES = (
+    "hi",
+    "hello",
+    "hey",
+    "good morning",
+    "good afternoon",
+    "good evening",
+    "good day",
+    "how are you",
+    "how are you doing",
+)
 
 
 def is_free_greeting(query: str) -> bool:
     """Return whether a conversational greeting should bypass daily quota."""
-    return " ".join(query.strip().lower().split()) in _FREE_GREETINGS
+    normalized = " ".join(query.strip().lower().split())
+    normalized = "".join(
+        " " if unicodedata.category(char)[0] in {"P", "S"} else char
+        for char in normalized
+    )
+    normalized = " ".join(normalized.split())
+    if normalized in _FREE_GREETINGS:
+        return True
+    return any(
+        normalized.startswith(f"{prefix} ")
+        and normalized[len(prefix):].strip(" ,.!?") in {"climora", "climora ai"}
+        for prefix in _GREETING_PREFIXES
+    )
 
 
 async def initialize(database_url: str | None = None) -> None:

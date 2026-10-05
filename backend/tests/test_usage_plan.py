@@ -22,4 +22,18 @@ def test_usage_is_tracked_separately_per_plan():
 
 def test_greetings_are_classified_as_free_queries():
     assert usage_service.is_free_greeting("  Good morning ") is True
+    assert usage_service.is_free_greeting("Good morning!") is True
+    assert usage_service.is_free_greeting("Hello, Climora AI!") is True
+    assert usage_service.is_free_greeting("සුභ උදෑසනක්!") is True
+    assert usage_service.is_free_greeting("ආයුබෝවන්") is True
+    assert usage_service.is_free_greeting("How are you?") is True
+    assert usage_service.is_free_greeting("வணக்கம்!") is True
+    assert usage_service.is_free_greeting("காலை வணக்கம்") is True
+    assert usage_service.is_free_greeting("எப்படி இருக்கிறீர்கள்?") is True
     assert usage_service.is_free_greeting("weather in Kandy") is False
+
+
+def test_time_based_greetings_are_classified_as_free_queries():
+    assert usage_service.is_free_greeting("Good morning!") is True
+    assert usage_service.is_free_greeting("Good afternoon") is True
+    assert usage_service.is_free_greeting("Good evening") is True

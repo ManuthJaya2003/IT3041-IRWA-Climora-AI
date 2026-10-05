@@ -76,12 +76,41 @@ class OrchestratorAgent:
             detected_language = i18n.resolve_language(request.query, getattr(request, "language", None))
 
             if usage_service.is_free_greeting(request.query):
+                normalized_greeting = " ".join(request.query.strip().lower().split())
                 greeting = {
-                    "si": "ආයුබෝවන්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි.",
-                    "ta": "வணக்கம்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்.",
+                    "si": (
+                        "සුභ උදෑසනක්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි."
+                        if normalized_greeting.startswith(("සුභ උදෑසනක්",))
+                        else "සුභ සන්ධ්‍යාවක්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි."
+                        if normalized_greeting.startswith(("සුභ සන්ධ්‍යාවක්",))
+                        else "සුභ දවසක්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි."
+                        if normalized_greeting.startswith(("සුභ දවසක්",))
+                        else "ආයුබෝවන්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි."
+                    ),
+                    "ta": (
+                        "காலை வணக்கம்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்."
+                        if normalized_greeting.startswith(("காலை வணக்கம்", "இனிய காலை வணக்கம்"))
+                        else "மாலை வணக்கம்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்."
+                        if normalized_greeting.startswith("மாலை வணக்கம்")
+                        else "இனிய நாள்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்."
+                        if normalized_greeting.startswith("இனிய நாள்")
+                        else "வணக்கம்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்."
+                    ),
                 }.get(
                     detected_language,
-                    "Hi, I'm Climora AI. I can help with weather, climate risks, hazards, and preparedness in Sri Lanka.",
+                    (
+                        "Good morning! I'm Climora AI. I can help with weather, climate risks, "
+                        "hazards, and preparedness in Sri Lanka."
+                        if normalized_greeting.startswith("good morning")
+                        else "Good afternoon! I'm Climora AI. I can help with weather, climate risks, "
+                        "hazards, and preparedness in Sri Lanka."
+                        if normalized_greeting.startswith("good afternoon")
+                        else "Good evening! I'm Climora AI. I can help with weather, climate risks, "
+                        "hazards, and preparedness in Sri Lanka."
+                        if normalized_greeting.startswith("good evening")
+                        else "Hi, I'm Climora AI. I can help with weather, climate risks, hazards, "
+                        "and preparedness in Sri Lanka."
+                    ),
                 )
                 response = ChatResponse(
                     session_id=session_id,
