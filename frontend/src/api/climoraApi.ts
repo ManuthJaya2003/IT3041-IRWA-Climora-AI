@@ -287,3 +287,16 @@ export async function verifyCheckoutSession(sessionId: string): Promise<{
   const response = await api.get(`/billing/checkout-session/${encodeURIComponent(sessionId)}`)
   return response.data
 }
+
+export async function getAlertConfig(): Promise<{ enabled: boolean; public_key: string | null }> {
+  const response = await api.get('/alerts/config')
+  return response.data
+}
+
+export async function subscribeToAlerts(subscription: PushSubscriptionJSON, location: string): Promise<void> {
+  await api.post('/alerts/subscribe', { subscription, location })
+}
+
+export async function sendAlertTest(subscription: PushSubscriptionJSON): Promise<void> {
+  await api.post('/alerts/test', subscription)
+}

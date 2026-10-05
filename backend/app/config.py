@@ -53,6 +53,12 @@ class Settings(BaseSettings):
     stripe_secret_key: Optional[str] = None
     stripe_webhook_secret: Optional[str] = None
 
+    # Web Push severe-weather alerts
+    vapid_public_key: Optional[str] = None
+    vapid_private_key: Optional[str] = None
+    vapid_subject: str = "mailto:admin@example.com"
+    alert_poll_interval_seconds: int = 900
+
     # Vector Store (ChromaDB - local)
     vector_store_collection: str = "climora-climate-data"
 

@@ -15,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import chat, health, agents, vector_store, speech, billing
+from app.routers import alerts, chat, health, agents, vector_store, speech, billing
 
 
 def _run_security_agent():
@@ -78,6 +78,8 @@ async def lifespan(app: FastAPI):
     from app.services.vector_store_service import vector_store_service
     from app.services.tts_service import tts_service
     from app.services.history_service import history_service
+    from app.services.alert_service import alert_service
+    import asyncio as _alert_asyncio
 
     for svc_name, svc in [
         ("llm", llm_service),
@@ -85,12 +87,25 @@ async def lifespan(app: FastAPI):
         ("vector store", vector_store_service),
         ("tts", tts_service),
         ("chat history", history_service),
+        ("alert service", alert_service),
     ]:
         try:
             await svc.initialize()
             print(f"   ✓ {svc_name} service ready")
         except Exception as exc:
             print(f"   ⚠ {svc_name} service failed to initialize ({exc}) — continuing with fallbacks")
+
+    alert_task = None
+    if settings.vapid_public_key and settings.vapid_private_key:
+        async def monitor_alerts():
+            while True:
+                try:
+                    await alert_service.monitor_once()
+                except Exception:
+                    pass
+                await _alert_asyncio.sleep(max(60, settings.alert_poll_interval_seconds))
+        alert_task = _alert_asyncio.create_task(monitor_alerts())
+        print(f"   ✓ Weather alert monitor enabled (every {settings.alert_poll_interval_seconds}s)")
 
     print("   Services initialized (see warnings above for any degraded service)")
 
@@ -124,6 +139,9 @@ async def lifespan(app: FastAPI):
 
     yield
 
+    if alert_task:
+        alert_task.cancel()
+
     # Shutdown — terminate agent subprocesses cleanly
     print(f"🛑 Shutting down {settings.app_name}")
     for proc in _agent_processes:
@@ -155,6 +173,7 @@ app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(vector_store.router, prefix="/api/v1/vectors", tags=["Vector Store"])
 app.include_router(speech.router, prefix="/api/v1/speech", tags=["Speech"])
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
+app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["Alerts"])
 
 
 @app.get("/")
