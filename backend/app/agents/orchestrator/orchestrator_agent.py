@@ -560,6 +560,8 @@ class OrchestratorAgent:
             analysis=analysis_result,
             verification=verification_result,
             language=language,
+            user_type=request.user_type,
+            location=request.location or nlp_result.get("entities", {}).get("location"),
         )
 
         # Build risk assessment
@@ -658,12 +660,30 @@ class OrchestratorAgent:
         )
 
     async def _generate_summary(
-        self, query: str, analysis: dict, verification: dict, language: str = "en"
+        self,
+        query: str,
+        analysis: dict,
+        verification: dict,
+        language: str = "en",
+        user_type: Optional[str] = None,
+        location: Optional[str] = None,
     ) -> str:
         """Use the LLM to generate a user-friendly summary from agent outputs."""
         from app.services.language_service import get_response_instruction
 
         language_instruction = get_response_instruction(language)
+        audience = user_type.value if hasattr(user_type, "value") else (user_type or "individual")
+        audience_guidance = {
+            "individual": "personal safety and household decisions",
+            "student": "clear learning, personal safety, and school/community awareness",
+            "farmer": (
+                "farm decisions: rainfall and temperature patterns, planting and harvest timing, "
+                "irrigation, crop and livestock protection"
+            ),
+            "business": "business continuity, staff safety, assets, logistics, and supply chains",
+            "organization": "community planning, vulnerable groups, infrastructure, and resource allocation",
+            "institution": "occupant safety, service continuity, facilities, and coordination with authorities",
+        }.get(audience, "personal safety and practical decisions")
 
         prompt = f"""Based on the following climate analysis, provide a clear and concise summary 
 for the user who asked: "{query}"
@@ -673,9 +693,15 @@ Risk level: {analysis.get('risk_level', 'unknown')}
 Risk factors: {', '.join(analysis.get('risk_factors', [])) or 'None identified'}
 Verification status: {'Verified' if verification.get('verified') else 'Partially verified'}
 Confidence: {verification.get('confidence', 'Unknown')}
+Audience: {audience}
+Audience-specific focus: {audience_guidance}
+Location: {location or 'Not specified'}
 
-Provide a helpful, evidence-based summary in 2-4 sentences. Be specific about the risks 
-and what the user should know. Be clear about what is known and what is uncertain. 
+Provide a helpful, evidence-based summary in 3-5 sentences. Tailor the practical meaning
+to the audience, not just the recommendations. For a farmer asking about upcoming months,
+separate the available short-range weather forecast from longer-range seasonal tendencies;
+never invent exact monthly rainfall or temperature values when seasonal data is unavailable.
+Be specific about the risks and what the user should know. Be clear about what is known and what is uncertain.
 Do not make claims beyond what the evidence supports.
 
 {language_instruction}"""

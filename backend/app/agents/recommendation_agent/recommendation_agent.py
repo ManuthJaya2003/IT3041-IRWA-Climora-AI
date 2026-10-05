@@ -57,6 +57,39 @@ USER_TYPE_CONTEXT: dict[str, str] = {
     "institution": "infrastructure, continuity planning, occupant safety, coordination with authorities",
 }
 
+USER_TYPE_ACTIONS: dict[str, tuple[str, str, str]] = {
+    "individual": (
+        "Protect your household, important documents, medicines, and emergency supplies",
+        "Household preparation reduces disruption during severe weather.",
+        "preparedness",
+    ),
+    "student": (
+        "Keep a simple weather and hazard log and follow school safety instructions",
+        "Understanding local conditions supports safer decisions and learning.",
+        "awareness",
+    ),
+    "farmer": (
+        "Use the forecast to plan planting, irrigation, spraying, harvest, and livestock sheltering",
+        "Timing farm activities around rainfall and heat can reduce crop and livestock losses.",
+        "agriculture",
+    ),
+    "business": (
+        "Review continuity plans for staff, stock, transport, power, and supplier disruption",
+        "Weather-related downtime and delivery delays can affect operations quickly.",
+        "continuity",
+    ),
+    "organization": (
+        "Map exposed communities and prioritize warnings, shelters, drainage, and response resources",
+        "Prepared planning helps protect people who may have fewer options during hazards.",
+        "community",
+    ),
+    "institution": (
+        "Check facility drainage, backup power, communications, and occupant procedures",
+        "Operational readiness keeps essential services safe and available.",
+        "continuity",
+    ),
+}
+
 # ---------------------------------------------------------------------------
 # Priority policy per risk level.
 #   focus            -> the priority band the advice should lean toward
@@ -392,7 +425,17 @@ class RecommendationAgent(BaseAgentServer):
                 "category": category,
             })
 
-        # Add a user-type-specific framing action.
+        action, explanation, category = USER_TYPE_ACTIONS.get(
+            user_type, USER_TYPE_ACTIONS["individual"]
+        )
+        recs.append({
+            "action": action,
+            "priority": focus if focus != "immediate" else "short-term",
+            "explanation": explanation,
+            "category": category,
+        })
+        # Add a user-type-specific framing action after the concrete action so
+        # the six-item cap always preserves actionable audience guidance.
         framing = USER_TYPE_CONTEXT.get(user_type, USER_TYPE_CONTEXT["individual"])
         article = "an" if user_type[:1] in "aeiou" else "a"
         recs.append({
@@ -404,7 +447,12 @@ class RecommendationAgent(BaseAgentServer):
 
         recs = self._normalize_recommendations(recs)
         # Keep the set focused — cap at 6 recommendations.
-        return recs[:6]
+        selected = recs[:6]
+        if not any(item.get("category") == category for item in selected):
+            selected[-1] = next(
+                item for item in recs if item.get("category") == category
+            )
+        return selected
 
     @staticmethod
     def _match_hazard_key(factor: str) -> str | None:
