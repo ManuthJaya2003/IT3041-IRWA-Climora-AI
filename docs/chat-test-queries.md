@@ -101,6 +101,53 @@ I need advice about planting tea and managing fertilizer in Hatton.
 මගේ රබර් වගාව සඳහා කෑගල්ලේ වැසි කාලයේ රෝග පාලනය කරන්නේ කෙසේද?
 ```
 
+## Traveller queries (all three languages)
+
+Role inference picks Traveller even when Settings stays on the default
+Individual role — no settings change needed.
+
+### English
+
+> I am a tourist visiting Galle. Is it safe to go sightseeing and visit the beaches this week?
+
+### Sinhala
+
+> මම ගාල්ලට සංචාරකයෙක් ලෙස යනවා. මෙම සතියේ මුහුදු වෙරළ නැරඹීම ආරක්ෂිතද?
+
+### Tamil
+
+> நான் காலிக்கு சுற்றுலா பயணியாக வருகிறேன். இந்த வாரம் கடற்கரைக்கு செல்வது பாதுகாப்பானதா?
+
+## More role queries in Sinhala and Tamil
+
+### Student (Tamil)
+
+> நான் கொழும்பில் ஒரு மாணவர். தற்போதைய வெப்பம் மற்றும் மழை எனது படிப்பு அட்டவணையை எவ்வாறு பாதிக்கும்?
+
+### Business (Sinhala)
+
+> මම ගාල්ලේ සංචාරක ව්‍යාපාරයක් පවත්වාගෙන යනවා. මේ සතියේ ගනුදෙනුකරුවන් සඳහා කාලගුණ අවදානම් මොනවද?
+
+### Business (Tamil)
+
+> நான் காலியில் சுற்றுலா வணிகம் நடத்துகிறேன். வாடிக்கையாளர்களுக்கான வானிலை அபாயங்கள் என்ன?
+
+### Organization (Sinhala)
+
+> මඩකලපුවේ අපේ ප්‍රජා සංවිධානය ගංවතුර සූදානම් කටයුතු සැලසුම් කරනවා. වර්තමාන කාලගුණය අනුව ප්‍රමුඛතා මොනවද?
+
+### Institution (Sinhala)
+
+> මම මහනුවර පාසලක් කළමනාකරණය කරනවා. අධික වර්ෂාවේදී සිසුන් සඳහා ගත යුතු පූර්වාරක්ෂා මොනවද?
+
+## Note on Settings role vs query role
+
+If Settings keeps the default Individual role, a query that names a role
+(for example starting with "as a student..." or containing "I am a farmer")
+still gets that role's tailored recommendations, because query wording
+overrides the stored setting. The stored setting applies only when the
+query itself names no role.
+
 ## Bedrock and verification test
 
 This query should produce multiple evidence-based claims:

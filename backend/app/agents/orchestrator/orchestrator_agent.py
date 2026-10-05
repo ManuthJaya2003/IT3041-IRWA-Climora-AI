@@ -47,10 +47,10 @@ def infer_user_type(query: str, configured_user_type: Optional[str]) -> str:
             "paddy", "tea", "coconut", "rubber", "වී", "ගොවි", "වගා",
             "நெல்", "விவசாயி", "பயிர்",
         ),
+        "institution": ("manage", "principal", "school management", "hospital", "university management", "facility", "institution", "කළමනාකරණය", "විදුහල්පති", "நிர்வகி", "மருத்துவமனை", "நிறுவனம்"),
         "student": ("student", "school", "university", "exam", "ශිෂ්‍ය", "පාසල", "மாணவர்", "பள்ளி"),
         "business": ("business", "shop", "company", "supplier", "stock", "වෙළඳ", "ව්‍යාපාර", "வணிகம்", "கடை"),
         "organization": ("organization", "community group", "ngo", "residents", "ප්‍රජා", "සංවිධානය", "சமூக அமைப்பு"),
-        "institution": ("hospital", "school management", "university", "facility", "institution", "රෝහල", "ආයතනය", "மருத்துவமனை"),
         "traveller": ("traveller", "traveler", "travelling", "traveling", "tourist", "tourism", "trip", "journey", "visiting", "සංචාරක", "சுற்றுலா", "பயணி"),
     }
     for role, terms in role_terms.items():
