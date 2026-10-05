@@ -23,6 +23,8 @@ from difflib import get_close_matches
 logger = logging.getLogger(__name__)
 
 # Canonical English vocabulary the matcher may correct TOWARDS.
+# District, town and city names are included so known places are never
+# "corrected" away (e.g. "nugawela" must survive to reach the gazetteer).
 _DISTRICTS = [
     "colombo", "gampaha", "kalutara", "kandy", "matale", "nuwara eliya",
     "galle", "matara", "hambantota", "jaffna", "kilinochchi", "mannar",
@@ -30,6 +32,24 @@ _DISTRICTS = [
     "kurunegala", "puttalam", "anuradhapura", "polonnaruwa", "badulla",
     "monaragala", "ratnapura", "kegalle", "kalpitiya", "gampola", "negombo",
     "kandy", "galle", "jaffna", "colombo", "moratuwa", "kotte",
+    "nugawela", "tangalle", "ella", "mirissa", "chilaw", "kuliyapitiya",
+    "embilipitiya", "nugegoda", "maharagama", "dehiwala", "kesbewa",
+    "homagama", "kaduwela", "avissawella", "wattala", "mirigama",
+    "panadura", "horana", "beruwala", "aluthgama", "mathugama",
+    "nawalapitiya", "katugastota", "kundasale", "galagedara", "akurana",
+    "dambulla", "sigiriya", "galewela", "rattota", "naula",
+    "hatton", "talawakelle", "kotmale", "maskeliya",
+    "ambalangoda", "elpitiya", "baddegama", "habaraduwa",
+    "weligama", "akuressa", "hakmana", "dikwella",
+    "tissamaharama", "ambalantota", "beliatta", "lunugamvehera",
+    "kinniya", "mutur", "kantale", "seruvila",
+    "narammala", "pannala", "polgahawela", "alawwa", "mawathagama",
+    "wennappuwa", "anamaduwa", "mundel",
+    "kekirawa", "eppawala", "mihintale", "medawachchiya",
+    "bandarawela", "haputale", "welimada", "mahiyanganaya", "passara",
+    "wellawaya", "bibile", "buttala", "katharagama",
+    "balangoda", "kuruwita", "pelmadulla", "kahawatta",
+    "mawanella", "rambukkana", "warakapola", "galigamuwa",
 ]
 _PROVINCES = [
     "western", "central", "southern", "northern", "eastern", "north western",
