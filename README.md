@@ -55,12 +55,14 @@ User Query
 ## Key features
 
 - **Trilingual** — language auto-detected by script; answers in English, Sinhala, or Tamil, with voice input + audio answers
+- **Role-aware** — 7 user types (individual, student, farmer, business, organization, institution, traveller); the role is taken from Settings but query wording always wins (e.g. "as a student..." works on the default profile), with trilingual role inference
+- **Island-wide gazetteer** — 25 districts plus 250+ cities/towns with typo tolerance; bare place names ("nugawela") are answered as weather queries with a shown correction note instead of refused
 - **Evidence-grounded** — every answer cites sources with reliability scores and confidence
 - **Risk-aware** — transparent risk levels with explanations, plus opt-in severe-weather browser alerts
 - **Commercial tiers that actually enforce** — Free / Premium / Business / Enterprise with live daily quotas, plan-limited saved locations, history retention caps, and Premium-gated alerts
 - **Real settings system** — appearance (light/dark/system), personalization, notifications, data export & retention, subscription management
-- **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, no internal errors leaked
-- **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; runs fully offline in mock mode
+- **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, word-boundary off-topic screening (no more "bus" in "business" refusals), no internal errors leaked
+- **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; Bedrock↔Gemini automatic failover (including inside agent subprocesses) with overload retries; empty retrieval is retried once; runs fully offline in mock mode
 
 ### Production integration notes
 
@@ -119,7 +121,7 @@ entitlements.
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS |
 | Backend | Python 3.12, FastAPI, Pydantic |
-| LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) / offline mock |
+| LLM | AWS Bedrock Claude (primary) with Google Gemini fallback + automatic failover |
 | Vector DB | FAISS (local, 187 seeded climate documents) |
 | Database | PostgreSQL (dockerized, for future persistence) |
 | Agent communication | MCP (Model Context Protocol) |
@@ -316,7 +318,7 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 cd backend
 python scripts/evaluate_ir.py
 python scripts/evaluate_e2e.py
-python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py && python tests/test_stripe.py && python tests/test_query_normalize.py
+python -m pytest tests/ -q
 ```
 
 ## Commercialization
