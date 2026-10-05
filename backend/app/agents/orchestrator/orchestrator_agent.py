@@ -99,6 +99,19 @@ class OrchestratorAgent:
             detected_language = i18n.resolve_language(request.query, getattr(request, "language", None))
             effective_user_type = infer_user_type(request.query, request.user_type)
 
+            # --- Step 0b: Query normalization (typo correction) ---
+            # Runs before greetings/security/NLP so "weathe in colomob"
+            # becomes "weather in colombo" everywhere downstream. Rule-based
+            # first (free, deterministic); Bedrock rewrite only when needed.
+            from app.services import query_normalize_service as qnorm
+            normalized_query, corrections, _llm_rewrite = await qnorm.normalize_query(request.query)
+            if corrections:
+                logger.info(
+                    "Query normalized %r -> %r (%s)",
+                    request.query, normalized_query, corrections,
+                )
+                request = request.model_copy(update={"query": normalized_query})
+
             if usage_service.is_free_greeting(request.query):
                 normalized_greeting = " ".join(request.query.strip().lower().split())
                 greeting = {
@@ -405,6 +418,13 @@ class OrchestratorAgent:
                 language=detected_language,
                 user_type=effective_user_type,
             )
+
+            # Transparency: tell the user which typos were interpreted.
+            if corrections:
+                fixed = ", ".join(f"'{orig}' as '{new}'" for orig, new in corrections[:3])
+                response.summary = (
+                    f"{response.summary}\n\nNote: interpreted {fixed}."
+                )
 
             # Store in session
             self._store_session(session_id, request.query, response)

@@ -47,8 +47,8 @@ Trincomalee cyclone (EN), Colombo weather (TA).
 
 ## End-to-end answer quality (`backend/scripts/evaluate_e2e.py`)
 
-Scores final pipeline answers — not just retrieval — on 9 golden queries
-(3 English, 3 Sinhala, 3 Tamil) across 10 checks: completed, correct answer
+Scores final pipeline answers — not just retrieval — on 11 golden queries
+(3 English, 2 typo-tolerance English, 3 Sinhala, 3 Tamil) across 10 checks: completed, correct answer
 language, location mentioned, aspect coverage (≥1 of 2 evidence terms in the
 answer), ≥1 source cited, risk assessment present, ≥2 recommendations,
 disclaimer present, verification record present, confidence in [0, 1].
@@ -70,20 +70,21 @@ labeled extractive/static fallbacks):
 
 | Check | Result |
 |---|---|
-| completed (non-empty answer) | 9/9 = 100% |
-| correct answer language (EN/SI/TA routing) | 9/9 = 100% |
-| location mentioned in answer | 9/9 = 100% |
-| aspect coverage (≥1 of 2 evidence terms) | 9/9 = 100% |
-| ≥1 source cited | 9/9 = 100% |
-| risk assessment present | 9/9 = 100% |
-| ≥2 recommendations | 9/9 = 100% |
-| disclaimer present | 9/9 = 100% |
-| verification record present | 9/9 = 100% |
-| confidence in [0, 1] | 9/9 = 100% |
+| completed (non-empty answer) | 11/11 = 100% |
+| correct answer language (EN/SI/TA routing) | 11/11 = 100% |
+| location mentioned in answer | 11/11 = 100% |
+| aspect coverage (≥1 of 2 evidence terms) | 11/11 = 100% |
+| ≥1 source cited | 11/11 = 100% |
+| risk assessment present | 11/11 = 100% |
+| ≥2 recommendations | 11/11 = 100% |
+| disclaimer present | 11/11 = 100% |
+| verification record present | 11/11 = 100% |
+| confidence in [0, 1] | 11/11 = 100% |
 
-Avg latency 8.3s/query offline (dominated by MCP port-probe timeouts with
-agent servers down, not model inference). Raw per-query rows:
-`backend/e2e_eval_results.json`.
+Avg latency 8.2s/query offline (dominated by MCP port-probe timeouts with
+agent servers down, not model inference). Includes 2 typo queries
+(`flod/Kndy`, `weathe/Colomob`) proving the normalization layer. Raw
+per-query rows: `backend/e2e_eval_results.json`.
 
 Honest limits: offline answers quote evidence rather than synthesizing it,
 so aspect depth and fluency are below what Bedrock synthesis produces (the
@@ -99,6 +100,7 @@ trilingual promise.
 - `backend/tests/test_billing.py` — 7 tests (plans, quotas, usage, refunds)
 - `backend/tests/test_auth.py` — 2 tests (register/login, server-side plans)
 - `backend/tests/test_enterprise.py` — 5 tests (orgs, trial/activation, quota inheritance, OIDC verify, SSO flow)
+- `backend/tests/test_query_normalize.py` — 6 tests (typo fix, case, SI/TA untouched, offline)
 - `backend/tests/test_stripe.py` — 3 tests (config gating, checkout flow, webhook)
 - `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - `backend/tests/test_usage_plan.py` — 6 tests (per-plan tracking, greetings, role guidance)

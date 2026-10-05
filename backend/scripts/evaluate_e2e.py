@@ -39,6 +39,11 @@ GOLDEN = [
      ["colombo"], "temperature", ["colombo", "rainfall"]),
     ("What is the drought situation in Jaffna?", "en",
      ["jaffna"], "drought", ["drought", "jaffna"]),
+    # Typo tolerance (normalization layer)
+    ("Is there a flod risk in Kndy right now?", "en",
+     ["kandy"], "flood", ["flood", "kandy"]),
+    ("What is the weathe in Colomob?", "en",
+     ["colombo"], "temperature", ["colombo", "weather"]),
     # Sinhala
     ("මහනුවර ගංවතුර අවදානමක් තිබේද?", "si",
      ["මහනුවර", "kandy"], "flood", ["flood", "මහනුවර"]),

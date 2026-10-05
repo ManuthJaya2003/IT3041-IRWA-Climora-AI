@@ -309,14 +309,14 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
-- End-to-end answer quality: 9 golden queries (EN/SI/TA) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
-- 34 backend regression tests · strict `tsc` + production frontend build
+- End-to-end answer quality: 11 golden queries (EN/SI/TA + typos) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
+- 40 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
 python scripts/evaluate_ir.py
 python scripts/evaluate_e2e.py
-python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py && python tests/test_stripe.py
+python tests/test_billing.py && python tests/test_api_guards.py && python tests/test_auth.py && python tests/test_enterprise.py && python tests/test_stripe.py && python tests/test_query_normalize.py
 ```
 
 ## Commercialization

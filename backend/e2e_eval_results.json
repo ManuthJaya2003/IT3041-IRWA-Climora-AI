@@ -2,53 +2,53 @@
   "mode": "offline-fallback",
   "aggregate": {
     "completed": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "language_ok": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "location_mentioned": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "aspect_coverage": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "sources_cited": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "risk_present": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "recs_ok": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "disclaimer_present": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "verification_present": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     },
     "confidence_sane": {
-      "pass": 9,
-      "total": 9,
+      "pass": 11,
+      "total": 11,
       "rate": 1.0
     }
   },
@@ -56,7 +56,7 @@
     {
       "query": "Is there a flood risk in Kandy right now?",
       "expected_lang": "en",
-      "latency_ms": 10367.2,
+      "latency_ms": 10145.1,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -76,7 +76,7 @@
     {
       "query": "What is the current weather in Colombo?",
       "expected_lang": "en",
-      "latency_ms": 8050.4,
+      "latency_ms": 8037.1,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -96,7 +96,7 @@
     {
       "query": "What is the drought situation in Jaffna?",
       "expected_lang": "en",
-      "latency_ms": 8051.7,
+      "latency_ms": 8035.4,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -114,9 +114,49 @@
       "confidence": 0.5
     },
     {
+      "query": "Is there a flod risk in Kndy right now?",
+      "expected_lang": "en",
+      "latency_ms": 8040.8,
+      "completed": true,
+      "language_ok": true,
+      "location_mentioned": true,
+      "aspect_coverage": "2/2",
+      "aspect_pass": true,
+      "sources_cited": true,
+      "n_sources": 3,
+      "risk_present": true,
+      "risk_level": "RiskLevel.MODERATE",
+      "recs_ok": true,
+      "n_recs": 3,
+      "disclaimer_present": true,
+      "verification_present": true,
+      "confidence_sane": true,
+      "confidence": 0.5
+    },
+    {
+      "query": "What is the weathe in Colomob?",
+      "expected_lang": "en",
+      "latency_ms": 8046.5,
+      "completed": true,
+      "language_ok": true,
+      "location_mentioned": true,
+      "aspect_coverage": "2/2",
+      "aspect_pass": true,
+      "sources_cited": true,
+      "n_sources": 2,
+      "risk_present": true,
+      "risk_level": "RiskLevel.MODERATE",
+      "recs_ok": true,
+      "n_recs": 3,
+      "disclaimer_present": true,
+      "verification_present": true,
+      "confidence_sane": true,
+      "confidence": 0.5
+    },
+    {
       "query": "මහනුවර ගංවතුර අවදානමක් තිබේද?",
       "expected_lang": "si",
-      "latency_ms": 8048.9,
+      "latency_ms": 8041.2,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -136,7 +176,7 @@
     {
       "query": "කොළඹ මෝසම් වර්ෂාවට සූදානම් වන්නේ කෙසේද?",
       "expected_lang": "si",
-      "latency_ms": 8050.5,
+      "latency_ms": 8080.9,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -156,7 +196,7 @@
     {
       "query": "යාපනයේ නියඟ තත්ත්වය කුමක්ද?",
       "expected_lang": "si",
-      "latency_ms": 8049.8,
+      "latency_ms": 8049.9,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -176,7 +216,7 @@
     {
       "query": "கண்டியில் வெள்ள அபாயம் உள்ளதா?",
       "expected_lang": "ta",
-      "latency_ms": 8061.7,
+      "latency_ms": 8070.0,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -196,7 +236,7 @@
     {
       "query": "கொழும்பில் வானிலை எப்படி?",
       "expected_lang": "ta",
-      "latency_ms": 8056.3,
+      "latency_ms": 8049.5,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
@@ -216,7 +256,7 @@
     {
       "query": "திருகோணமலையில் சூறாவளி ஆபத்து என்ன?",
       "expected_lang": "ta",
-      "latency_ms": 8055.3,
+      "latency_ms": 8035.9,
       "completed": true,
       "language_ok": true,
       "location_mentioned": true,
