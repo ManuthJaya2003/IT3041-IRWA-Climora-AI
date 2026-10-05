@@ -75,7 +75,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
       return
     }
     if (!/^\d{3,4}$/.test(cvc.trim())) {
-      setError('CVC must be 3–4 digits.')
+      setError('CVC must be 3-4 digits.')
       return
     }
     if (!name.trim()) {

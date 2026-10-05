@@ -193,7 +193,7 @@ class AlertService:
                 dedupe_key = hashlib.sha256(f"{location.lower()}:{day}:{condition}".encode()).hexdigest()
                 if self._already_sent(dedupe_key):
                     continue
-                title = f"Climora AI — severe {condition} risk"
+                title = f"Climora AI - severe {condition} risk"
                 body = f"{location}: {condition} conditions may require preparation. Check official local guidance."
                 if webpush is not None and settings.vapid_private_key:
                     webpush(

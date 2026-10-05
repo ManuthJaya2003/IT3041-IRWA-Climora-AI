@@ -43,7 +43,10 @@ def test_register_login_and_me():
     assert me.json()["user"]["email"] == email
 
 
-def test_subscribe_requires_auth_and_spoof_blocked():
+def test_subscribe_requires_auth_and_spoof_blocked(monkeypatch):
+    from app.config import settings
+    # Demo-mode expectations: no Stripe keys (local .env may have test keys).
+    monkeypatch.setattr(settings, "stripe_secret_key", None)
     auth_service.reset_state()
     client = _client()
     # Anonymous subscribe rejected.

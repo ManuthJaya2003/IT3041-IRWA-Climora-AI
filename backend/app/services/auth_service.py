@@ -283,7 +283,7 @@ def get_or_create_google_user(email: str, name: str) -> dict:
 def set_plan(user_id: str, plan_id: str, billing_cycle: str = "monthly") -> dict:
     plan = plans_service.get_plan(plan_id)
     if plan["id"] == "enterprise":
-        raise ValueError("Enterprise is handled via sales — contact hello@climora.ai.")
+        raise ValueError("Enterprise is handled via sales - contact hello@climora.ai.")
     if billing_cycle not in ("monthly", "annual"):
         billing_cycle = "monthly"
     user = get_user_by_id(user_id)
@@ -305,7 +305,7 @@ async def verify_google_id_token(id_token: str) -> dict:
             params={"id_token": id_token},
         )
     if resp.status_code != 200:
-        raise ValueError("Google sign-in failed — invalid token.")
+        raise ValueError("Google sign-in failed - invalid token.")
     data = resp.json()
     email = str(data.get("email", "")).lower()
     if not email or not _EMAIL_RE.match(email):

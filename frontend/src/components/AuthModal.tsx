@@ -237,7 +237,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
               <button
                 onClick={submitSso}
                 disabled={ssoBusy}
-                className="px-3 py-1.5 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-lg hover:border-climora-400 disabled:opacity-60 shrink-0"
+                className="px-3 py-1.5 text-sm font-medium text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-lg hover:border-climora-400 disabled:opacity-60 shrink-0"
               >
                 {ssoBusy ? <Loader2 className="w-4 h-4 animate-spin" /> : 'Continue'}
               </button>

@@ -68,7 +68,7 @@ async def _require_user(request: Request) -> dict:
     user_id = auth_service.decode_user_id(auth[7:].strip())
     user = auth_service.get_user_by_id(user_id) if user_id else None
     if user is None:
-        raise HTTPException(status_code=401, detail="Session expired — please sign in again.")
+        raise HTTPException(status_code=401, detail="Session expired - please sign in again.")
     return user
 
 RequireUser = Depends(_require_user)

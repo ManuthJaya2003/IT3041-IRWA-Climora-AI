@@ -20,7 +20,7 @@ import { notifyUsageChanged } from '../usageBus'
 const inputCls =
   'w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-3 py-2 text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500'
 
-export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser | null; onSignIn: () => void }) {
+export default function OrganizationPanel({ user, onSignIn, onChanged }: { user: AuthUser | null; onSignIn: () => void; onChanged?: () => void }) {
   const [orgs, setOrgs] = useState<Org[]>([])
   const [activeId, setActiveId] = useState<string | null>(null)
   const [members, setMembers] = useState<OrgMember[]>([])
@@ -120,6 +120,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
       setActiveId(org.id)
       setNotice(`Organization "${org.name}" created - members inherit the Enterprise plan.`)
       notifyUsageChanged()
+      onChanged?.()
     } catch (e) {
       fail(e, 'Could not create the organization.')
     } finally {
@@ -181,6 +182,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
       setEvents(ev)
       setNotice('Enterprise activated - unlimited quota for all members.')
       notifyUsageChanged()
+      onChanged?.()
     } catch (e) {
       fail(e, 'Could not activate the organization.')
     } finally {
@@ -273,7 +275,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
             {canAdmin && (
               <div className="flex gap-2 mt-2">
                 <input value={inviteEmail} onChange={e => setInviteEmail(e.target.value)} placeholder="colleague@company.example" type="email" aria-label="Invite email" className={inputCls} />
-                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} aria-label="Invite role" className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-2 text-sm shrink-0">
+                <select value={inviteRole} onChange={e => setInviteRole(e.target.value)} aria-label="Invite role" className="rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 px-2 py-2 text-sm text-slate-700 dark:text-slate-200 shrink-0">
                   <option value="member">member</option>
                   <option value="admin">admin</option>
                 </select>
@@ -299,7 +301,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
                 <input value={clientId} onChange={e => setClientId(e.target.value)} placeholder="Client ID" aria-label="OIDC client ID" className={inputCls} />
                 <input value={clientSecret} onChange={e => setClientSecret(e.target.value)} placeholder="Client secret (optional with PKCE)" type="password" autoComplete="new-password" aria-label="OIDC client secret" className={inputCls} />
               </div>
-              <button onClick={handleSso} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium border border-slate-300 dark:border-slate-600 rounded-xl hover:border-climora-400 disabled:opacity-60">
+              <button onClick={handleSso} disabled={busy} className="flex items-center gap-1.5 px-3 py-2 text-sm font-medium text-slate-700 dark:text-slate-200 border border-slate-300 dark:border-slate-600 rounded-xl hover:border-climora-400 disabled:opacity-60">
                 {busy ? <Loader2 className="w-4 h-4 animate-spin" /> : <ShieldCheck className="w-4 h-4" />}
                 Save SSO configuration
               </button>

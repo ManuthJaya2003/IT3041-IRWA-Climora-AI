@@ -237,10 +237,8 @@ function App() {
     if (ssoCode) {
       consumeSsoCode(ssoCode)
         .then(({ user: me }) => {
-          setUser(me)
-          setPlan(me.plan_id)
-          setApiPlan(me.plan_id)
-          setPaymentNotice(`${me.plan_name} access ready - signed in via enterprise SSO.`)
+          applyMe(me)
+          setPaymentNotice(`${me.effective_plan_name || me.plan_name} access ready - signed in via enterprise SSO.`)
           notifyUsageChanged()
         })
         .catch(() => setPaymentNotice('SSO sign-in expired. Please try again.'))
@@ -249,9 +247,7 @@ function App() {
     if (!getAuthToken()) return
     fetchMe()
       .then(({ user: me }) => {
-        setUser(me)
-        setPlan(me.plan_id)
-        setApiPlan(me.plan_id)
+        applyMe(me)
         notifyUsageChanged()
       })
       .catch(() => {
@@ -318,12 +314,18 @@ function App() {
     setSavedLocations(prev => removeLocation(prev, name))
   }, [])
 
+  // Single place that applies a server profile: personal plan in state,
+  // effective (possibly org-inherited enterprise) plan on the wire + display.
+  const applyMe = useCallback((me: AuthUser) => {
+    setUser(me)
+    setPlan(me.plan_id)
+    setApiPlan(me.effective_plan_id || me.plan_id)
+  }, [])
+
   const refreshMe = useCallback(() => {
     fetchMe()
       .then(({ user: me }) => {
-        setUser(me)
-        setPlan(me.plan_id)
-        setApiPlan(me.effective_plan_id || me.plan_id)
+        applyMe(me)
         setAuthOpen(false)
         notifyUsageChanged()
       })
@@ -352,9 +354,7 @@ function App() {
         // Server-side downgrade so quota drops immediately for the account.
         try {
           const { user: updated } = await subscribePlan('free', 'monthly')
-          setUser(updated)
-          setPlan(updated.plan_id)
-          setApiPlan(updated.plan_id)
+          applyMe(updated)
         } catch {
           // fall through to local update
           setPlan('free')
@@ -376,7 +376,7 @@ function App() {
       setAuthOpen(true)
       setPlansOpen(false)
     }
-  }, [user])
+  }, [user, applyMe])
 
   const handleCheckoutSuccess = useCallback(async (result: CheckoutResult) => {
     if (!checkout) return
@@ -388,9 +388,7 @@ function App() {
     // Server is the source of truth - record the entitlement on the account.
     try {
       const { user: updated } = await subscribePlan(checkout.plan.id, result.cycle)
-      setUser(updated)
-      setPlan(updated.plan_id)
-      setApiPlan(updated.plan_id)
+      applyMe(updated)
     } catch (e) {
       console.error('Server plan activation failed:', e)
       setPaymentNotice('Payment demo finished, but the server refused the upgrade. Please try again.')
@@ -407,7 +405,7 @@ function App() {
     setSubscription(sub)
     notifyUsageChanged()
     setCheckout(null)
-  }, [checkout, user])
+  }, [checkout, user, applyMe])
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search)
@@ -430,9 +428,7 @@ function App() {
         // (With real Stripe, the server activated the plan during verify.)
         fetchMe()
           .then(({ user: me }) => {
-            setUser(me)
-            setPlan(me.plan_id)
-            setApiPlan(me.effective_plan_id || me.plan_id)
+            applyMe(me)
           })
           .catch(() => {
             setPlan(selectedPlan.id)
@@ -643,7 +639,7 @@ function App() {
               <SettingsView
                 settings={settings}
                 onChange={handleChangeSettings}
-                plan={user ? user.plan_id : plan}
+                plan={effectivePlan}
                 subscription={subscription}
                 user={user}
                 onSignIn={() => { setAuthMode('login'); setAuthOpen(true) }}
@@ -659,6 +655,7 @@ function App() {
                 onViewPlans={() => setPlansOpen(true)}
                 onBack={() => setView('chat')}
                 initialSection={settingsSection}
+                onOrgChange={refreshMe}
               />
             ) : (
               <ChatInterface

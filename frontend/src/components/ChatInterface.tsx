@@ -216,7 +216,7 @@ export default function ChatInterface({
     const userMessage: Message = {
       id: newId(),
       role: 'user',
-      content: `🎤 ${query}`,
+      content: query,
       timestamp: new Date(),
     }
 

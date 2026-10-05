@@ -1270,7 +1270,7 @@ Return ONLY the JSON object."""
         if risk_level in ("high", "critical"):
             return {
                 "recommendations": [
-                    {"action": "Monitor official weather and disaster alerts for your area", "priority": "immediate", "explanation": f"Risk level is {risk_level} — stay alert."},
+                    {"action": "Monitor official weather and disaster alerts for your area", "priority": "immediate", "explanation": f"Risk level is {risk_level} - stay alert."},
                     {"action": "Prepare an emergency kit with essentials (water, documents, first aid)", "priority": "short-term", "explanation": "Be ready to act if conditions worsen."},
                     {"action": "Review evacuation routes and emergency contacts", "priority": "short-term", "explanation": "Preparedness reduces risk during climate events."},
                 ]

@@ -50,6 +50,7 @@ interface SettingsViewProps {
   onViewPlans: () => void
   onBack: () => void
   initialSection?: SectionId
+  onOrgChange?: () => void
 }
 
 export default function SettingsView({
@@ -71,6 +72,7 @@ export default function SettingsView({
   onViewPlans,
   onBack,
   initialSection,
+  onOrgChange,
 }: SettingsViewProps) {
   const [section, setSection] = useState<SectionId>(initialSection ?? 'general')
   const [query, setQuery] = useState('')
@@ -564,7 +566,7 @@ export default function SettingsView({
               )}
 
               {section === 'organization' && (
-                <OrganizationPanel user={user} onSignIn={onSignIn} />
+                <OrganizationPanel user={user} onSignIn={onSignIn} onChanged={onOrgChange} />
               )}
 
               {section === 'about' && (
