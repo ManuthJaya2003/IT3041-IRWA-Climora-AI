@@ -32,6 +32,7 @@ from app.models.schemas import (
 from app.agents.orchestrator.mcp_client import MCPClientManager
 from app.services.llm_service import llm_service
 from app.services.history_service import history_service
+from app.services import usage_service
 
 
 class OrchestratorAgent:
@@ -73,6 +74,26 @@ class OrchestratorAgent:
             from app.services import i18n_service as i18n
             # Sinhala/Tamil query -> that language; otherwise the language chosen in the UI.
             detected_language = i18n.resolve_language(request.query, getattr(request, "language", None))
+
+            if usage_service.is_free_greeting(request.query):
+                greeting = {
+                    "si": "ආයුබෝවන්! මම Climora AI. ඔබට කාලගුණය සහ දේශගුණික අවදානම් පිළිබඳව උදව් කළ හැකියි.",
+                    "ta": "வணக்கம்! நான் Climora AI. வானிலை மற்றும் காலநிலை அபாயங்கள் குறித்து உதவ முடியும்.",
+                }.get(
+                    detected_language,
+                    "Hi, I'm Climora AI. I can help with weather, climate risks, hazards, and preparedness in Sri Lanka.",
+                )
+                response = ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary=greeting,
+                    language=detected_language,
+                    confidence_score=1.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=[],
+                )
+                self._store_session(session_id, request.query, response)
+                return response
 
             # --- Steps 1 & 2: Security + NLP in parallel ---
             # These two are independent — neither depends on the other's output.

@@ -18,3 +18,8 @@ def test_usage_is_tracked_separately_per_plan():
         assert usage_service.get_usage("client", "free")["used_today"] == 0
     finally:
         usage_service.reset_usage_state()
+
+
+def test_greetings_are_classified_as_free_queries():
+    assert usage_service.is_free_greeting("  Good morning ") is True
+    assert usage_service.is_free_greeting("weather in Kandy") is False

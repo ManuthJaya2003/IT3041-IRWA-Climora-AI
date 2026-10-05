@@ -108,6 +108,7 @@ async def lifespan(app: FastAPI):
     from app.services.tts_service import tts_service
     from app.services.history_service import history_service
     from app.services.alert_service import alert_service
+    from app.services import usage_service
     import asyncio as _alert_asyncio
 
     for svc_name, svc in [
@@ -123,6 +124,12 @@ async def lifespan(app: FastAPI):
             print(f"   ✓ {svc_name} service ready")
         except Exception as exc:
             print(f"   ⚠ {svc_name} service failed to initialize ({exc}) — continuing with fallbacks")
+
+    try:
+        await usage_service.initialize()
+        print("   ✓ daily usage service ready")
+    except Exception as exc:
+        print(f"   ⚠ daily usage service failed to initialize ({exc}) — using memory fallback")
 
     alert_task = None
     if settings.vapid_public_key and settings.vapid_private_key:

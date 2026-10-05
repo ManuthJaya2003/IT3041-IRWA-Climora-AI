@@ -44,9 +44,9 @@ def test_quota_exhaustion_returns_429_with_upgrade_hint():
     deps_module.reset_rate_limit_state()
     try:
         client = _client()
-        first = client.post("/api/v1/chat/query", json={"query": "hello"})
+        first = client.post("/api/v1/chat/query", json={"query": "weather in Kandy"})
         assert first.status_code == 200, first.text
-        second = client.post("/api/v1/chat/query", json={"query": "hello"})
+        second = client.post("/api/v1/chat/query", json={"query": "weather in Kandy"})
         assert second.status_code == 429, second.text
         assert "quota" in second.json()["detail"].lower()
     finally:
@@ -74,7 +74,7 @@ def test_usage_consumes_after_query():
     deps_module.reset_rate_limit_state()
     try:
         client = _client()
-        client.post("/api/v1/chat/query", json={"query": "hello"})
+        client.post("/api/v1/chat/query", json={"query": "weather in Kandy"})
         body = client.get("/api/v1/billing/usage").json()
         assert body["used_today"] == 1
     finally:

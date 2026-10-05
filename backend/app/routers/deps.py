@@ -101,8 +101,15 @@ def resolve_plan(request: Request) -> dict:
     return plans_service.get_plan(request.headers.get("X-Plan"))
 
 
-def enforce_quota(request: Request) -> None:
+async def enforce_quota(request: Request) -> None:
     """Daily per-plan query quota. Exceeding callers get HTTP 429."""
+    try:
+        payload = await request.json()
+    except ValueError:
+        payload = {}
+    query = payload.get("query", "") if isinstance(payload, dict) else ""
+    if usage_service.is_free_greeting(query):
+        return
     plan = resolve_plan(request)
     allowed, _remaining, limit = usage_service.check_and_consume(
         client_key(request), plan["id"]
