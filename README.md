@@ -75,6 +75,13 @@ Browser alert preferences are implemented, but continuous weather monitoring
 and push delivery require a production scheduler, notification provider, and
 device registration.
 
+Web Push alerting is now implemented behind VAPID configuration. Set
+`VAPID_PUBLIC_KEY`, `VAPID_PRIVATE_KEY`, and `VAPID_SUBJECT` in the deployment
+environment, enable alerts from Settings on an HTTPS origin, and use the
+browser's test notification button to verify delivery. The backend stores
+subscriptions in PostgreSQL, checks subscribed locations periodically, and
+deduplicates severe rain, wind, and heat alerts.
+
 The agent servers expose MCP-compatible HTTP tool routes for the current
 development deployment. A production deployment should use authenticated MCP
 transport or an equivalent authenticated service-to-service channel.

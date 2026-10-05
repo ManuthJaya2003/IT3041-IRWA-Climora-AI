@@ -4,7 +4,7 @@ import {
   Search, Shield, SlidersHorizontal, Trash2, User, Sun, Moon, Monitor, FlaskConical, MapPin, X,
 } from 'lucide-react'
 import { AppSettings, LANGUAGES, RETENTION_OPTIONS, Theme, USER_TYPES } from '../settings'
-import { getUsage, UsageDto } from '../api/climoraApi'
+import { getAlertConfig, getUsage, sendAlertTest, subscribeToAlerts, UsageDto } from '../api/climoraApi'
 import { Subscription } from '../plans'
 import { onUsageChanged } from '../usageBus'
 
@@ -19,6 +19,12 @@ const SECTIONS: Array<{ id: SectionId; label: string; icon: typeof Bell; keyword
   { id: 'subscription', label: 'Subscription', icon: Crown, keywords: 'subscription plan billing quota usage premium pricing' },
   { id: 'about', label: 'About', icon: Info, keywords: 'about version info help' },
 ]
+
+function urlBase64ToUint8Array(value: string): Uint8Array {
+  const padding = '='.repeat((4 - (value.length % 4)) % 4)
+  const base64 = (value + padding).replace(/-/g, '+').replace(/_/g, '/')
+  return Uint8Array.from(window.atob(base64), char => char.charCodeAt(0))
+}
 
 interface SettingsViewProps {
   settings: AppSettings
@@ -61,6 +67,7 @@ export default function SettingsView({
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [confirmClear, setConfirmClear] = useState(false)
   const [testSent, setTestSent] = useState(false)
+  const [testError, setTestError] = useState<string | null>(null)
   const [notifPermission, setNotifPermission] = useState<string>(
     typeof Notification !== 'undefined' ? Notification.permission : 'unsupported',
   )
@@ -123,26 +130,51 @@ export default function SettingsView({
   // Turning alerts on doubles as the permission gesture, so the browser
   // prompt appears immediately instead of failing silently later.
   const handleAlertsToggle = async (v: boolean) => {
-    onChange({ alertsEnabled: v })
-    if (v && notifApi && Notification.permission === 'default') {
-      await requestNotifPermission()
+    if (v) {
+      await enablePushAlerts()
+    } else {
+      onChange({ alertsEnabled: false })
     }
   }
 
   const sendTestNotification = async () => {
-    if (!notifApi) return
+    if (!notifApi || !('serviceWorker' in navigator)) return
+    setTestSent(false)
+    setTestError(null)
     try {
-      if (Notification.permission === 'default') {
-        await requestNotifPermission()
-      }
-      if (Notification.permission === 'granted') {
-        new Notification('Climora AI — test alert', {
-          body: 'Notifications are working. High or critical risk responses will alert you here.',
-        })
-        setTestSent(true)
-      }
-    } catch {
+      const config = await getAlertConfig()
+      if (!config.enabled || !config.public_key) throw new Error('Web Push is not configured.')
+      const registration = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.public_key),
+      })
+      await sendAlertTest(subscription.toJSON())
+      setTestSent(true)
+    } catch (error) {
+      setTestError(error instanceof Error ? error.message : 'Unable to send test notification.')
       setTestSent(false)
+    }
+  }
+
+  const enablePushAlerts = async () => {
+    if (!notifApi || !('serviceWorker' in navigator)) return
+    try {
+      if (Notification.permission === 'default') await requestNotifPermission()
+      if (Notification.permission !== 'granted') return
+      const config = await getAlertConfig()
+      if (!config.enabled || !config.public_key) return
+      const registration = await navigator.serviceWorker.register('/sw.js')
+      await navigator.serviceWorker.ready
+      const subscription = await registration.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(config.public_key),
+      })
+      await subscribeToAlerts(subscription.toJSON(), settings.location)
+      onChange({ alertsEnabled: true })
+    } catch {
+      onChange({ alertsEnabled: false })
     }
   }
 
@@ -372,6 +404,11 @@ export default function SettingsView({
                     {testSent && (
                       <p className="text-xs text-climora-700 dark:text-climora-300">
                         Test sent — check your system notifications tray.
+                      </p>
+                    )}
+                    {testError && (
+                      <p className="text-xs text-red-600 dark:text-red-400">
+                        Test failed: {testError}
                       </p>
                     )}
                     {notifPermission === 'denied' && (
