@@ -187,49 +187,61 @@ class OrchestratorAgent:
             # If the user replied with just a location name (e.g. "kandy") after
             # being asked to specify a location, reconstruct their intent from the
             # previous session message and synthesise a full query.
+            # A bare Sri Lanka location on a fresh turn (e.g. "Anuradhapura")
+            # is likewise treated as an implicit weather request instead of
+            # a refusal, so typo-corrected districts always produce an answer.
             from app.agents.ir_agent.ir_agent import LOCATION_ALIASES
             query_stripped = request.query.strip().lower()
+            has_location_signal = bool(entities.get("location")) or any(
+                kw in query_stripped for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka"]
+            )
             is_location_only = (
                 len(query_stripped.split()) <= 3
                 and not entities.get("climate_topic")
                 and not entities.get("hazard_type")
-                and any(kw in query_stripped for kw in list(LOCATION_ALIASES.keys()) + ["sri lanka"])
+                and has_location_signal
             )
-            if is_location_only and request.session_id:
-                history = history_service.get_turns(request.session_id)
-                if history:
-                    last_summary = history[-1].get("response_summary", "").lower()
-                    asked_for_location = "please specify a location" in last_summary or "specify a location" in last_summary
-                    if asked_for_location:
-                        # Reconstruct: use previous intent if available, default to weather
-                        last_query = history[-1].get("query", "").lower()
-                        if any(w in last_query for w in ["flood", "flooding"]):
-                            synthesised = f"flood risk in {request.query.strip()}"
-                        elif any(w in last_query for w in ["drought"]):
-                            synthesised = f"drought in {request.query.strip()}"
-                        elif any(w in last_query for w in ["rain", "rainfall"]):
-                            synthesised = f"rainfall in {request.query.strip()}"
-                        elif any(w in last_query for w in ["cyclone", "storm"]):
-                            synthesised = f"cyclone risk in {request.query.strip()}"
-                        else:
-                            synthesised = f"weather in {request.query.strip()}"
-                        # Re-run NLP on the synthesised query
-                        from app.models.schemas import ChatRequest as CR
-                        synthetic_request = CR(
-                            query=synthesised,
-                            location=request.location,
-                            user_type=effective_user_type,
-                            session_id=request.session_id,
-                            context=request.context,
-                            language=request.language,
-                        )
-                        nlp_result = await self._invoke_nlp_agent(synthetic_request)
-                        structured_query = nlp_result.get("structured_query", {})
-                        intent = nlp_result.get("intent", "general_climate_query")
-                        entities = nlp_result.get("entities", {})
-                        expanded_query = nlp_result.get("expanded_query", "")
-                        if expanded_query:
-                            structured_query["expanded_query"] = expanded_query
+            if is_location_only:
+                synthesised = None
+                if request.session_id:
+                    history = history_service.get_turns(request.session_id)
+                    if history:
+                        last_summary = history[-1].get("response_summary", "").lower()
+                        asked_for_location = "please specify a location" in last_summary or "specify a location" in last_summary
+                        if asked_for_location:
+                            # Reconstruct: use previous intent if available, default to weather
+                            last_query = history[-1].get("query", "").lower()
+                            if any(w in last_query for w in ["flood", "flooding"]):
+                                synthesised = f"flood risk in {request.query.strip()}"
+                            elif any(w in last_query for w in ["drought"]):
+                                synthesised = f"drought in {request.query.strip()}"
+                            elif any(w in last_query for w in ["rain", "rainfall"]):
+                                synthesised = f"rainfall in {request.query.strip()}"
+                            elif any(w in last_query for w in ["cyclone", "storm"]):
+                                synthesised = f"cyclone risk in {request.query.strip()}"
+                            else:
+                                synthesised = f"weather in {request.query.strip()}"
+                if synthesised is None:
+                    # Fresh location-only query: assume current weather.
+                    synthesised = f"weather in {request.query.strip()}"
+                if synthesised:
+                    # Re-run NLP on the synthesised query
+                    from app.models.schemas import ChatRequest as CR
+                    synthetic_request = CR(
+                        query=synthesised,
+                        location=request.location,
+                        user_type=effective_user_type,
+                        session_id=request.session_id,
+                        context=request.context,
+                        language=request.language,
+                    )
+                    nlp_result = await self._invoke_nlp_agent(synthetic_request)
+                    structured_query = nlp_result.get("structured_query", {})
+                    intent = nlp_result.get("intent", "general_climate_query")
+                    entities = nlp_result.get("entities", {})
+                    expanded_query = nlp_result.get("expanded_query", "")
+                    if expanded_query:
+                        structured_query["expanded_query"] = expanded_query
 
             # --- Step 2b: Sri Lanka geo-restriction (runs BEFORE non-climate check) ---
             # If the user mentions a foreign country/city, tell them the system
