@@ -5,7 +5,6 @@ Agentic AI-Powered Climate Intelligence & Decision Support System
 """
 
 import multiprocessing
-import logging
 
 # Required on Windows: prevents subprocesses from re-executing this module
 # when multiprocessing uses the 'spawn' start method (Windows default).
@@ -16,7 +15,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import alerts, chat, health, agents, vector_store, speech, billing
+from app.routers import chat, health, agents, vector_store, speech, billing
 
 
 def _run_security_agent():
@@ -57,45 +56,17 @@ def _run_recommendation_agent():
 
 # Keep references so we can terminate on shutdown
 _agent_processes: list[multiprocessing.Process] = []
-logger = logging.getLogger(__name__)
-
-
-def _validate_production_security() -> None:
-    """Reject unsafe settings before a production instance accepts traffic."""
-    if settings.environment.lower() not in {"production", "prod"}:
-        return
-
-    if (
-        settings.debug
-        or settings.secret_key == "replace-with-a-random-production-secret"
-        or len(settings.secret_key) < 32
-    ):
-        raise RuntimeError(
-            "Production requires DEBUG=false and a SECRET_KEY of at least 32 characters."
-        )
-    if not settings.admin_token or len(settings.admin_token) < 32:
-        raise RuntimeError(
-            "Production requires an ADMIN_TOKEN of at least 32 characters."
-        )
-    if not settings.cors_origins or any(
-        origin == "*" or not origin.lower().startswith("https://")
-        for origin in settings.cors_origins
-    ):
-        raise RuntimeError(
-            "Production CORS_ORIGINS must contain only explicit HTTPS origins."
-        )
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application startup and shutdown events."""
     # Startup
-    _validate_production_security()
     print(f"🌍 Starting {settings.app_name} v{settings.app_version}")
     print(f"   Environment: {settings.environment}")
     print(f"   Debug: {settings.debug}")
 
-    if settings.secret_key == "replace-with-a-random-production-secret":
+    if settings.secret_key == "change-this-in-production":
         print("   ⚠ WARNING: SECRET_KEY is the default value — set a real one in production.")
     if not settings.admin_token:
         print("   ⚠ WARNING: ADMIN_TOKEN is not set — protected vector endpoints are open (dev mode).")
@@ -107,8 +78,6 @@ async def lifespan(app: FastAPI):
     from app.services.vector_store_service import vector_store_service
     from app.services.tts_service import tts_service
     from app.services.history_service import history_service
-    from app.services.alert_service import alert_service
-    import asyncio as _alert_asyncio
 
     for svc_name, svc in [
         ("llm", llm_service),
@@ -116,25 +85,12 @@ async def lifespan(app: FastAPI):
         ("vector store", vector_store_service),
         ("tts", tts_service),
         ("chat history", history_service),
-        ("alert service", alert_service),
     ]:
         try:
             await svc.initialize()
             print(f"   ✓ {svc_name} service ready")
         except Exception as exc:
             print(f"   ⚠ {svc_name} service failed to initialize ({exc}) — continuing with fallbacks")
-
-    alert_task = None
-    if settings.vapid_public_key and settings.vapid_private_key:
-        async def monitor_alerts():
-            while True:
-                try:
-                    await alert_service.monitor_once()
-                except Exception:
-                    logger.exception("Weather alert monitor cycle failed")
-                await _alert_asyncio.sleep(max(60, settings.alert_poll_interval_seconds))
-        alert_task = _alert_asyncio.create_task(monitor_alerts())
-        print(f"   ✓ Weather alert monitor enabled (every {settings.alert_poll_interval_seconds}s)")
 
     print("   Services initialized (see warnings above for any degraded service)")
 
@@ -168,17 +124,8 @@ async def lifespan(app: FastAPI):
 
     yield
 
-    if alert_task:
-        alert_task.cancel()
-
     # Shutdown — terminate agent subprocesses cleanly
     print(f"🛑 Shutting down {settings.app_name}")
-    if alert_task is not None:
-        alert_task.cancel()
-        try:
-            await alert_task
-        except _alert_asyncio.CancelledError:
-            pass
     for proc in _agent_processes:
         proc.terminate()
         proc.join(timeout=3)
@@ -208,7 +155,6 @@ app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(vector_store.router, prefix="/api/v1/vectors", tags=["Vector Store"])
 app.include_router(speech.router, prefix="/api/v1/speech", tags=["Speech"])
 app.include_router(billing.router, prefix="/api/v1/billing", tags=["Billing"])
-app.include_router(alerts.router, prefix="/api/v1/alerts", tags=["Alerts"])
 
 
 @app.get("/")

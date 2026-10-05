@@ -503,12 +503,6 @@ class OrchestratorAgent:
         """Assemble the final response from all agent outputs."""
 
         processing_time = (time.time() - start_time) * 1000
-        from app.services import i18n_service as i18n
-        entities = nlp_result.get("entities", {}) or {}
-        live_docs = [
-            d for d in ir_result.get("documents", [])
-            if d.get("evidence_type") == "live" or d.get("date") == "live"
-        ]
 
         # Build summary using LLM to synthesize all agent outputs
         summary = await self._generate_summary(
@@ -516,7 +510,6 @@ class OrchestratorAgent:
             analysis=analysis_result,
             verification=verification_result,
             language=language,
-            live_docs=live_docs,
         )
 
         # Build risk assessment
@@ -558,6 +551,13 @@ class OrchestratorAgent:
         confidence = verification_result.get("confidence", 0.5)
 
         # --- Language handling -------------------------------------------------
+        from app.services import i18n_service as i18n
+        entities = nlp_result.get("entities", {}) or {}
+        live_docs = [
+            d for d in ir_result.get("documents", [])
+            if d.get("evidence_type") == "live" or d.get("date") == "live"
+        ]
+
         # No LLM (mock mode), or the LLM did not answer in the requested language:
         # build a data-based summary from the live readings instead of a canned line.
         if (not llm_service.is_available()) or not summary or (
@@ -608,29 +608,17 @@ class OrchestratorAgent:
         )
 
     async def _generate_summary(
-        self,
-        query: str,
-        analysis: dict,
-        verification: dict,
-        language: str = "en",
-        live_docs: Optional[list[dict]] = None,
+        self, query: str, analysis: dict, verification: dict, language: str = "en"
     ) -> str:
         """Use the LLM to generate a user-friendly summary from agent outputs."""
         from app.services.language_service import get_response_instruction
 
         language_instruction = get_response_instruction(language)
-        live_context = "\n".join(
-            f"- {doc.get('source_name', 'Live source')}: "
-            f"{doc.get('content', doc.get('snippet', ''))[:500]}"
-            for doc in (live_docs or [])
-        ) or "No live weather readings were retrieved."
 
         prompt = f"""Based on the following climate analysis, provide a clear and concise summary 
 for the user who asked: "{query}"
 
 Analysis findings: {analysis.get('summary', 'No analysis available')}
-Live weather evidence:
-{live_context}
 Risk level: {analysis.get('risk_level', 'unknown')}
 Risk factors: {', '.join(analysis.get('risk_factors', [])) or 'None identified'}
 Verification status: {'Verified' if verification.get('verified') else 'Partially verified'}
@@ -639,9 +627,6 @@ Confidence: {verification.get('confidence', 'Unknown')}
 Provide a helpful, evidence-based summary in 2-4 sentences. Be specific about the risks 
 and what the user should know. Be clear about what is known and what is uncertain. 
 Do not make claims beyond what the evidence supports.
-If the user asks for current weather and live weather evidence is provided, answer that
-question directly using the temperature, conditions, humidity, wind, and precipitation
-details in the live evidence. Do not say that current weather cannot be provided.
 
 {language_instruction}"""
 

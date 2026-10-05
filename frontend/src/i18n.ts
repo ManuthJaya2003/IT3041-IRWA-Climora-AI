@@ -15,9 +15,6 @@ export interface UiText {
   readAloud: string
   playing: string
   generating: string
-  pause: string
-  resume: string
-  stop: string
   risk: Record<string, string>      // badge label per risk level
   priority: Record<string, string>  // label per recommendation priority
 }
@@ -34,9 +31,6 @@ const UI: Record<Lang, UiText> = {
     readAloud: 'Read aloud',
     playing: 'Playing...',
     generating: 'Generating...',
-    pause: 'Pause',
-    resume: 'Resume',
-    stop: 'Stop',
     risk: { low: 'Low Risk', moderate: 'Moderate Risk', high: 'High Risk', critical: 'Critical Risk', unknown: 'Unknown Risk' },
     priority: { immediate: 'immediate', 'short-term': 'short-term', 'long-term': 'long-term' },
   },
@@ -51,9 +45,6 @@ const UI: Record<Lang, UiText> = {
     readAloud: 'හඬ නගා කියවන්න',
     playing: 'වාදනය වෙමින්...',
     generating: 'සකසමින්...',
-    pause: 'විරාමය',
-    resume: 'නැවත වාදනය',
-    stop: 'නවත්වන්න',
     risk: { low: 'අඩු අවදානම', moderate: 'මධ්‍යම අවදානම', high: 'ඉහළ අවදානම', critical: 'බරපතල අවදානම', unknown: 'නොදන්නා අවදානම' },
     priority: { immediate: 'ක්ෂණික', 'short-term': 'කෙටි කාලීන', 'long-term': 'දිගු කාලීන' },
   },
@@ -68,9 +59,6 @@ const UI: Record<Lang, UiText> = {
     readAloud: 'உரக்கப் படிக்க',
     playing: 'இயக்கப்படுகிறது...',
     generating: 'உருவாக்குகிறது...',
-    pause: 'இடைநிறுத்து',
-    resume: 'மீண்டும் இயக்கு',
-    stop: 'நிறுத்து',
     risk: { low: 'குறைந்த ஆபத்து', moderate: 'மிதமான ஆபத்து', high: 'அதிக ஆபத்து', critical: 'தீவிர ஆபத்து', unknown: 'அறியப்படாத ஆபத்து' },
     priority: { immediate: 'உடனடி', 'short-term': 'குறுகிய காலம்', 'long-term': 'நீண்ட காலம்' },
   },

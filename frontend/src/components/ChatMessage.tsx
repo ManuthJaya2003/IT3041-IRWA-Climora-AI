@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from 'react'
-import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock, Volume2, Loader2, Pause, Play, Square } from 'lucide-react'
+import { useState } from 'react'
+import { User, Globe, AlertTriangle, CheckCircle, ExternalLink, Shield, Clock, Volume2, Loader2 } from 'lucide-react'
 import { ChatResponse, textToSpeech } from '../api/climoraApi'
 import { Message } from './ChatInterface'
 import { uiText } from '../i18n'
@@ -19,17 +19,17 @@ export default function ChatMessage({ message }: ChatMessageProps) {
         </div>
       )}
 
-      <div className={`max-w-[92%] sm:max-w-[85%] ${isUser ? 'order-first' : ''}`}>
+      <div className={`max-w-[92%] sm:max-w-[85%] min-w-0 ${isUser ? 'order-first' : ''}`}>
         {/* Message Bubble */}
         <div
-          className={`rounded-2xl px-4 py-3 ${
+          className={`rounded-2xl px-4 py-3 break-words ${
             isUser
               ? 'bg-climora-600 text-white'
               : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
           }`}
         >
           {isUser ? (
-            <p className="text-sm whitespace-pre-wrap">{message.content}</p>
+            <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
           ) : (
             <div>
               <FormattedText text={message.content} />
@@ -64,7 +64,7 @@ function FormattedText({ text }: { text: string }) {
   const parts = text.split(/(\*\*[^*]+\*\*)/g)
 
   return (
-    <div className="text-sm whitespace-pre-wrap leading-relaxed">
+    <div className="text-sm whitespace-pre-wrap break-words leading-relaxed" lang="auto">
       {parts.map((part, i) => {
         if (part.startsWith('**') && part.endsWith('**')) {
           return <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
@@ -102,7 +102,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
                 {riskFactors.map((factor, idx) => (
                   <span
                     key={idx}
-                    className="text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full whitespace-nowrap"
+                    className="text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full break-words"
                   >
                     {factor.replace(/-/g, ' ')}
                   </span>
@@ -113,7 +113,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
 
           {/* Risk Explanation */}
           {response.risk_assessment.explanation && (
-            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed">
+            <p className="text-xs text-slate-500 dark:text-slate-400 mt-2 leading-relaxed break-words">
               {response.risk_assessment.explanation}
             </p>
           )}
@@ -127,7 +127,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
             {t.detailedAnalysis}
           </summary>
           <div className="px-4 pb-3">
-            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed">{response.detailed_analysis}</p>
+            <p className="text-xs text-slate-600 dark:text-slate-300 leading-relaxed break-words">{response.detailed_analysis}</p>
           </div>
         </details>
       )}
@@ -144,9 +144,9 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
               <li key={idx} className="flex items-start gap-2">
                 <PriorityBadge priority={rec.priority} lang={response.language} />
                 <div>
-                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium">{rec.action}</span>
+                  <span className="text-xs text-slate-700 dark:text-slate-200 font-medium break-words">{rec.action}</span>
                   {rec.explanation && (
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5">{rec.explanation}</p>
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 break-words">{rec.explanation}</p>
                   )}
                 </div>
               </li>
@@ -174,14 +174,14 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
                         href={source.source_url}
                         target="_blank"
                         rel="noopener noreferrer"
-                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium"
+                        className="text-xs text-blue-600 dark:text-blue-400 hover:underline font-medium break-all"
                       >
                         {source.source_name}
                       </a>
                     ) : (
                       <span className="text-xs text-slate-700 dark:text-slate-200 font-medium">{source.source_name}</span>
                     )}
-                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-3">
+                    <p className="text-xs text-slate-400 dark:text-slate-500 mt-0.5 line-clamp-3 break-words">
                       {source.content_snippet.length > 220
                         ? `${source.content_snippet.slice(0, 220)}...`
                         : source.content_snippet}
@@ -277,117 +277,48 @@ function ReadAloudButton({ text, language }: { text: string; language?: string }
   const t = uiText(language)
   const [isLoading, setIsLoading] = useState(false)
   const [isPlaying, setIsPlaying] = useState(false)
-  const [isPaused, setIsPaused] = useState(false)
-  const audioRef = useRef<HTMLAudioElement | null>(null)
-  const audioUrlRef = useRef<string | null>(null)
-
-  const releaseAudio = () => {
-    const audio = audioRef.current
-    if (audio) {
-      audio.pause()
-      audio.onended = null
-      audio.onerror = null
-      audioRef.current = null
-    }
-    if (audioUrlRef.current) {
-      URL.revokeObjectURL(audioUrlRef.current)
-      audioUrlRef.current = null
-    }
-  }
-
-  useEffect(() => releaseAudio, [])
 
   const handleReadAloud = async () => {
-    if (isPlaying || isLoading) return
+    if (isPlaying) return
 
     setIsLoading(true)
     try {
       const audioUrl = await textToSpeech(text, language)
-      const audio = new Audio(audioUrl)
-      audioRef.current = audio
-      audioUrlRef.current = audioUrl
       setIsLoading(false)
       setIsPlaying(true)
-      setIsPaused(false)
 
+      const audio = new Audio(audioUrl)
       audio.play().catch(() => {
-        releaseAudio()
         setIsPlaying(false)
-        setIsPaused(false)
+        URL.revokeObjectURL(audioUrl)
       })
       audio.onended = () => {
-        releaseAudio()
         setIsPlaying(false)
-        setIsPaused(false)
+        URL.revokeObjectURL(audioUrl)
       }
       audio.onerror = () => {
-        releaseAudio()
         setIsPlaying(false)
-        setIsPaused(false)
+        URL.revokeObjectURL(audioUrl)
       }
     } catch {
       setIsLoading(false)
       setIsPlaying(false)
-      setIsPaused(false)
     }
-  }
-
-  const handlePauseResume = () => {
-    const audio = audioRef.current
-    if (!audio) return
-    if (audio.paused) {
-      audio.play().catch(() => {
-        releaseAudio()
-        setIsPlaying(false)
-        setIsPaused(false)
-      })
-      setIsPaused(false)
-    } else {
-      audio.pause()
-      setIsPaused(true)
-    }
-  }
-
-  const handleStop = () => {
-    releaseAudio()
-    setIsPlaying(false)
-    setIsPaused(false)
   }
 
   return (
-    <div className="mt-2 flex items-center gap-2 text-xs">
-      {!isPlaying && (
-        <button
-          onClick={handleReadAloud}
-          disabled={isLoading}
-          className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors disabled:opacity-50"
-          aria-label={t.readAloud}
-        >
-          {isLoading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Volume2 className="w-3 h-3" />}
-          <span>{isLoading ? t.generating : t.readAloud}</span>
-        </button>
+    <button
+      onClick={handleReadAloud}
+      disabled={isLoading || isPlaying}
+      className="mt-2 flex items-center gap-1 text-xs text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors disabled:opacity-50"
+      aria-label={t.readAloud}
+    >
+      {isLoading ? (
+        <Loader2 className="w-3 h-3 animate-spin" />
+      ) : (
+        <Volume2 className="w-3 h-3" />
       )}
-      {isPlaying && (
-        <>
-          <button
-            onClick={handlePauseResume}
-            className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-climora-600 transition-colors"
-            aria-label={isPaused ? t.resume : t.pause}
-          >
-            {isPaused ? <Play className="w-3 h-3" /> : <Pause className="w-3 h-3" />}
-            <span>{isPaused ? t.resume : t.pause}</span>
-          </button>
-          <button
-            onClick={handleStop}
-            className="flex items-center gap-1 text-slate-400 dark:text-slate-500 hover:text-red-600 transition-colors"
-            aria-label={t.stop}
-          >
-            <Square className="w-3 h-3" />
-            <span>{t.stop}</span>
-          </button>
-          <span className="text-slate-400 dark:text-slate-500">{isPaused ? t.pause : t.playing}</span>
-        </>
-      )}
-    </div>
+      <span>{isPlaying ? t.playing : isLoading ? t.generating : t.readAloud}</span>
+    </button>
   )
 }

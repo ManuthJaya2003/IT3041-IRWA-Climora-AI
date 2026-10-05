@@ -39,7 +39,6 @@ python-multipart==0.0.9
 # Utilities
 python-dotenv==1.0.1
 tenacity==9.0.0
-pywebpush==2.0.3
 
 # Text-to-Speech (multilingual)
 gTTS==2.5.1

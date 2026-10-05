@@ -24,15 +24,12 @@ class BedrockService:
             import boto3
 
             if settings.aws_access_key_id and settings.aws_secret_access_key:
-                client_kwargs = {
-                    "service_name": "bedrock-runtime",
-                    "aws_access_key_id": settings.aws_access_key_id,
-                    "aws_secret_access_key": settings.aws_secret_access_key,
-                    "region_name": settings.aws_region,
-                }
-                if settings.aws_session_token:
-                    client_kwargs["aws_session_token"] = settings.aws_session_token
-                self._client = boto3.client(**client_kwargs)
+                self._client = boto3.client(
+                    "bedrock-runtime",
+                    aws_access_key_id=settings.aws_access_key_id,
+                    aws_secret_access_key=settings.aws_secret_access_key,
+                    region_name=settings.aws_region,
+                )
                 self._available = True
                 print("   ✓ Bedrock service initialized")
             else:
