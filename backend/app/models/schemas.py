@@ -19,6 +19,7 @@ class UserType(str, Enum):
     BUSINESS = "business"
     ORGANIZATION = "organization"
     INSTITUTION = "institution"
+    TRAVELLER = "traveller"
 
 
 class RiskLevel(str, Enum):

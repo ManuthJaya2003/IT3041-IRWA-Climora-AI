@@ -51,6 +51,7 @@ def infer_user_type(query: str, configured_user_type: Optional[str]) -> str:
         "business": ("business", "shop", "company", "supplier", "stock", "වෙළඳ", "ව්‍යාපාර", "வணிகம்", "கடை"),
         "organization": ("organization", "community group", "ngo", "residents", "ප්‍රජා", "සංවිධානය", "சமூக அமைப்பு"),
         "institution": ("hospital", "school management", "university", "facility", "institution", "රෝහල", "ආයතනය", "மருத்துவமனை"),
+        "traveller": ("traveller", "traveler", "travelling", "traveling", "tourist", "tourism", "trip", "journey", "visiting", "සංචාරක", "சுற்றுலா", "பயணி"),
     }
     for role, terms in role_terms.items():
         if any(term in text for term in terms):
