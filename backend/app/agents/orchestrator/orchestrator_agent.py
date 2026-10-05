@@ -397,6 +397,7 @@ class OrchestratorAgent:
                 agents_used=agents_used,
                 start_time=start_time,
                 language=detected_language,
+                user_type=effective_user_type,
             )
 
             # Store in session
@@ -580,6 +581,7 @@ class OrchestratorAgent:
         agents_used: list[str],
         start_time: float,
         language: str = "en",
+        user_type: Optional[str] = None,
     ) -> ChatResponse:
         """Assemble the final response from all agent outputs."""
 
@@ -595,7 +597,7 @@ class OrchestratorAgent:
             analysis=analysis_result,
             verification=verification_result,
             language=language,
-            user_type=effective_user_type,
+            user_type=user_type,
             location=request.location or nlp_result.get("entities", {}).get("location"),
             evidence=live_docs,
         )
