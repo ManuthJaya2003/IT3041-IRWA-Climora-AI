@@ -93,6 +93,11 @@ def correct_token(token: str) -> str | None:
         return None
     if word in _VOCAB:
         return None
+    # Never "correct" off-topic signal words: "train" must not become
+    # "rain", or the off-topic gate loses its evidence.
+    from app.agents.nlp_agent.nlp_agent import NON_CLIMATE_TERMS as _blocked_terms
+    if word in _blocked_terms:
+        return None
     match = get_close_matches(word, _VOCAB, n=1, cutoff=_CUTOFF)
     return match[0] if match else None
 

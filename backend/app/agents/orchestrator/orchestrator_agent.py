@@ -104,6 +104,30 @@ class OrchestratorAgent:
             # Runs before greetings/security/NLP so "weathe in colomob"
             # becomes "weather in colombo" everywhere downstream. Rule-based
             # first (free, deterministic); Bedrock rewrite only when needed.
+            # Off-topic gate runs on the ORIGINAL query first: correction
+            # would otherwise rewrite tell-tale terms ("train" -> "rain")
+            # and destroy the off-topic signal.
+            from app.agents.nlp_agent.nlp_agent import (
+                contains_non_climate_term as _contains_blocked,
+            )
+            from app.agents.ir_agent.ir_agent import (
+                query_has_climate_term as _has_climate_term,
+            )
+            if _contains_blocked(request.query.lower()) and not _has_climate_term(
+                request.query
+            ):
+                return ChatResponse(
+                    session_id=session_id,
+                    query=request.query,
+                    summary=i18n.localize_static(
+                        "I can only answer climate and environmental questions for locations in Sri Lanka. Please ask about weather, hazards, climate risks, flood, drought, or preparedness for a Sri Lankan location.",
+                        detected_language,
+                    ),
+                    language=detected_language,
+                    confidence_score=0.0,
+                    processing_time_ms=(time.time() - start_time) * 1000,
+                    agents_used=agents_used,
+                )
             from app.services import query_normalize_service as qnorm
             normalized_query, corrections, _llm_rewrite = await qnorm.normalize_query(request.query)
             if corrections:
@@ -372,6 +396,14 @@ class OrchestratorAgent:
             agents_used.append("ir_agent")
 
             retrieved_evidence = ir_result.get("documents", [])
+
+            if not retrieved_evidence:
+                # One immediate retry: empty results are usually a transient
+                # live-API or cold-start failure, and curated documents should
+                # exist for any Sri Lanka location query.
+                logger.info("IR returned no documents, retrying once")
+                ir_result = await self._invoke_ir_agent(structured_query, entities)
+                retrieved_evidence = ir_result.get("documents", [])
 
             if not retrieved_evidence:
                 verification_result = await self._invoke_verification_agent(

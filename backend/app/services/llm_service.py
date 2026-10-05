@@ -4,10 +4,12 @@ LLM Service - AWS Bedrock (primary) with Google Gemini (fallback).
 Bedrock (Claude) is preferred for production. When Bedrock credentials are
 missing or expired, the service falls back to the configured Gemini API key
 so the pipeline keeps full synthesis quality instead of dropping to
-extractive fallbacks. If neither provider is reachable the service reports
-unavailable and callers use their labelled fallbacks.
+extractive fallbacks. Calls fail over between providers automatically, so
+agent subprocesses (which skip the paid Bedrock probe at startup) still end
+up on a working provider instead of failing every call.
 """
 
+import asyncio
 import json
 import logging
 from typing import Optional
@@ -16,39 +18,59 @@ from app.config import settings
 
 logger = logging.getLogger(__name__)
 
-# Model IDs tried in order when the configured one is rejected.
+# Stable models first: versioned preview aliases 503 under free-tier load.
 _GEMINI_CANDIDATES = ("gemini-2.5-flash", "gemini-flash-latest")
 
 
 class LLMService:
-    """LLM service backed by AWS Bedrock with a Gemini fallback."""
+    """LLM service with automatic Bedrock <-> Gemini failover."""
 
     def __init__(self):
         self._bedrock_client = None
+        self._bedrock_usable = False
+        self._gemini_model: Optional[str] = None
+        self._gemini_usable = False
         self._available = False
         self._provider = "none"
-        self._gemini_model: Optional[str] = None
 
     async def initialize(self, validate_access: bool = True):
         """
-        Initialize the best available provider.
+        Detect working providers.
 
-        ``validate_access`` performs a small probe for the main process. Agent
-        subprocesses skip that probe because each process would otherwise
-        consume an additional model invocation during startup.
+        ``validate_access`` performs paid Bedrock probe for the main process.
+        Agent subprocesses skip it (each probe would cost a model invocation)
+        and rely on free Gemini probing plus runtime failover.
         """
-        if await self._init_bedrock(validate_access):
-            return
-        if await self._init_gemini(validate_access):
-            return
-        self._available = False
-        self._provider = "none"
-        print("   ✗ LLM service: no provider available "
-              "(Bedrock unreachable, Gemini key missing or invalid)")
+        if settings.aws_access_key_id and settings.aws_secret_access_key:
+            if validate_access:
+                self._bedrock_usable = await self._probe_bedrock()
+            else:
+                # Unverified: kept as a candidate; the first failed call
+                # drops it and fails over to Gemini automatically.
+                self._bedrock_usable = True
+        await self._init_gemini(probe=validate_access)
+        self._refresh_state(log=True)
 
-    async def _init_bedrock(self, validate_access: bool) -> bool:
-        if not (settings.aws_access_key_id and settings.aws_secret_access_key):
-            return False
+    def _refresh_state(self, log: bool = False):
+        self._available = self._bedrock_usable or self._gemini_usable
+        if self._bedrock_usable:
+            self._provider = "bedrock"
+        elif self._gemini_usable:
+            self._provider = "gemini"
+        else:
+            self._provider = "none"
+        if log:
+            if self._bedrock_usable:
+                print("   ✓ LLM service: Bedrock available", end="")
+                print("; Gemini fallback ready"
+                      if self._gemini_usable else " (no Gemini fallback)")
+            elif self._gemini_usable:
+                print(f"   ✓ LLM service initialized (provider: Gemini - {self._gemini_model})")
+            else:
+                print("   ✗ LLM service: no provider available "
+                      "(Bedrock unreachable, Gemini key missing or invalid)")
+
+    async def _probe_bedrock(self) -> bool:
         try:
             import boto3
 
@@ -60,64 +82,71 @@ class LLMService:
             }
             if settings.aws_session_token:
                 kwargs["aws_session_token"] = settings.aws_session_token
-
             client = boto3.client(**kwargs)
-            if validate_access:
-                test_body = json.dumps({
-                    "anthropic_version": "bedrock-2023-05-31",
-                    "max_tokens": 10,
-                    "messages": [{"role": "user", "content": "hi"}],
-                })
-                client.invoke_model(
-                    modelId=settings.bedrock_model_id,
-                    contentType="application/json",
-                    accept="application/json",
-                    body=test_body,
-                )
+            test_body = json.dumps({
+                "anthropic_version": "bedrock-2023-05-31",
+                "max_tokens": 10,
+                "messages": [{"role": "user", "content": "hi"}],
+            })
+            client.invoke_model(
+                modelId=settings.bedrock_model_id,
+                contentType="application/json",
+                accept="application/json",
+                body=test_body,
+            )
             self._bedrock_client = client
-            self._provider = "bedrock"
-            self._available = True
-            print(f"   ✓ LLM service initialized (provider: Bedrock - {settings.bedrock_model_id})")
             return True
         except Exception as e:
-            self._available = False
             print(f"   ✗ LLM service: Bedrock unavailable ({type(e).__name__})")
             return False
 
-    async def _init_gemini(self, validate_access: bool) -> bool:
+    def _bedrock_client_lazy(self):
+        if self._bedrock_client is None:
+            import boto3
+
+            kwargs = {
+                "service_name": "bedrock-runtime",
+                "aws_access_key_id": settings.aws_access_key_id,
+                "aws_secret_access_key": settings.aws_secret_access_key,
+                "region_name": settings.aws_region,
+            }
+            if settings.aws_session_token:
+                kwargs["aws_session_token"] = settings.aws_session_token
+            self._bedrock_client = boto3.client(**kwargs)
+        return self._bedrock_client
+
+    async def _init_gemini(self, probe: bool) -> bool:
         key = (settings.gemini_api_key or "").strip()
         if not key:
             return False
-        candidates = []
+        candidates = [m for m in _GEMINI_CANDIDATES]
         configured = (settings.gemini_model_id or "").strip()
-        if configured:
+        if configured and configured not in candidates:
             candidates.append(configured)
-        candidates.extend(m for m in _GEMINI_CANDIDATES if m not in candidates)
+        if not probe:
+            self._gemini_model = candidates[0]
+            self._gemini_usable = True
+            return True
         try:
             import httpx
 
-            for model in candidates:
-                try:
-                    if validate_access:
-                        async with httpx.AsyncClient(timeout=20.0) as client:
-                            resp = await client.post(
-                                "https://generativelanguage.googleapis.com/v1beta/models/"
-                                f"{model}:generateContent?key={key}",
-                                json={"contents": [{"parts": [{"text": "hi"}]}]},
-                            )
-                            if resp.status_code != 200:
-                                logger.warning(
-                                    "Gemini model %s rejected (%s)",
-                                    model, resp.status_code,
-                                )
-                                continue
-                    self._gemini_model = model
-                    self._provider = "gemini"
-                    self._available = True
-                    print(f"   ✓ LLM service initialized (provider: Gemini - {model})")
-                    return True
-                except Exception as exc:
-                    logger.warning("Gemini model %s probe failed: %s", model, exc)
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                for model in candidates:
+                    try:
+                        resp = await client.post(
+                            "https://generativelanguage.googleapis.com/v1beta/models/"
+                            f"{model}:generateContent?key={key}",
+                            json={"contents": [{"parts": [{"text": "hi"}]}]},
+                        )
+                        if resp.status_code != 200:
+                            logger.warning("Gemini model %s rejected (%s)",
+                                           model, resp.status_code)
+                            continue
+                        self._gemini_model = model
+                        self._gemini_usable = True
+                        return True
+                    except Exception as exc:
+                        logger.warning("Gemini model %s probe failed: %s", model, exc)
         except Exception as exc:
             logger.warning("Gemini init failed: %s", exc)
         return False
@@ -139,14 +168,26 @@ class LLMService:
         max_tokens: int = 2048,
         temperature: float = 0.7,
     ) -> str:
-        """Invoke the active provider; raise if none is available."""
-        if not self._available:
-            raise RuntimeError("No LLM provider is available")
-        if self._provider == "bedrock":
-            return await self._invoke_bedrock(prompt, system_prompt, max_tokens, temperature)
-        if self._provider == "gemini":
-            return await self._invoke_gemini(prompt, system_prompt, max_tokens, temperature)
-        raise RuntimeError("No LLM provider is available")
+        """Invoke providers in order, failing over automatically."""
+        errors = []
+        if self._bedrock_usable:
+            try:
+                return await self._invoke_bedrock(prompt, system_prompt,
+                                                  max_tokens, temperature)
+            except Exception as e:
+                errors.append(f"bedrock: {e}")
+                self._bedrock_usable = False
+                self._refresh_state()
+        if self._gemini_usable:
+            try:
+                return await self._invoke_gemini(prompt, system_prompt,
+                                                 max_tokens, temperature)
+            except Exception as e:
+                errors.append(f"gemini: {e}")
+                self._gemini_usable = False
+                self._refresh_state()
+        raise RuntimeError("No LLM provider is available ("
+                           + "; ".join(errors) + ")")
 
     # -------------------------------------------------------------------------
     # Provider implementations
@@ -160,6 +201,7 @@ class LLMService:
         temperature: float,
     ) -> str:
         try:
+            client = self._bedrock_client_lazy()
             body = {
                 "anthropic_version": "bedrock-2023-05-31",
                 "max_tokens": max_tokens,
@@ -169,7 +211,8 @@ class LLMService:
             if system_prompt:
                 body["system"] = system_prompt
 
-            response = self._bedrock_client.invoke_model(
+            response = await asyncio.to_thread(
+                client.invoke_model,
                 modelId=settings.bedrock_model_id,
                 contentType="application/json",
                 accept="application/json",
@@ -197,34 +240,43 @@ class LLMService:
 
         key = (settings.gemini_api_key or "").strip()
         text = f"{system_prompt}\n\n{prompt}" if system_prompt else prompt
-        # Thinking models spend output budget on internal reasoning, which
-        # truncates short answers — disable thinking for direct responses,
-        # retrying without the flag if the model rejects it.
-        payloads = [
-            {"contents": [{"parts": [{"text": text}]}],
-             "generationConfig": {"maxOutputTokens": max_tokens,
-                                  "temperature": temperature,
-                                  "thinkingConfig": {"thinkingBudget": 0}}},
-            {"contents": [{"parts": [{"text": text}]}],
-             "generationConfig": {"maxOutputTokens": max_tokens,
-                                  "temperature": temperature}},
-        ]
+        models = [self._gemini_model or _GEMINI_CANDIDATES[0]]
+        models.extend(m for m in _GEMINI_CANDIDATES if m not in models)
         last_error: Exception | None = None
         try:
             async with httpx.AsyncClient(timeout=60.0) as client:
-                for payload in payloads:
-                    try:
-                        resp = await client.post(
-                            "https://generativelanguage.googleapis.com/v1beta/models/"
-                            f"{self._gemini_model}:generateContent?key={key}",
-                            json=payload,
-                        )
-                        resp.raise_for_status()
-                        data = resp.json()
-                        return data["candidates"][0]["content"]["parts"][0]["text"]
-                    except Exception as e:
-                        last_error = e
-                        logger.warning("Gemini call failed (%s), retrying", e)
+                for model in models:
+                    use_thinking = True
+                    for attempt in range(3):
+                        config = {"maxOutputTokens": max_tokens,
+                                  "temperature": temperature}
+                        if use_thinking:
+                            config["thinkingConfig"] = {"thinkingBudget": 0}
+                        try:
+                            resp = await client.post(
+                                "https://generativelanguage.googleapis.com"
+                                "/v1beta/models/"
+                                f"{model}:generateContent?key={key}",
+                                json={"contents": [{"parts": [{"text": text}]}],
+                                      "generationConfig": config},
+                            )
+                            if resp.status_code in (503, 429):
+                                last_error = RuntimeError(
+                                    f"Gemini {model} overloaded ({resp.status_code})")
+                                await asyncio.sleep(2 ** attempt)
+                                continue
+                            if resp.status_code == 400 and use_thinking:
+                                use_thinking = False
+                                continue
+                            resp.raise_for_status()
+                            data = resp.json()
+                            self._gemini_model = model
+                            return (data["candidates"][0]["content"]
+                                    ["parts"][0]["text"])
+                        except Exception as e:
+                            last_error = e
+                            logger.warning("Gemini call failed (%s)", e)
+                            break
         except Exception as e:
             last_error = last_error or e
         logger.warning("Gemini error: %s", last_error)
