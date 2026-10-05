@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
-import { Send, MapPin, Loader2, Mic, MicOff, Volume2 } from 'lucide-react'
+import { Send, MapPin, Loader2, Mic, MicOff, Volume2, Globe } from 'lucide-react'
 import ChatMessage from './ChatMessage'
-import { streamQuery, sendVoiceQuery, getAudioUrl, ChatResponse, AgentStreamEvent } from '../api/climoraApi'
+import { streamQuery, sendVoiceQuery, getAudioUrl, apiErrorMessage, ChatResponse, AgentStreamEvent } from '../api/climoraApi'
 import { useSpeechRecognition } from '../hooks/useSpeechRecognition'
 import { notifyUsageChanged } from '../usageBus'
 
@@ -65,10 +65,10 @@ export default function ChatInterface({
   const [speechLang, setSpeechLang] = useState<string>(defaultLanguage)
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const audioRef = useRef<HTMLAudioElement | null>(null)
-  // Mirror of messages for parent callbacks — avoids stale-closure history loss
+  // Mirror of messages for parent callbacks - avoids stale-closure history loss
   // when a voice auto-submit races a typed submit.
   const messagesRef = useRef<Message[]>(initialMessages)
-  // Last voice transcript already submitted — prevents re-submitting a stale
+  // Last voice transcript already submitted - prevents re-submitting a stale
   // transcript when the mic is toggled again.
   const lastVoiceSubmit = useRef('')
 
@@ -189,7 +189,7 @@ export default function ChatInterface({
       // user to sign in) instead of always hiding it behind a generic message.
       const detail = error instanceof Error && error.message ? error.message : null
       const fallback = 'Sorry, I encountered an error processing your request. Please try again.'
-      // Raw "Stream request failed: 429" carries no meaning — use the fallback.
+      // Raw "Stream request failed: 429" carries no meaning - use the fallback.
       const content = detail && !/^Stream request failed/.test(detail) ? detail : fallback
       const errorMessage: Message = {
         id: newId(),
@@ -268,8 +268,7 @@ export default function ChatInterface({
         timestamp: new Date(),
       }
       // Axios errors carry the server's reason at response.data.detail.
-      const detail = (error as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      if (detail) errorMessage.content = detail
+      errorMessage.content = apiErrorMessage(error, errorMessage.content)
       messagesRef.current = [...messagesRef.current, errorMessage]
       setMessages(prev => [...prev, errorMessage])
     } finally {
@@ -319,7 +318,7 @@ export default function ChatInterface({
     if (level !== 'high' && level !== 'critical') return
     try {
       if (typeof Notification === 'undefined') return
-      const title = `Climora AI — ${level === 'critical' ? 'Critical' : 'High'} risk detected`
+      const title = `Climora AI - ${level === 'critical' ? 'Critical' : 'High'} risk detected`
       const body = response.summary.slice(0, 140)
       if (Notification.permission === 'granted') {
         fireAlert(title, body)
@@ -329,7 +328,7 @@ export default function ChatInterface({
             if (result === 'granted') fireAlert(title, body)
           })
           .catch(() => {
-            // Denied or dismissed — stay silent.
+            // Denied or dismissed - stay silent.
           })
       }
     } catch {
@@ -356,10 +355,10 @@ export default function ChatInterface({
             ))}
             {isLoading && (
               <div className="flex items-start gap-3">
-                <div className="w-8 h-8 rounded-full bg-climora-100 flex items-center justify-center shrink-0">
-                  <Loader2 className="w-4 h-4 text-climora-600 animate-spin" />
+                <div className="w-8 h-8 rounded-full bg-climora-100 dark:bg-climora-900/40 flex items-center justify-center shrink-0">
+                  <Loader2 className="w-4 h-4 text-climora-600 dark:text-climora-400 animate-spin" />
                 </div>
-                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-2xl px-4 py-3">
+                <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl px-4 py-3">
                   <div className="flex items-center gap-2">
                     <span className="text-sm text-slate-500 dark:text-slate-400">Analyzing climate data</span>
                     <span className="flex gap-1">
@@ -486,7 +485,7 @@ export default function ChatInterface({
           </form>
 
           <p className="text-xs text-slate-400 dark:text-slate-500 mt-2 text-center">
-            Climora AI supports English, සිංහල, and தமிழ் — speak or type in any language.
+            Climora AI supports English, සිංහල, and தமிழ் - speak or type in any language.
           </p>
         </div>
       </div>
@@ -504,8 +503,8 @@ interface WelcomeScreenProps {
 function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationChange }: WelcomeScreenProps) {
   return (
     <div className="flex flex-col items-center justify-center h-full text-center px-4 py-8">
-      <div className="w-16 h-16 bg-climora-100 dark:bg-climora-900/40 rounded-2xl flex items-center justify-center mb-5 shadow-sm">
-        <span className="text-3xl" aria-hidden="true">🌍</span>
+      <div className="w-14 h-14 bg-climora-600 rounded-2xl flex items-center justify-center mb-5">
+        <Globe className="w-7 h-7 text-white" aria-hidden="true" />
       </div>
       <h2 className="text-xl sm:text-2xl font-semibold text-slate-800 dark:text-slate-100 mb-2">
         {displayName ? `Welcome back, ${displayName}` : 'Welcome to Climora AI'}
@@ -517,7 +516,7 @@ function WelcomeScreen({ displayName, onSuggestionClick, location, onLocationCha
       </p>
 
       {/* Location prompt on welcome screen */}
-      <div className="flex items-center gap-2 mb-6 px-4 py-2 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-lg w-full max-w-sm">
+      <div className="flex items-center gap-2 mb-6 px-4 py-2.5 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl w-full max-w-sm">
         <MapPin className="w-4 h-4 text-climora-500" />
         <input
           type="text"

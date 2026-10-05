@@ -115,6 +115,22 @@ async def initialize(database_url: str | None = None) -> str:
             Column("created_at", DateTime(timezone=True), nullable=False),
         )
         metadata.create_all(engine)
+        # Migrate tables created by older app versions (create_all never
+        # ALTERs). Without this, one stale table drops the whole org
+        # service to memory fallback.
+        with engine.begin() as conn:
+            from sqlalchemy import text as _text
+            for ddl in (
+                "ALTER TABLE orgs ADD COLUMN IF NOT EXISTS status VARCHAR(16) NOT NULL DEFAULT 'trial'",
+                "ALTER TABLE orgs ADD COLUMN IF NOT EXISTS trial_ends_at TIMESTAMPTZ",
+                "ALTER TABLE orgs ADD COLUMN IF NOT EXISTS activated_at TIMESTAMPTZ",
+                "ALTER TABLE orgs ADD COLUMN IF NOT EXISTS billing_cycle VARCHAR(16) NOT NULL DEFAULT 'annual'",
+                "ALTER TABLE orgs ADD COLUMN IF NOT EXISTS receipt VARCHAR(64)",
+            ):
+                try:
+                    conn.execute(_text(ddl))
+                except Exception:
+                    logger.exception("Org migration failed: %s", ddl)
         with engine.connect() as conn:
             conn.execute(orgs.select().limit(1))
         _engine, _orgs, _members, _audit = engine, orgs, members, audit
@@ -282,9 +298,13 @@ def _persist_org(org: dict) -> None:
             cols = set(_orgs.c.keys())
             values = {k: v for k, v in org.items()
                       if k in cols and k not in ("id", "slug", "sso_configured", "status")}
-            for dt_key in ("trial_ends_at", "activated_at", "created_at"):
+            for dt_key in ("trial_ends_at", "activated_at"):
                 if dt_key in values:
-                    values[dt_key] = _parse_dt(values[dt_key]) or _utcnow()
+                    # Nullable: empty stays NULL (never default to now, or a
+                    # fresh org would read back as already activated).
+                    values[dt_key] = _parse_dt(values[dt_key])
+            if "created_at" in values:
+                values["created_at"] = _parse_dt(values["created_at"]) or _utcnow()
             if "created_at" in cols and "created_at" not in values:
                 values["created_at"] = _utcnow()
             existing = conn.execute(

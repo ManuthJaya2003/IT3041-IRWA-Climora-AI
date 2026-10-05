@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { X, Loader2, Mail, Lock, User as UserIcon, Eye, EyeOff, Building2 } from 'lucide-react'
-import { getAuthConfig, googleSignIn, login, register, startSso } from '../api/climoraApi'
+import { getAuthConfig, apiErrorMessage, googleSignIn, login, register, startSso } from '../api/climoraApi'
 
 interface AuthModalProps {
   open: boolean
@@ -59,9 +59,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
             await googleSignIn(resp.credential)
             onSuccess()
           } catch (e) {
-            setError(e instanceof Error ? e.message : 'Google sign-in failed.')
-            const msg = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-            if (msg) setError(msg)
+            setError(apiErrorMessage(e, 'Google sign-in failed.'))
           } finally {
             setBusy(false)
           }
@@ -73,7 +71,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
         width: 320,
       })
     } catch {
-      // GIS failed — email login still works.
+      // GIS failed - email login still works.
     }
   }, [open, googleId, onSuccess])
 
@@ -99,8 +97,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
       else await login(email.trim(), password)
       onSuccess()
     } catch (e) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(detail || 'Something went wrong. Please try again.')
+      setError(apiErrorMessage(e, 'Something went wrong. Please try again.'))
     } finally {
       setBusy(false)
     }
@@ -117,8 +114,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
       const { authorization_url } = await startSso(ssoSlug.trim().toLowerCase())
       window.location.href = authorization_url
     } catch (e) {
-      const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-      setError(detail || 'Could not start SSO. Check the organization slug.')
+      setError(apiErrorMessage(e, 'Could not start SSO. Check the organization slug.'))
       setSsoBusy(false)
     }
   }
@@ -136,7 +132,7 @@ export default function AuthModal({ open, mode, onModeChange, onSuccess, onClose
         </div>
         <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">
           {mode === 'register'
-            ? 'Your plan and quota are tied to this account — no one can spoof a tier.'
+            ? 'Your plan and quota are tied to this account - no one can spoof a tier.'
             : 'Sign in to use your plan, saved locations and quota.'}
         </p>
 

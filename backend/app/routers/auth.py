@@ -28,8 +28,9 @@ class GoogleRequest(BaseModel):
 
 def _token_response(user: dict) -> dict:
     token = auth_service.create_access_token(user["id"])
-    state = usage_service.get_usage(f"user:{user['id']}", user.get("plan_id", "free"))
-    return {"access_token": token, "token_type": "bearer", "user": auth_service._public_user(user), "usage": state}
+    pub = auth_service._public_user(user)
+    state = usage_service.get_usage(f"user:{user['id']}", pub["effective_plan_id"])
+    return {"access_token": token, "token_type": "bearer", "user": pub, "usage": state}
 
 
 @router.post("/register")
@@ -75,9 +76,9 @@ RequireUser = Depends(_require_user)
 
 @router.get("/me")
 async def me(user: dict = RequireUser):
-    plan = plans_service.get_plan(user.get("plan_id"))
-    state = usage_service.get_usage(f"user:{user['id']}", plan["id"])
-    return {"user": auth_service._public_user(user), "usage": state}
+    pub = auth_service._public_user(user)
+    state = usage_service.get_usage(f"user:{user['id']}", pub["effective_plan_id"])
+    return {"user": pub, "usage": state}
 
 
 @router.get("/config")

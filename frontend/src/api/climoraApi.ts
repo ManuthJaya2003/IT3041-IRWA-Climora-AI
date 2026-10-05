@@ -41,6 +41,32 @@ export function getAuthToken(): string | null {
   return authToken
 }
 
+/** Extract a renderable message from an API error (FastAPI 422 detail arrays included). */
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  const data = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (typeof data === 'string' && data) return data
+  if (Array.isArray(data)) {
+    const parts = data
+      .map(item => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object') {
+          const loc = (item as { loc?: unknown }).loc
+          const msg = (item as { msg?: unknown }).msg
+          const field = Array.isArray(loc) ? String(loc[loc.length - 1]) : ''
+          return typeof msg === 'string' ? (field ? `${field}: ${msg}` : msg) : null
+        }
+        return null
+      })
+      .filter((s): s is string => !!s)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  const msg = (e as Error)?.message
+  // Raw transport lines ("Request failed with status code 429",
+  // "Stream request failed: 429") carry no meaning for users.
+  if (msg && !/^Stream request failed/.test(msg) && !/^Request failed with status code/.test(msg)) return msg
+  return typeof fallback === 'string' && fallback ? fallback : 'Something went wrong. Please try again.'
+}
+
 api.interceptors.request.use(config => {
   config.headers = config.headers ?? {}
   config.headers['X-Plan'] = apiPlan
@@ -313,6 +339,9 @@ export interface AuthUser {
   provider: string
   plan_id: string
   plan_name: string
+  /** Server-resolved plan: enterprise when an org grants it, else the personal plan. */
+  effective_plan_id: string
+  effective_plan_name: string
   billing_cycle: 'monthly' | 'annual'
   created_at: string
 }

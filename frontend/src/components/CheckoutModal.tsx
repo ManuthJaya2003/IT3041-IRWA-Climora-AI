@@ -15,7 +15,7 @@ interface CheckoutModalProps {
   onClose: () => void
 }
 
-/** Demo checkout — clearly labeled mock payment for evaluation demos.
+/** Demo checkout - clearly labeled mock payment for evaluation demos.
  *  No card data leaves the browser; no charge is made. */
 export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }: CheckoutModalProps) {
   const [card, setCard] = useState('4111 1111 1111 1111')
@@ -54,7 +54,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
     }
     setError(null)
     setPhase('processing')
-    // Simulated gateway latency — replace with a real provider call.
+    // Simulated gateway latency - replace with a real provider call.
     setTimeout(() => {
       setReceipt(makeReceipt())
       setPhase('done')
@@ -87,7 +87,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
               {plan.name} · {cycle} · Rs {amount.toLocaleString('en-LK')}
             </p>
             <p className="text-xs text-slate-400 mt-2 font-mono">Receipt {receipt}</p>
-            <p className="text-xs text-slate-400 mt-1">Demo checkout — no real charge was made.</p>
+            <p className="text-xs text-slate-400 mt-1">Demo checkout - no real charge was made.</p>
             <button
               onClick={handleDone}
               className="mt-5 w-full px-4 py-2.5 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors"
@@ -110,7 +110,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
             </div>
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2 mb-4">
               <ShieldCheck className="w-4 h-4 shrink-0" />
-              Demo checkout — no real charge. Card never leaves this browser.
+              Demo checkout - no real charge. Card never leaves this browser.
             </div>
 
             <div className="flex items-center justify-between text-sm mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">

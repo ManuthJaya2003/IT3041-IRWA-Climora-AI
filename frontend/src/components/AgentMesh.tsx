@@ -60,10 +60,10 @@ interface LogEntry {
 }
 
 const OUTCOME_STYLE: Record<string, string> = {
-  'in-flight': 'text-slate-400',
-  success: 'text-emerald-400',
-  fallback: 'text-amber-400',
-  error: 'text-red-400',
+  'in-flight': 'text-slate-400 dark:text-slate-400',
+  success: 'text-emerald-600 dark:text-emerald-400',
+  fallback: 'text-amber-600 dark:text-amber-400',
+  error: 'text-red-600 dark:text-red-400',
 }
 
 export default function AgentMesh({
@@ -178,19 +178,19 @@ export default function AgentMesh({
   }
 
   return (
-    <aside className="hidden lg:flex flex-col w-80 shrink-0 bg-slate-950/95 border-l border-slate-800/80 text-slate-200 shadow-[-12px_0_30px_rgba(2,6,23,0.12)]">
+    <aside className="hidden lg:flex flex-col w-80 shrink-0 bg-white dark:bg-slate-950/95 border-l border-slate-200 dark:border-slate-800/80 text-slate-700 dark:text-slate-200">
       {/* Header */}
-      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-800">
-        <h2 className="text-xs font-semibold tracking-widest text-slate-400 uppercase">
+      <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800">
+        <h2 className="text-xs font-semibold tracking-widest text-slate-400 dark:text-slate-400 uppercase">
           Agent Mesh
         </h2>
         <div className="flex items-center gap-1.5">
           <span
             className={`w-2 h-2 rounded-full ${
-              anyInFlight ? 'bg-green-400 animate-pulse' : active ? 'bg-amber-400' : 'bg-slate-600'
+              anyInFlight ? 'bg-green-500 animate-pulse' : active ? 'bg-amber-400' : 'bg-slate-300 dark:bg-slate-600'
             }`}
           />
-          <span className="text-[11px] text-slate-400">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400">
             {anyInFlight ? 'Communicating' : active ? 'Working' : 'Idle'}
           </span>
         </div>
@@ -291,7 +291,7 @@ export default function AgentMesh({
         </svg>
 
         {/* Legend — explains node/edge colours */}
-        <div className="flex items-center justify-center gap-3 mt-1 text-[9px] text-slate-500">
+        <div className="flex items-center justify-center gap-3 mt-1 text-[9px] text-slate-400 dark:text-slate-500">
           <span className="flex items-center gap-1">
             <span className="w-2 h-2 rounded-full bg-emerald-400" /> live agent
           </span>
@@ -305,22 +305,22 @@ export default function AgentMesh({
       </div>
 
       {/* Interaction log — real hand-offs as they happen */}
-      <div className="flex-1 overflow-y-auto px-3 py-2 border-t border-slate-800 min-h-0">
-        <p className="text-[10px] font-semibold tracking-wider text-slate-500 uppercase mb-1.5">
+      <div className="flex-1 overflow-y-auto px-3 py-2 border-t border-slate-200 dark:border-slate-800 min-h-0">
+        <p className="text-[10px] font-semibold tracking-wider text-slate-400 dark:text-slate-500 uppercase mb-1.5">
           Interactions
         </p>
         {log.length === 0 ? (
-          <p className="text-[11px] text-slate-600 italic">
+          <p className="text-[11px] text-slate-400 dark:text-slate-600 italic">
             Ask a question to watch the agents communicate in real time.
           </p>
         ) : (
           <ul className="space-y-1">
             {log.map(entry => (
               <li key={entry.id} className="flex items-center gap-1 text-[10px] leading-tight">
-                <span className="text-emerald-400 font-medium">Orchestrator</span>
-                <span className="text-slate-600">→</span>
-                <span className="text-sky-400 font-medium">{LABEL_BY_KEY[entry.agent] || entry.agent}</span>
-                <span className={`ml-auto ${OUTCOME_STYLE[entry.outcome] || 'text-slate-500'}`}>
+                <span className="text-emerald-600 dark:text-emerald-400 font-medium">Orchestrator</span>
+                <span className="text-slate-300 dark:text-slate-600">→</span>
+                <span className="text-sky-600 dark:text-sky-400 font-medium">{LABEL_BY_KEY[entry.agent] || entry.agent}</span>
+                <span className={`ml-auto ${OUTCOME_STYLE[entry.outcome] || 'text-slate-400 dark:text-slate-500'}`}>
                   {entry.outcome === 'in-flight' ? '…' : entry.outcome}
                 </span>
               </li>

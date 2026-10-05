@@ -240,7 +240,7 @@ function App() {
           setUser(me)
           setPlan(me.plan_id)
           setApiPlan(me.plan_id)
-          setPaymentNotice(`${me.plan_name} access ready — signed in via enterprise SSO.`)
+          setPaymentNotice(`${me.plan_name} access ready - signed in via enterprise SSO.`)
           notifyUsageChanged()
         })
         .catch(() => setPaymentNotice('SSO sign-in expired. Please try again.'))
@@ -270,7 +270,7 @@ function App() {
         }
       })
       .catch(() => {
-        // Offline — FALLBACK_PLANS already in state.
+        // Offline - FALLBACK_PLANS already in state.
       })
     return () => {
       cancelled = true
@@ -319,7 +319,7 @@ function App() {
   }, [])
 
   const handleAuthSuccess = useCallback(() => {
-    // Token already stored by the api layer — pull the server-side profile.
+    // Token already stored by the api layer - pull the server-side profile.
     fetchMe()
       .then(({ user: me }) => {
         setUser(me)
@@ -381,7 +381,7 @@ function App() {
       setAuthOpen(true)
       return
     }
-    // Server is the source of truth — record the entitlement on the account.
+    // Server is the source of truth - record the entitlement on the account.
     try {
       const { user: updated } = await subscribePlan(checkout.plan.id, result.cycle)
       setUser(updated)
@@ -422,7 +422,7 @@ function App() {
         }
         saveSubscription(sub)
         setSubscription(sub)
-        // Server is authoritative — re-pull the account so quota updates.
+        // Server is authoritative - re-pull the account so quota updates.
         fetchMe()
           .then(({ user: me }) => {
             setUser(me)

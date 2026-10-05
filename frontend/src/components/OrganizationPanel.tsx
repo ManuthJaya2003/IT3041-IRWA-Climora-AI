@@ -6,6 +6,7 @@ import {
   OrgMember,
   AuditEvent,
   activateOrg,
+  apiErrorMessage,
   configureOrgSso,
   createOrg,
   getOrgAudit,
@@ -49,7 +50,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
       setOrgs(list)
       setActiveId(prev => (list.some(o => o.id === prev) ? prev : (list[0]?.id ?? null)))
     } catch {
-      // Offline — panel shows last state.
+      // Offline - panel shows last state.
     } finally {
       setLoaded(true)
     }
@@ -95,13 +96,20 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
   const isOwner = role === 'owner'
 
   const fail = (e: unknown, fallback: string) => {
-    const detail = (e as { response?: { data?: { detail?: string } } })?.response?.data?.detail
-    setError(detail || fallback)
+    setError(apiErrorMessage(e, fallback))
   }
 
   const handleCreate = async () => {
     setError(null)
     setNotice(null)
+    if (!name.trim()) {
+      setError('Enter an organization name.')
+      return
+    }
+    if (slug.trim().length < 3) {
+      setError('Slug must be at least 3 characters (letters, numbers, dashes).')
+      return
+    }
     setBusy(true)
     try {
       const { org } = await createOrg(name.trim() || slug.trim(), slug.trim().toLowerCase(), domain.trim().toLowerCase())
@@ -110,7 +118,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
       setDomain('')
       await refresh()
       setActiveId(org.id)
-      setNotice(`Organization "${org.name}" created — members inherit the Enterprise plan.`)
+      setNotice(`Organization "${org.name}" created - members inherit the Enterprise plan.`)
       notifyUsageChanged()
     } catch (e) {
       fail(e, 'Could not create the organization.')
@@ -171,7 +179,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
       setActiveId(org.id)
       const { events: ev } = await getOrgAudit(active.id).catch(() => ({ events: [] }))
       setEvents(ev)
-      setNotice('Enterprise activated — unlimited quota for all members.')
+      setNotice('Enterprise activated - unlimited quota for all members.')
       notifyUsageChanged()
     } catch (e) {
       fail(e, 'Could not activate the organization.')
@@ -223,11 +231,11 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
           {active.status === 'trial' && (
             <div className="flex items-center justify-between gap-3 text-xs rounded-xl px-3 py-2 bg-climora-50 dark:bg-climora-900/30 border border-climora-200 dark:border-climora-800 text-climora-700 dark:text-climora-300">
               <span>
-                Trial{trialDaysLeft(active) !== null ? ` — ${trialDaysLeft(active)} day${trialDaysLeft(active) === 1 ? '' : 's'} left` : ''}.
+                Trial{trialDaysLeft(active) !== null ? ` - ${trialDaysLeft(active)} day${trialDaysLeft(active) === 1 ? '' : 's'} left` : ''}.
                 Activate to keep unlimited quota for all members.
               </span>
               {isOwner && (
-                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-lg hover:bg-climora-700 disabled:opacity-60 shrink-0">
+                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-60 shrink-0">
                   Activate
                 </button>
               )}
@@ -235,9 +243,9 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
           )}
           {active.status === 'expired' && (
             <div className="flex items-center justify-between gap-3 text-xs rounded-xl px-3 py-2 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-300">
-              <span>Trial expired — members are back on personal plans until you activate.</span>
+              <span>Trial expired - members are back on personal plans until you activate.</span>
               {isOwner && (
-                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-lg hover:bg-climora-700 disabled:opacity-60 shrink-0">
+                <button onClick={handleActivate} disabled={busy} className="px-3 py-1.5 text-xs font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 disabled:opacity-60 shrink-0">
                   Activate
                 </button>
               )}
@@ -246,7 +254,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
           {active.status === 'active' && active.receipt && (
             <p className="text-xs text-slate-400">
               Active · {active.billing_cycle} billing · receipt <span className="font-mono">{active.receipt}</span>{' '}
-              <span className="text-slate-400">(demo order — no charge)</span>
+              <span className="text-slate-400">(demo order - no charge)</span>
             </p>
           )}
 
@@ -282,7 +290,7 @@ export default function OrganizationPanel({ user, onSignIn }: { user: AuthUser |
                 <KeyRound className="w-4 h-4" /> Identity provider (OIDC SSO)
               </p>
               <p className="text-xs text-slate-500 dark:text-slate-400">
-                Works with Okta, Microsoft Entra ID, Auth0, Google Workspace — any OIDC provider. Redirect URI to register:{' '}
+                Works with Okta, Microsoft Entra ID, Auth0, Google Workspace - any OIDC provider. Redirect URI to register:{' '}
                 <code className="text-[11px] bg-slate-100 dark:bg-slate-800 px-1 py-0.5 rounded">/api/v1/auth/sso/callback</code> on your backend origin.
                 {active.sso_configured && <> Currently: <code className="text-[11px]">{active.sso_issuer}</code></>}
               </p>

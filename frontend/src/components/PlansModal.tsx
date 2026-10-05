@@ -33,7 +33,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
           if (!cancelled) setUsage(data)
         })
         .catch(() => {
-          // Usage unavailable offline — hide the quota bar.
+          // Usage unavailable offline - hide the quota bar.
         })
     }
     getPlans()
@@ -43,7 +43,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
         }
       })
       .catch(() => {
-        // Backend unreachable — fall back to bundled plan data.
+        // Backend unreachable - fall back to bundled plan data.
       })
     loadUsage()
     const off = onUsageChanged(loadUsage)
@@ -80,7 +80,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
       setNotice('Switched to the Free plan.')
       return
     }
-    // Paid plans go through checkout — server activates on the account.
+    // Paid plans go through checkout - server activates on the account.
     onCheckout(plan, annual)
   }
 
@@ -93,7 +93,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
       aria-label="Plans and pricing"
     >
       <div
-        className="w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 my-auto"
+        className="w-full max-w-5xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 my-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
@@ -108,9 +108,9 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
           {user ? (
-            <>Signed in as <span className="font-medium">{user.email}</span> — your plan is stored on your account.</>
+            <>Signed in as <span className="font-medium">{user.email}</span> - your plan is stored on your account.</>
           ) : (
-            <>Try 2 queries as a guest. Sign in for 100 free queries/day — paid plans are tied to your account.</>
+            <>Try 2 queries as a guest. Sign in for 100 free queries/day - paid plans are tied to your account.</>
           )}
         </p>
 
@@ -137,7 +137,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
         {usage && (
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">
             {usage.authenticated === false ? (
-              <>Guest trial: {usage.used_today} / {usage.daily_limit} queries used today — sign in for 100 free/day.</>
+              <>Guest trial: {usage.used_today} / {usage.daily_limit} queries used today - sign in for 100 free/day.</>
             ) : (
               <>Today's usage: {usage.used_today}
               {usage.daily_limit > 0 ? ` / ${usage.daily_limit}` : ' (unlimited)'} queries
@@ -208,7 +208,7 @@ export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCh
           })}
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-5">
-          Prices in Sri Lankan Rupees. Paid plans require an account; the server — not your browser — decides your quota.
+          Prices in Sri Lankan Rupees. Paid plans require an account; the server - not your browser - decides your quota.
         </p>
       </div>
     </div>

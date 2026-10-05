@@ -120,7 +120,7 @@ export default function SettingsView({
       getUsage().then(data => {
         if (!cancelled) setUsage(data)
       }).catch(() => {
-        // Offline — usage panel simply stays hidden.
+        // Offline - usage panel simply stays hidden.
       })
     }
     loadUsage()
@@ -251,14 +251,14 @@ export default function SettingsView({
           </nav>
 
           {/* Content */}
-          <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 sm:p-6 h-fit">
+          <div className="flex-1 min-w-0 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-6 sm:p-8 h-fit">
             <div className="flex items-center gap-2 mb-1">
               <ActiveIcon className="w-5 h-5 text-climora-600" />
               <h2 className="text-base font-semibold text-slate-800 dark:text-slate-100">
                 {SECTIONS.find(s => s.id === section)?.label}
               </h2>
             </div>
-            <p className="text-xs text-slate-500 dark:text-slate-400 mb-2">{SECTION_SUBTITLES[section]}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 mb-5">{SECTION_SUBTITLES[section]}</p>
 
             <div className="divide-y divide-slate-100 dark:divide-slate-800">
               {section === 'general' && (
@@ -392,7 +392,7 @@ export default function SettingsView({
                     <StatusLine label="Browser support" value={notifApi ? 'Available' : 'Not supported in this browser'} ok={notifApi} />
                     <StatusLine
                       label="Connection"
-                      value={isSecure ? 'Secure (HTTPS / localhost)' : 'Not secure — use HTTPS or localhost'}
+                      value={isSecure ? 'Secure (HTTPS / localhost)' : 'Not secure - use HTTPS or localhost'}
                       ok={isSecure}
                     />
                     <StatusLine label="Permission" value={notifPermission} ok={notifPermission === 'granted'} />
@@ -417,7 +417,7 @@ export default function SettingsView({
                     </div>
                     {testSent && (
                       <p className="text-xs text-climora-700 dark:text-climora-300">
-                        Test sent — check your system notifications tray.
+                        Test sent - check your system notifications tray.
                       </p>
                     )}
                     {testError && (
@@ -427,7 +427,7 @@ export default function SettingsView({
                     )}
                     {notifPermission === 'denied' && (
                       <p className="text-xs text-amber-600 dark:text-amber-400">
-                        Permission was denied — allow notifications in your browser's site settings to use alerts.
+                        Permission was denied - allow notifications in your browser's site settings to use alerts.
                       </p>
                     )}
                   </div>
@@ -508,8 +508,8 @@ export default function SettingsView({
                       </p>
                       <p className="text-xs text-slate-500 dark:text-slate-400">
                         {user
-                          ? `Signed in${user.provider === 'google' ? ' with Google' : ''} — plan is stored on your account.`
-                          : 'Sign in to upgrade — paid plans require an account.'}
+                          ? `Signed in${user.provider === 'google' ? ' with Google' : ''} - plan is stored on your account.`
+                          : 'Sign in to upgrade - paid plans require an account.'}
                       </p>
                     </div>
                     {user ? (
@@ -547,7 +547,7 @@ export default function SettingsView({
                       {subscription.cycle === 'annual' ? 'Annual' : 'Monthly'} billing · started{' '}
                       {new Date(subscription.startedAt).toLocaleDateString()} · receipt{' '}
                       <span className="font-mono">{subscription.receipt}</span>{' '}
-                      <span className="text-slate-400">(demo checkout — no charge)</span>
+                      <span className="text-slate-400">(demo checkout - no charge)</span>
                     </div>
                   )}
                   {usage && usage.daily_limit > 0 && (
@@ -569,9 +569,9 @@ export default function SettingsView({
 
               {section === 'about' && (
                 <div className="py-4 space-y-3 text-sm text-slate-600 dark:text-slate-300">
-                  <p><span className="font-semibold text-slate-800 dark:text-slate-100">Climora AI v0.1.0</span> — Sri Lanka's AI-powered climate intelligence assistant.</p>
+                  <p><span className="font-semibold text-slate-800 dark:text-slate-100">Climora AI v0.1.0</span> - Sri Lanka's AI-powered climate intelligence assistant.</p>
                   <p>Multi-agent pipeline (security → NLP → retrieval → analysis → verification → recommendations) over live weather data and curated climate evidence, in English, Sinhala and Tamil.</p>
-                  <p className="text-xs text-slate-400">Responses are for awareness only — for emergencies contact local authorities. Conversations stay in this browser unless you export them.</p>
+                  <p className="text-xs text-slate-400">Responses are for awareness only - for emergencies contact local authorities. Conversations stay in this browser unless you export them.</p>
                 </div>
               )}
             </div>
@@ -646,7 +646,7 @@ function SavedLocations({ locations, limit, onAdd, onRemove, onViewPlans }: {
             value={draft}
             onChange={e => { setDraft(e.target.value); setError(null) }}
             onKeyDown={e => { if (e.key === 'Enter') { e.preventDefault(); submit() } }}
-            placeholder={full ? 'Limit reached — upgrade for more' : 'e.g. Galle, Sri Lanka'}
+            placeholder={full ? 'Limit reached - upgrade for more' : 'e.g. Galle, Sri Lanka'}
             aria-label="Add a saved location"
             disabled={full}
             className="w-full rounded-xl border border-slate-300 dark:border-slate-600 bg-white dark:bg-slate-800 pl-9 pr-3 py-2 text-base sm:text-sm text-slate-700 dark:text-slate-200 placeholder:text-slate-400 focus:outline-none focus:ring-2 focus:ring-climora-500 disabled:opacity-50 disabled:cursor-not-allowed"

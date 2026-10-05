@@ -156,7 +156,14 @@ def _row_to_user(row) -> dict:
 
 
 def _public_user(user: dict) -> dict:
+    from app.services import plans_service
     plan = plans_service.get_plan(user.get("plan_id"))
+    try:
+        from app.services import org_service
+        enterprise = org_service.user_has_enterprise(user["id"])
+    except Exception:
+        enterprise = False
+    effective = plans_service.get_plan("enterprise") if enterprise else plan
     return {
         "id": user["id"],
         "email": user["email"],
@@ -164,6 +171,8 @@ def _public_user(user: dict) -> dict:
         "provider": user.get("provider", "local"),
         "plan_id": plan["id"],
         "plan_name": plan["name"],
+        "effective_plan_id": effective["id"],
+        "effective_plan_name": effective["name"],
         "billing_cycle": user.get("billing_cycle", "monthly"),
         "created_at": user.get("created_at", ""),
     }
