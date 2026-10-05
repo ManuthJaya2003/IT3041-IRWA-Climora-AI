@@ -62,6 +62,23 @@ User Query
 - **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, no internal errors leaked
 - **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; runs fully offline in mock mode
 
+### Production integration notes
+
+The local prototype provides plan and subscription UI, and paid checkout now
+opens a server-created Stripe Checkout Session. Paid entitlements are not yet
+bound to authenticated accounts or activated from verified Stripe webhooks.
+Do not treat the client-supplied `X-Plan` header as an entitlement in
+production until identity, payment webhooks, and server-side plan records are
+connected.
+
+Browser alert preferences are implemented, but continuous weather monitoring
+and push delivery require a production scheduler, notification provider, and
+device registration.
+
+The agent servers expose MCP-compatible HTTP tool routes for the current
+development deployment. A production deployment should use authenticated MCP
+transport or an equivalent authenticated service-to-service channel.
+
 ## Tech stack
 
 | Layer | Technology |
@@ -70,7 +87,7 @@ User Query
 | Backend | Python 3.12, FastAPI, Pydantic |
 | LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) / offline mock |
 | Vector DB | FAISS (local, 187 seeded climate documents) |
-| Database | PostgreSQL (dockerized, for future persistence) |
+| Database | PostgreSQL (chat-history persistence; Docker Compose supported) |
 | Agent communication | MCP (Model Context Protocol) |
 | Speech | Web Speech API (input) + gTTS (audio answers) |
 | Deployment | Docker, Docker Compose, Nginx |

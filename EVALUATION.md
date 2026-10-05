@@ -51,3 +51,17 @@ Trincomalee cyclone (EN), Colombo weather (TA).
 - `backend/tests/test_billing.py` — 5 tests (plans, quotas, usage)
 - `backend/tests/test_history.py` — 4 tests (memory cache, SQL persistence, PG fallback)
 - Frontend: `npm run build` (`tsc -b` + vite) must pass clean.
+
+## Current product boundaries
+
+- Streaming queries and text-to-speech requests are rate-limited; streaming
+  queries also consume the configured daily quota.
+- PostgreSQL persistence is active when `DATABASE_URL` points to a reachable
+  database.
+- Paid checkout uses Stripe-hosted Checkout Sessions, but plan selection is
+  still a prototype contract until authenticated accounts, verified webhooks,
+  and server-side entitlements are added.
+- Browser alert preferences are implemented, but continuous weather monitoring
+  and push delivery require a production scheduler and notification provider.
+- Agent communication currently uses MCP-compatible HTTP routes locally;
+  authenticated MCP transport remains a deployment hardening task.

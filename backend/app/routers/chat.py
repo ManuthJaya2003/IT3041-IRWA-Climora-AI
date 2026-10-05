@@ -39,7 +39,7 @@ async def process_query(request: ChatRequest):
         )
 
 
-@router.post("/query/stream")
+@router.post("/query/stream", dependencies=[RateLimit, QuotaLimit])
 async def process_query_stream(request: ChatRequest):
     """
     Process a query and stream real-time agent-communication events via SSE.

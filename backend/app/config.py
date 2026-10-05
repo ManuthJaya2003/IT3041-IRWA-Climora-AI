@@ -49,6 +49,10 @@ class Settings(BaseSettings):
     # Weather APIs
     openweather_api_key: Optional[str] = None
 
+    # Stripe (server-side only; never expose this value to the frontend)
+    stripe_secret_key: Optional[str] = None
+    stripe_webhook_secret: Optional[str] = None
+
     # Vector Store (ChromaDB - local)
     vector_store_collection: str = "climora-climate-data"
 
@@ -56,7 +60,7 @@ class Settings(BaseSettings):
     database_url: Optional[str] = "postgresql://postgres:postgres@localhost:5432/climora"
 
     # Security
-    secret_key: str = "change-this-in-production"
+    secret_key: str = "replace-with-a-random-production-secret"
     access_token_expire_minutes: int = 60
     # Token for protected (mutating) endpoints, sent as X-Admin-Token header.
     # When unset, those endpoints are open (local development only).

@@ -35,7 +35,7 @@ class VoiceQueryRequest(BaseModel):
 
 # --- Endpoints ---
 
-@router.post("/speak")
+@router.post("/speak", dependencies=[RateLimit])
 async def text_to_speech(request: SpeakRequest):
     """
     Convert text to speech audio.

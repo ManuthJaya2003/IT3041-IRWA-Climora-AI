@@ -124,7 +124,10 @@ export async function streamQuery(
 ): Promise<ChatResponse> {
   const res = await fetch(`${API_BASE_URL}/chat/query/stream`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-Plan': apiPlan,
+    },
     body: JSON.stringify(request),
     signal,
   })
@@ -258,5 +261,29 @@ export async function getPlans(): Promise<{ plans: PlanDto[] }> {
 
 export async function getUsage(): Promise<UsageDto> {
   const response = await api.get('/billing/usage')
+  return response.data
+}
+
+export async function createCheckoutSession(
+  planId: string,
+  annual: boolean,
+  successUrl: string,
+  cancelUrl: string,
+): Promise<{ session_id: string; checkout_url: string }> {
+  const response = await api.post('/billing/checkout-session', {
+    plan_id: planId,
+    annual,
+    success_url: successUrl,
+    cancel_url: cancelUrl,
+  })
+  return response.data
+}
+
+export async function verifyCheckoutSession(sessionId: string): Promise<{
+  plan_id: string
+  billing_cycle: 'monthly' | 'annual'
+  session_id: string
+}> {
+  const response = await api.get(`/billing/checkout-session/${encodeURIComponent(sessionId)}`)
   return response.data
 }

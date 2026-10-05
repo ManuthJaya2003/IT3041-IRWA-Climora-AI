@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from 'react'
+import { CheckCircle2, X } from 'lucide-react'
 import ChatInterface, { Message } from './components/ChatInterface'
 import Sidebar, { Conversation } from './components/Sidebar'
 import Header from './components/Header'
@@ -9,7 +10,7 @@ import CheckoutModal, { CheckoutResult } from './components/CheckoutModal'
 import SettingsView from './components/SettingsView'
 import { AppSettings, applyTheme, loadSettings, saveSettings } from './settings'
 import { FALLBACK_PLANS, Plan, Subscription, addLocation, clearSubscription, loadLocations, loadPlan, loadSubscription, removeLocation, savePlan, saveSubscription } from './plans'
-import { getPlans, setApiPlan } from './api/climoraApi'
+import { getPlans, setApiPlan, verifyCheckoutSession } from './api/climoraApi'
 import { notifyUsageChanged } from './usageBus'
 
 interface ConversationData {
@@ -144,6 +145,8 @@ function App() {
   const [savedLocations, setSavedLocations] = useState<string[]>(loadLocations)
   const [subscription, setSubscription] = useState<Subscription | null>(loadSubscription)
   const [checkout, setCheckout] = useState<{ plan: Plan; annual: boolean } | null>(null)
+  const [paymentNotice, setPaymentNotice] = useState<string | null>(null)
+  const checkoutVerificationStarted = useRef(false)
   const [conversationsData, setConversationsData] = useState<Map<string, ConversationData>>(
     () => {
       // First load already respects the plan's history cap (live catalogue re-prunes after).
@@ -270,6 +273,37 @@ function App() {
     notifyUsageChanged()
     setCheckout(null)
   }, [checkout])
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    const sessionId = params.get('session_id')
+    if (params.get('checkout') !== 'success' || !sessionId || checkoutVerificationStarted.current) return
+    checkoutVerificationStarted.current = true
+
+    verifyCheckoutSession(sessionId)
+      .then(result => {
+        const selectedPlan = planById(plans, result.plan_id)
+        const sub: Subscription = {
+          planId: selectedPlan.id,
+          cycle: result.billing_cycle,
+          startedAt: new Date().toISOString(),
+          receipt: result.session_id,
+        }
+        saveSubscription(sub)
+        setSubscription(sub)
+        setPlan(selectedPlan.id)
+        savePlan(selectedPlan.id)
+        setApiPlan(selectedPlan.id)
+        notifyUsageChanged()
+        setPaymentNotice(`${selectedPlan.name} plan activated successfully. Your new benefits are now available.`)
+        window.history.replaceState({}, document.title, window.location.pathname)
+      })
+      .catch(error => {
+        console.error('Unable to verify Stripe checkout:', error)
+        setPaymentNotice('Payment was received, but we could not verify the plan yet. Please refresh and try again.')
+        window.history.replaceState({}, document.title, window.location.pathname)
+      })
+  }, [plans])
 
   // Attach the commercial plan to every API request (quota enforcement).
   useEffect(() => {
@@ -413,6 +447,42 @@ function App() {
           onToggleSidebar={() => setSidebarOpen(!sidebarOpen)}
           onOpenSettings={() => setView('settings')}
         />
+        {paymentNotice && (
+          <div
+            className="fixed inset-0 z-[70] flex items-center justify-center bg-slate-950/60 px-4"
+            role="presentation"
+            onClick={() => setPaymentNotice(null)}
+          >
+            <div
+              role="alertdialog"
+              aria-modal="true"
+              aria-labelledby="payment-notice-title"
+              className="relative w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-6 text-center shadow-2xl dark:border-emerald-800 dark:bg-slate-900"
+              onClick={event => event.stopPropagation()}
+            >
+              <button
+                type="button"
+                aria-label="Close payment notification"
+                onClick={() => setPaymentNotice(null)}
+                className="absolute right-5 top-5 rounded-lg p-1 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700 dark:hover:bg-slate-800 dark:hover:text-slate-200"
+              >
+                <X className="h-5 w-5" />
+              </button>
+              <CheckCircle2 className="mx-auto mb-3 h-12 w-12 text-emerald-500" />
+              <h2 id="payment-notice-title" className="text-lg font-semibold text-slate-900 dark:text-white">
+                {paymentNotice.includes('successfully') ? 'Payment successful' : 'Payment verification'}
+              </h2>
+              <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{paymentNotice}</p>
+              <button
+                type="button"
+                onClick={() => setPaymentNotice(null)}
+                className="mt-5 rounded-xl bg-climora-600 px-5 py-2 text-sm font-medium text-white transition-colors hover:bg-climora-700"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        )}
         <div className="flex flex-1 min-h-0 overflow-hidden">
           <main className="flex-1 min-w-0 overflow-hidden">
             {view === 'settings' ? (

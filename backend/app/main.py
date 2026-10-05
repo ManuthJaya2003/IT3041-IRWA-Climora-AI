@@ -66,7 +66,7 @@ async def lifespan(app: FastAPI):
     print(f"   Environment: {settings.environment}")
     print(f"   Debug: {settings.debug}")
 
-    if settings.secret_key == "change-this-in-production":
+    if settings.secret_key == "replace-with-a-random-production-secret":
         print("   ⚠ WARNING: SECRET_KEY is the default value — set a real one in production.")
     if not settings.admin_token:
         print("   ⚠ WARNING: ADMIN_TOKEN is not set — protected vector endpoints are open (dev mode).")
