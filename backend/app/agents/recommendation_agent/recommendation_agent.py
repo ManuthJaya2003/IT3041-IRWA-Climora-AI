@@ -55,6 +55,7 @@ USER_TYPE_CONTEXT: dict[str, str] = {
     "business": "operations continuity, supply chain, employee safety, asset protection",
     "organization": "infrastructure, community planning, resource allocation, policy response",
     "institution": "infrastructure, continuity planning, occupant safety, coordination with authorities",
+    "traveller": "itinerary flexibility, transport and accommodation safety, travel advisories, emergency contacts",
 }
 
 USER_TYPE_ACTIONS: dict[str, tuple[str, str, str]] = {
@@ -87,6 +88,11 @@ USER_TYPE_ACTIONS: dict[str, tuple[str, str, str]] = {
         "Check facility drainage, backup power, communications, and occupant procedures",
         "Operational readiness keeps essential services safe and available.",
         "continuity",
+    ),
+    "traveller": (
+        "Keep transport, accommodation and activity plans flexible and monitor travel advisories",
+        "Weather disruptions can strand travellers; flexible plans and official advisories keep trips safe.",
+        "travel",
     ),
 }
 
@@ -124,6 +130,10 @@ USER_TYPE_GUARDRAILS: dict[str, dict[str, tuple[str, ...]]] = {
     "institution": {
         "required_categories": ("continuity", "facility", "safety"),
         "blocked_phrases": ("planting", "irrigation", "fertilizer", "household"),
+    },
+    "traveller": {
+        "required_categories": ("travel", "awareness", "safety", "preparedness"),
+        "blocked_phrases": ("planting", "irrigation", "fertilizer", "supplier", "supply chain", "staff roster"),
     },
 }
 

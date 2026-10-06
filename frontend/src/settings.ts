@@ -35,6 +35,7 @@ export const USER_TYPES: Array<{ value: string; label: string }> = [
   { value: 'business', label: 'Business' },
   { value: 'organization', label: 'Organization' },
   { value: 'institution', label: 'Institution' },
+  { value: 'traveller', label: 'Traveller / Tourist' },
 ]
 
 export const RETENTION_OPTIONS: Array<{ value: number; label: string }> = [

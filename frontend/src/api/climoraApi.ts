@@ -12,15 +12,65 @@ const api = axios.create({
 
 // Commercial plan sent with every request so the backend can enforce the
 // correct daily quota (X-Plan header; unknown values fall back to Free).
+// NOTE: for signed-in users the server ignores X-Plan and uses the plan
+// stored on their account — this header only matters for anonymous guests.
 let apiPlan = 'free'
+let authToken: string | null = null
+
+try {
+  authToken = localStorage.getItem('climora-token')
+} catch {
+  authToken = null
+}
 
 export function setApiPlan(planId: string): void {
   apiPlan = planId
 }
 
+export function setAuthToken(token: string | null): void {
+  authToken = token
+  try {
+    if (token) localStorage.setItem('climora-token', token)
+    else localStorage.removeItem('climora-token')
+  } catch {
+    // ignore private-mode errors
+  }
+}
+
+export function getAuthToken(): string | null {
+  return authToken
+}
+
+/** Extract a renderable message from an API error (FastAPI 422 detail arrays included). */
+export function apiErrorMessage(e: unknown, fallback: string): string {
+  const data = (e as { response?: { data?: { detail?: unknown } } })?.response?.data?.detail
+  if (typeof data === 'string' && data) return data
+  if (Array.isArray(data)) {
+    const parts = data
+      .map(item => {
+        if (typeof item === 'string') return item
+        if (item && typeof item === 'object') {
+          const loc = (item as { loc?: unknown }).loc
+          const msg = (item as { msg?: unknown }).msg
+          const field = Array.isArray(loc) ? String(loc[loc.length - 1]) : ''
+          return typeof msg === 'string' ? (field ? `${field}: ${msg}` : msg) : null
+        }
+        return null
+      })
+      .filter((s): s is string => !!s)
+    if (parts.length > 0) return parts.join(' ')
+  }
+  const msg = (e as Error)?.message
+  // Raw transport lines ("Request failed with status code 429",
+  // "Stream request failed: 429") carry no meaning for users.
+  if (msg && !/^Stream request failed/.test(msg) && !/^Request failed with status code/.test(msg)) return msg
+  return typeof fallback === 'string' && fallback ? fallback : 'Something went wrong. Please try again.'
+}
+
 api.interceptors.request.use(config => {
   config.headers = config.headers ?? {}
   config.headers['X-Plan'] = apiPlan
+  if (authToken) config.headers['Authorization'] = `Bearer ${authToken}`
   return config
 })
 
@@ -122,18 +172,33 @@ export async function streamQuery(
   onEvent: (event: AgentStreamEvent) => void,
   signal?: AbortSignal,
 ): Promise<ChatResponse> {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+    'X-Plan': apiPlan,
+  }
+  if (authToken) headers['Authorization'] = `Bearer ${authToken}`
   const res = await fetch(`${API_BASE_URL}/chat/query/stream`, {
     method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      'X-Plan': apiPlan,
-    },
+    headers,
     body: JSON.stringify(request),
     signal,
   })
 
-  if (!res.ok || !res.body) {
-    throw new Error(`Stream request failed: ${res.status}`)
+  if (!res.ok) {
+    // Surface the real reason (e.g. guest-trial exhausted) instead of a bare status.
+    let detail = `Stream request failed: ${res.status}`
+    try {
+      const body = await res.json() as { detail?: string }
+      if (body?.detail) detail = body.detail
+    } catch {
+      // non-JSON error body — keep the status text
+    }
+    const err = new Error(detail) as Error & { status?: number }
+    err.status = res.status
+    throw err
+  }
+  if (!res.body) {
+    throw new Error('Stream request failed: empty response')
   }
 
   const reader = res.body.getReader()
@@ -252,6 +317,7 @@ export interface UsageDto {
   remaining_today: number
   daily_limit: number
   day: string
+  authenticated?: boolean
 }
 
 export async function getPlans(): Promise<{ plans: PlanDto[] }> {
@@ -259,8 +325,155 @@ export async function getPlans(): Promise<{ plans: PlanDto[] }> {
   return response.data
 }
 
+export async function getPaymentConfig(): Promise<{ stripe_enabled: boolean }> {
+  const response = await api.get('/billing/payment-config')
+  return response.data
+}
+
 export async function getUsage(): Promise<UsageDto> {
   const response = await api.get('/billing/usage')
+  return response.data
+}
+
+// --- Auth (real user accounts; plan lives server-side) ---
+
+export interface AuthUser {
+  id: string
+  email: string
+  name: string
+  provider: string
+  plan_id: string
+  plan_name: string
+  /** Server-resolved plan: enterprise when an org grants it, else the personal plan. */
+  effective_plan_id: string
+  effective_plan_name: string
+  billing_cycle: 'monthly' | 'annual'
+  created_at: string
+}
+
+export interface AuthResponse {
+  access_token: string
+  token_type: string
+  user: AuthUser
+  usage: UsageDto
+}
+
+export async function register(email: string, password: string, name: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/register', { email, password, name })
+  setAuthToken(response.data.access_token)
+  return response.data
+}
+
+export async function login(email: string, password: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/login', { email, password })
+  setAuthToken(response.data.access_token)
+  return response.data
+}
+
+export async function googleSignIn(idToken: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/google', { id_token: idToken })
+  setAuthToken(response.data.access_token)
+  return response.data
+}
+
+export async function fetchMe(): Promise<{ user: AuthUser; usage: UsageDto }> {
+  const response = await api.get('/auth/me')
+  return response.data
+}
+
+export function logout(): void {
+  setAuthToken(null)
+}
+
+export async function subscribePlan(planId: string, billingCycle: 'monthly' | 'annual'): Promise<{ user: AuthUser; usage: UsageDto }> {
+  const response = await api.post('/billing/subscribe', { plan_id: planId, billing_cycle: billingCycle })
+  return response.data
+}
+
+export async function getAuthConfig(): Promise<{ google_client_id: string | null; google_enabled: boolean }> {
+  const response = await api.get('/auth/config')
+  return response.data
+}
+
+// --- Enterprise organizations + SSO ---
+
+export interface Org {
+  id: string
+  slug: string
+  name: string
+  domain: string
+  plan_id: string
+  status: 'trial' | 'active' | 'expired'
+  trial_ends_at: string
+  activated_at: string
+  billing_cycle: string
+  receipt: string
+  sso_issuer: string
+  sso_client_id: string
+  sso_configured: boolean
+  role?: string | null
+  created_at: string
+}
+
+export interface OrgMember extends AuthUser {
+  org_role: string
+}
+
+export interface AuditEvent {
+  id: string
+  actor: string
+  action: string
+  detail: string
+  created_at: string
+}
+
+export async function listMyOrgs(): Promise<{ orgs: Org[] }> {
+  const response = await api.get('/orgs/mine')
+  return response.data
+}
+
+export async function createOrg(name: string, slug: string, domain: string): Promise<{ org: Org }> {
+  const response = await api.post('/orgs', { name, slug, domain })
+  return response.data
+}
+
+export async function listOrgMembers(orgId: string): Promise<{ members: OrgMember[] }> {
+  const response = await api.get(`/orgs/${encodeURIComponent(orgId)}/members`)
+  return response.data
+}
+
+export async function inviteOrgMember(orgId: string, email: string, role: string): Promise<{ member: AuthUser }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/invite`, { email, role })
+  return response.data
+}
+
+export async function configureOrgSso(orgId: string, issuer: string, clientId: string, clientSecret: string): Promise<{ org: Org }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/sso`, {
+    issuer, client_id: clientId, client_secret: clientSecret,
+  })
+  return response.data
+}
+
+export async function activateOrg(orgId: string, billingCycle: string, receipt: string): Promise<{ org: Org }> {
+  const response = await api.post(`/orgs/${encodeURIComponent(orgId)}/activate`, {
+    billing_cycle: billingCycle, receipt,
+  })
+  return response.data
+}
+
+export async function getOrgAudit(orgId: string): Promise<{ events: AuditEvent[] }> {
+  const response = await api.get(`/orgs/${encodeURIComponent(orgId)}/audit`)
+  return response.data
+}
+
+export async function startSso(orgSlug: string): Promise<{ authorization_url: string; org: Org }> {
+  const response = await api.get('/auth/sso/start', { params: { org: orgSlug } })
+  return response.data
+}
+
+export async function consumeSsoCode(code: string): Promise<AuthResponse> {
+  const response = await api.post<AuthResponse>('/auth/sso/consume', { code })
+  setAuthToken(response.data.access_token)
   return response.data
 }
 

@@ -16,7 +16,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import alerts, chat, health, agents, vector_store, speech, billing
+from app.routers import alerts, auth, chat, health, agents, vector_store, speech, billing, orgs
 
 
 def _run_security_agent():
@@ -109,6 +109,7 @@ async def lifespan(app: FastAPI):
     from app.services.history_service import history_service
     from app.services.alert_service import alert_service
     from app.services import usage_service
+    from app.services import auth_service
     import asyncio as _alert_asyncio
 
     for svc_name, svc in [
@@ -130,6 +131,19 @@ async def lifespan(app: FastAPI):
         print("   ✓ daily usage service ready")
     except Exception as exc:
         print(f"   ⚠ daily usage service failed to initialize ({exc}) — using memory fallback")
+
+    try:
+        backend = await auth_service.initialize()
+        print(f"   ✓ user accounts ready (backend: {backend})")
+    except Exception as exc:
+        print(f"   ⚠ user accounts failed to initialize ({exc}) — using memory fallback")
+
+    try:
+        from app.services import org_service
+        backend = await org_service.initialize()
+        print(f"   ✓ organizations ready (backend: {backend})")
+    except Exception as exc:
+        print(f"   ⚠ organizations failed to initialize ({exc}) — using memory fallback")
 
     alert_task = None
     if settings.vapid_public_key and settings.vapid_private_key:
@@ -210,6 +224,8 @@ app.add_middleware(
 
 # Register routers
 app.include_router(health.router, tags=["Health"])
+app.include_router(auth.router, prefix="/api/v1/auth", tags=["Auth"])
+app.include_router(orgs.router, prefix="/api/v1/orgs", tags=["Organizations"])
 app.include_router(chat.router, prefix="/api/v1/chat", tags=["Chat"])
 app.include_router(agents.router, prefix="/api/v1/agents", tags=["Agents"])
 app.include_router(vector_store.router, prefix="/api/v1/vectors", tags=["Vector Store"])

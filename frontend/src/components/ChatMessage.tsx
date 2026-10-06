@@ -14,8 +14,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
   return (
     <div className={`flex gap-3 ${isUser ? 'justify-end' : 'justify-start'}`}>
       {!isUser && (
-        <div className="w-8 h-8 rounded-full bg-climora-100 flex items-center justify-center shrink-0 mt-1">
-          <Globe className="w-4 h-4 text-climora-600" />
+        <div className="w-8 h-8 rounded-full bg-climora-100 dark:bg-climora-900/40 flex items-center justify-center shrink-0 mt-1">
+          <Globe className="w-4 h-4 text-climora-600 dark:text-climora-400" />
         </div>
       )}
 
@@ -25,7 +25,7 @@ export default function ChatMessage({ message }: ChatMessageProps) {
           className={`rounded-2xl px-4 py-3 break-words ${
             isUser
               ? 'bg-climora-600 text-white'
-              : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-200'
+              : 'bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-700 dark:text-slate-200'
           }`}
         >
           {isUser ? (
@@ -50,8 +50,8 @@ export default function ChatMessage({ message }: ChatMessageProps) {
       </div>
 
       {isUser && (
-        <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center shrink-0 mt-1">
-          <User className="w-4 h-4 text-slate-600" />
+        <div className="w-8 h-8 rounded-full bg-slate-200 dark:bg-slate-700 flex items-center justify-center shrink-0 mt-1">
+          <User className="w-4 h-4 text-slate-600 dark:text-slate-300" />
         </div>
       )}
     </div>
@@ -85,10 +85,10 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
     <div className="mt-3 space-y-3" lang={response.language || 'en'}>
       {/* Risk Assessment */}
       {response.risk_assessment && response.risk_assessment.risk_level !== 'unknown' && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <div className="flex items-center justify-between mb-3">
             <div className="flex items-center gap-2">
-              <AlertTriangle className="w-4 h-4 text-amber-500" />
+              <AlertTriangle className={`w-4 h-4 ${riskIconColor(response.risk_assessment.risk_level)}`} />
               <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t.riskAssessment}</span>
             </div>
             <RiskBadge level={response.risk_assessment.risk_level} lang={response.language} />
@@ -98,11 +98,11 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
           {riskFactors.length > 0 && (
             <div className="mt-2">
               <p className="text-xs font-medium text-slate-500 dark:text-slate-400 mb-1.5">{t.riskFactors}</p>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-1.5">
                 {riskFactors.map((factor, idx) => (
                   <span
                     key={idx}
-                    className="text-xs bg-amber-50 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-800 px-2 py-0.5 rounded-full break-words"
+                    className={`text-xs px-2 py-0.5 rounded-full border break-words ${riskChip(response.risk_assessment?.risk_level ?? 'unknown')}`}
                   >
                     {factor.replace(/-/g, ' ')}
                   </span>
@@ -122,7 +122,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
 
       {/* Detailed Analysis (collapsible) */}
       {response.detailed_analysis && (
-        <details className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl">
+        <details className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl">
           <summary className="px-4 py-3 cursor-pointer text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 rounded-xl">
             {t.detailedAnalysis}
           </summary>
@@ -134,7 +134,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
 
       {/* Recommendations */}
       {recommendations.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <CheckCircle className="w-4 h-4 text-climora-500" />
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t.recommendations}</span>
@@ -157,7 +157,7 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
 
       {/* Sources */}
       {sources.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl p-4">
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4">
           <div className="flex items-center gap-2 mb-3">
             <ExternalLink className="w-4 h-4 text-blue-500" />
             <span className="text-xs font-semibold text-slate-700 dark:text-slate-200">{t.evidenceSources}</span>
@@ -224,8 +224,38 @@ function ResponseDetails({ response }: { response: ChatResponse }) {
   )
 }
 
-function RiskBadge({ level, lang }: { level: string; lang?: string }) {
-  const t = uiText(lang)
+/** Chip + icon colors follow the risk level (low = calm, critical = urgent). */
+function riskChip(level: string): string {
+  switch (level) {
+    case 'low':
+      return 'bg-green-50 dark:bg-green-900/30 text-green-700 dark:text-green-300 border-green-200 dark:border-green-800'
+    case 'moderate':
+      return 'bg-yellow-50 dark:bg-yellow-900/30 text-yellow-700 dark:text-yellow-300 border-yellow-200 dark:border-yellow-800'
+    case 'high':
+      return 'bg-orange-50 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 border-orange-200 dark:border-orange-800'
+    case 'critical':
+      return 'bg-red-50 dark:bg-red-900/30 text-red-700 dark:text-red-300 border-red-200 dark:border-red-800'
+    default:
+      return 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300 border-slate-200 dark:border-slate-700'
+  }
+}
+
+function riskIconColor(level: string): string {
+  switch (level) {
+    case 'low':
+      return 'text-green-500'
+    case 'moderate':
+      return 'text-yellow-500'
+    case 'high':
+      return 'text-orange-500'
+    case 'critical':
+      return 'text-red-500'
+    default:
+      return 'text-slate-400'
+  }
+}
+
+function RiskBadge({ level, lang }: { level: string; lang?: string }) {  const t = uiText(lang)
   const config: Record<string, { bg: string; text: string; dot: string }> = {
     low: { bg: 'bg-green-100 dark:bg-green-900/40', text: 'text-green-700 dark:text-green-300', dot: 'bg-green-500' },
     moderate: { bg: 'bg-yellow-100 dark:bg-yellow-900/40', text: 'text-yellow-700 dark:text-yellow-300', dot: 'bg-yellow-500' },

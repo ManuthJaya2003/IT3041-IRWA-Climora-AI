@@ -2,7 +2,7 @@
 
 import json
 import logging
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -10,7 +10,7 @@ from typing import Optional
 from app.models.schemas import ChatRequest, ChatResponse
 from app.agents.orchestrator.orchestrator_agent import OrchestratorAgent
 from app.agents.orchestrator.shared import get_orchestrator
-from app.routers.deps import QuotaLimit, RateLimit
+from app.routers.deps import QuotaLimit, RateLimit, refund_quota
 
 logger = logging.getLogger(__name__)
 
@@ -18,13 +18,15 @@ router = APIRouter()
 
 
 @router.post("/query", response_model=ChatResponse, dependencies=[RateLimit, QuotaLimit])
-async def process_query(request: ChatRequest):
+async def process_query(request: ChatRequest, http_request: Request):
     """
     Process a user's climate-related query through the multi-agent pipeline.
 
     The orchestrator receives the query, coordinates the specialized agents
     (NLP, IR, Analysis, Verification, Recommendation), and returns a
     comprehensive response with evidence and recommendations.
+
+    A failed pipeline refunds the consumed quota unit — errors never burn quota.
     """
     try:
         response = await get_orchestrator().process_user_query(request)
@@ -33,6 +35,7 @@ async def process_query(request: ChatRequest):
         raise
     except Exception:
         logger.exception("Chat query failed")
+        refund_quota(http_request)
         raise HTTPException(
             status_code=500,
             detail="Error processing query. Please try again."
@@ -40,7 +43,7 @@ async def process_query(request: ChatRequest):
 
 
 @router.post("/query/stream", dependencies=[RateLimit, QuotaLimit])
-async def process_query_stream(request: ChatRequest):
+async def process_query_stream(request: ChatRequest, http_request: Request):
     """
     Process a query and stream real-time agent-communication events via SSE.
 
@@ -50,7 +53,8 @@ async def process_query_stream(request: ChatRequest):
     finishes the stream closes, telling the mesh that communication has stopped.
 
     A fresh orchestrator instance is used per request so the per-request event
-    callback never cross-wires with other concurrent streams.
+    callback never cross-wires with other concurrent streams. A failed pipeline
+    refunds the consumed quota unit.
     """
     stream_orchestrator = OrchestratorAgent()
 
@@ -59,6 +63,7 @@ async def process_query_stream(request: ChatRequest):
             async for event in stream_orchestrator.process_user_query_stream(request):
                 yield f"data: {json.dumps(event)}\n\n"
         except Exception as e:
+            refund_quota(http_request)
             yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
 
     return StreamingResponse(

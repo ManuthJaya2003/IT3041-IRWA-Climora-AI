@@ -1,18 +1,21 @@
 import { useEffect, useState } from 'react'
 import { X, Check, Sparkles } from 'lucide-react'
-import { getPlans, getUsage, UsageDto } from '../api/climoraApi'
+import { AuthUser, getPlans, getUsage, UsageDto } from '../api/climoraApi'
 import { onUsageChanged } from '../usageBus'
 import { FALLBACK_PLANS, Plan, formatPrice, priceSubtext } from '../plans'
 
 interface PlansModalProps {
   open: boolean
   currentPlan: string
+  user: AuthUser | null
   onSelectPlan: (planId: string) => void
   onCheckout: (plan: Plan, annual: boolean) => void
+  onRequireAuth: () => void
+  onEnterprise: () => void
   onClose: () => void
 }
 
-export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout, onClose }: PlansModalProps) {
+export default function PlansModal({ open, currentPlan, user, onSelectPlan, onCheckout, onRequireAuth, onEnterprise, onClose }: PlansModalProps) {
   const [plans, setPlans] = useState<Plan[]>(FALLBACK_PLANS)
   const [usage, setUsage] = useState<UsageDto | null>(null)
   const [annual, setAnnual] = useState(false)
@@ -30,7 +33,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
           if (!cancelled) setUsage(data)
         })
         .catch(() => {
-          // Usage unavailable offline — hide the quota bar.
+          // Usage unavailable offline - hide the quota bar.
         })
     }
     getPlans()
@@ -40,7 +43,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
         }
       })
       .catch(() => {
-        // Backend unreachable — fall back to bundled plan data.
+        // Backend unreachable - fall back to bundled plan data.
       })
     loadUsage()
     const off = onUsageChanged(loadUsage)
@@ -63,13 +66,21 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
   if (!open) return null
 
   const handleSelect = (plan: Plan) => {
-    if (plan.id === 'enterprise') return // contact-sales path, no plan switch
+    if (plan.id === 'enterprise') {
+      onEnterprise()
+      return
+    }
+    if (!user) {
+      // Real-world rule: paid plans live on an account. Guests stay on Free.
+      onRequireAuth()
+      return
+    }
     if (plan.id === 'free') {
       onSelectPlan('free')
       setNotice('Switched to the Free plan.')
       return
     }
-    // Paid plans go through the (demo) checkout — activation happens on success.
+    // Paid plans go through checkout - server activates on the account.
     onCheckout(plan, annual)
   }
 
@@ -82,7 +93,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
       aria-label="Plans and pricing"
     >
       <div
-        className="w-full max-w-4xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 my-auto"
+        className="w-full max-w-5xl bg-white dark:bg-slate-900 border dark:border-slate-800 rounded-2xl shadow-xl p-4 sm:p-6 my-auto"
         onClick={e => e.stopPropagation()}
       >
         <div className="flex items-center justify-between mb-1">
@@ -96,7 +107,11 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
           </button>
         </div>
         <p className="text-sm text-slate-500 dark:text-slate-400 mb-4">
-          Start free. Upgrade when you need monitoring, API access, or team features.
+          {user ? (
+            <>Signed in as <span className="font-medium">{user.email}</span> - your plan is stored on your account.</>
+          ) : (
+            <>Try 2 queries as a guest. Sign in for 100 free queries/day - paid plans are tied to your account.</>
+          )}
         </p>
 
         {/* Billing toggle */}
@@ -121,9 +136,13 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
         {/* Quota status */}
         {usage && (
           <p className="text-xs text-slate-500 dark:text-slate-400 text-center mb-4">
-            Today's usage: {usage.used_today}
-            {usage.daily_limit > 0 ? ` / ${usage.daily_limit}` : ' (unlimited)'} queries
-            {' '}· {usage.plan_name} plan
+            {usage.authenticated === false ? (
+              <>Guest trial: {usage.used_today} / {usage.daily_limit} queries used today - sign in for 100 free/day.</>
+            ) : (
+              <>Today's usage: {usage.used_today}
+              {usage.daily_limit > 0 ? ` / ${usage.daily_limit}` : ' (unlimited)'} queries
+              {' '}· {usage.plan_name} plan</>
+            )}
           </p>
         )}
         {notice && (
@@ -163,12 +182,12 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
                   ))}
                 </ul>
                 {plan.id === 'enterprise' ? (
-                  <a
-                    href="mailto:hello@climora.ai?subject=Climora%20AI%20Enterprise%20enquiry"
-                    className="block text-center px-4 py-2 text-sm font-medium border border-climora-600 text-climora-700 dark:text-climora-300 rounded-xl hover:bg-climora-50 dark:hover:bg-climora-900/30 transition-colors"
+                  <button
+                    onClick={() => handleSelect(plan)}
+                    className="block w-full text-center px-4 py-2 text-sm font-medium border border-climora-600 text-climora-700 dark:text-climora-300 rounded-xl hover:bg-climora-50 dark:hover:bg-climora-900/30 transition-colors"
                   >
-                    {plan.cta}
-                  </a>
+                    {isCurrent ? 'Current plan' : 'Set up organization'}
+                  </button>
                 ) : (
                   <button
                     onClick={() => handleSelect(plan)}
@@ -189,7 +208,7 @@ export default function PlansModal({ open, currentPlan, onSelectPlan, onCheckout
           })}
         </div>
         <p className="text-xs text-slate-400 dark:text-slate-500 text-center mt-5">
-          Prices in Sri Lankan Rupees. Plan changes apply instantly to your daily query quota.
+          Prices in Sri Lankan Rupees. Paid plans require an account; the server - not your browser - decides your quota.
         </p>
       </div>
     </div>
