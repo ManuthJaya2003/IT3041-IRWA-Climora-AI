@@ -55,21 +55,29 @@ User Query
 ## Key features
 
 - **Trilingual** — language auto-detected by script; answers in English, Sinhala, or Tamil, with voice input + audio answers
+- **Role-aware** — 7 user types (individual, student, farmer, business, organization, institution, traveller); the role is taken from Settings but query wording always wins (e.g. "as a student..." works on the default profile), with trilingual role inference
+- **Island-wide gazetteer** — 25 districts plus 250+ cities/towns with typo tolerance; bare place names ("nugawela") are answered as weather queries with a shown correction note instead of refused
 - **Evidence-grounded** — every answer cites sources with reliability scores and confidence
 - **Risk-aware** — transparent risk levels with explanations, plus opt-in severe-weather browser alerts
 - **Commercial tiers that actually enforce** — Free / Premium / Business / Enterprise with live daily quotas, plan-limited saved locations, history retention caps, and Premium-gated alerts
 - **Real settings system** — appearance (light/dark/system), personalization, notifications, data export & retention, subscription management
-- **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, no internal errors leaked
-- **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; runs fully offline in mock mode
+- **Secure by default** — input validation, admin-token protected endpoints, rate limiting, per-plan quotas, word-boundary off-topic screening (no more "bus" in "business" refusals), no internal errors leaked
+- **Resilient** — agent fallbacks keep the pipeline answering even if an agent server is down; Bedrock↔Gemini automatic failover (including inside agent subprocesses) with overload retries; empty retrieval is retried once; runs fully offline in mock mode
 
 ### Production integration notes
 
-The local prototype provides plan and subscription UI, and paid checkout now
-opens a server-created Stripe Checkout Session. Paid entitlements are not yet
-bound to authenticated accounts or activated from verified Stripe webhooks.
-Do not treat the client-supplied `X-Plan` header as an entitlement in
-production until identity, payment webhooks, and server-side plan records are
-connected.
+User accounts are real: email + password (JWT, PBKDF2 hashing) and Google
+Sign-In (`POST /api/v1/auth/*`). The plan lives on the user row in
+PostgreSQL — `POST /api/v1/billing/subscribe` activates it server-side, daily
+quotas are keyed by user id, and `X-Plan` is only honoured for anonymous
+guests (always Free). A signed-in user cannot spoof a higher tier.
+
+Payments are real when configured: with `STRIPE_SECRET_KEY` set, checkout
+creates a Stripe-hosted Checkout Session bound to the account
+(`client_reference_id` = user id), the plan activates server-side only after
+verified payment (`GET /checkout-session/{id}` + `POST /webhook` with HMAC
+signature check → `set_plan()`). Without keys the UI falls back to the
+clearly-labeled demo checkout so evaluation works offline.
 
 Browser alert preferences are implemented, but continuous weather monitoring
 and push delivery require a production scheduler, notification provider, and
@@ -113,7 +121,7 @@ entitlements.
 |-------|-----------|
 | Frontend | React 18, TypeScript, Vite, Tailwind CSS |
 | Backend | Python 3.12, FastAPI, Pydantic |
-| LLM | Google Gemini (dev) / AWS Bedrock Claude (prod) / offline mock |
+| LLM | AWS Bedrock Claude (primary) with Google Gemini fallback + automatic failover |
 | Vector DB | FAISS (local, 187 seeded climate documents) |
 | Database | PostgreSQL (dockerized, for future persistence) |
 | Agent communication | MCP (Model Context Protocol) |
@@ -145,6 +153,8 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── models/
 │   │   │   └── schemas.py             # Pydantic request/response models
 │   │   ├── routers/
+│   │   │   ├── auth.py                # Register / login / Google / SSO / me
+│   │   │   ├── orgs.py                # Organizations, members, SSO config, audit
 │   │   │   ├── chat.py                # Chat API endpoints + session history
 │   │   │   ├── agents.py              # Agent status and listing endpoints
 │   │   │   ├── health.py              # Health check endpoints
@@ -153,6 +163,9 @@ IT3041-IRWA-Climora-AI/
 │   │   │   ├── billing.py             # Plans catalogue + quota usage API
 │   │   │   └── deps.py                # Admin auth, rate limit, quota dependencies
 │   │   └── services/
+│   │       ├── auth_service.py        # Users, PBKDF2 passwords, JWT, Google verify
+│   │       ├── org_service.py         # Orgs, memberships, SSO state/codes, audit
+│   │       ├── oidc_service.py        # Generic OIDC: PKCE flow, JWKS verify
 │   │       ├── llm_service.py         # Unified LLM (Gemini/Bedrock/Mock)
 │   │       ├── bedrock_service.py     # AWS Bedrock LLM integration
 │   │       ├── embedding_service.py   # Titan & TF-IDF embeddings
@@ -176,6 +189,8 @@ IT3041-IRWA-Climora-AI/
 │   │   ├── plans.ts                  # Plan catalogue fallback + saved locations
 │   │   ├── usageBus.ts               # Real-time quota refresh events
 │   │   ├── components/
+│   │   │   ├── AuthModal.tsx          # Sign in / register + Google + SSO
+│   │   │   ├── OrganizationPanel.tsx  # Org admin: members, SSO, audit
 │   │   │   ├── ChatInterface.tsx      # Main chat UI
 │   │   │   ├── ChatMessage.tsx        # Message display with rich data
 │   │   │   ├── Header.tsx
@@ -262,6 +277,15 @@ permissive defaults.
 
 | Method | Endpoint | Description |
 |--------|----------|-------------|
+| POST | `/api/v1/auth/register` · `/login` · `/google` | Create account, sign in (JWT) |
+| GET | `/api/v1/auth/me` | Signed-in profile + plan + usage |
+| GET | `/api/v1/auth/config` | Google client ID availability |
+| GET | `/api/v1/auth/sso/start?org=…` | Begin enterprise SSO (IdP redirect) |
+| POST | `/api/v1/billing/subscribe` | Activate plan on account (auth required) |
+| POST | `/api/v1/orgs` · `GET /mine` | Create / list organizations |
+| POST | `/api/v1/orgs/{id}/invite` | Add member (owner/admin) |
+| POST | `/api/v1/orgs/{id}/sso` | Connect OIDC identity provider (owner) |
+| GET | `/api/v1/orgs/{id}/audit` | Audit log (owner/admin) |
 | POST | `/api/v1/chat/query` | Full multi-agent pipeline (rate-limited + quota-enforced) |
 | GET | `/api/v1/chat/history?session_id=…` | Stored conversation turns |
 | POST | `/api/v1/speech/voice-query` | Voice query + TTS audio response |
@@ -287,27 +311,32 @@ Measured, re-runnable — full detail in [EVALUATION.md](./EVALUATION.md):
 
 - Location extraction **100%** · topic detection **100%** (16 queries, EN/SI/TA)
 - FAISS top-3 retrieval hit rate **81.2%** (TF-IDF + cross-lingual bridge; live APIs + LLM synthesis compensate in production)
-- 16 backend regression tests · strict `tsc` + production frontend build
+- End-to-end answer quality: 11 golden queries (EN/SI/TA + typos) scored on completion, language, location, aspects, sources, risk, recommendations, disclaimer, verification, confidence — see EVALUATION.md for the latest run
+- 40 backend regression tests · strict `tsc` + production frontend build
 
 ```bash
 cd backend
 python scripts/evaluate_ir.py
-python tests/test_billing.py && python tests/test_api_guards.py
+python scripts/evaluate_e2e.py
+python -m pytest tests/ -q
 ```
 
 ## Commercialization
 
 | Plan | Price (LKR) | Daily queries | Enforced limits |
 |------|-------------|---------------|-----------------|
-| Free | 0 | 100 | 1 saved location · 7-day history |
+| Free (signed in) | 0 | 100 | 1 saved location · 7-day history |
+| Guest trial (no account) | 0 | 2 | Try before registering |
 | Premium | 1,490/mo · 14,900/yr | 1,000 | Alerts · 5 locations · 90-day history |
 | Business | 9,900/mo · 99,000/yr | 10,000 | 25 locations · 1-year history · API access |
-| Enterprise | Custom | Unlimited | SSO · dedicated deploy · SLA |
+| Enterprise | Custom | Unlimited | Organizations, SSO, audit log, dedicated deploy |
 
-Quotas and limits are enforced in code, not just displayed. Annual billing = 10× monthly.
-Upgrades go through a demo checkout (order summary → card form → receipt, clearly
-labeled — no payment provider); chat history persists to PostgreSQL when configured,
-memory otherwise.
+Quotas and limits are enforced server-side per account, not just displayed.
+Annual billing = 10× monthly. Guests get a 2-query/day trial (per IP); signing
+in unlocks 100 free queries/day, and paid plans activate via
+`POST /billing/subscribe` after the demo checkout (card never leaves the
+browser — no payment provider). Chat history and accounts persist to
+PostgreSQL when configured, memory otherwise.
 
 ## Responsible AI
 

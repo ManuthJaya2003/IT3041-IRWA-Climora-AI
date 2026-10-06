@@ -11,10 +11,12 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   background-color: #f8fafc;
+  color: #334155;
 }
 
 .dark body {
   background-color: #020617;
+  color: #e2e8f0;
   color-scheme: dark;
 }
 

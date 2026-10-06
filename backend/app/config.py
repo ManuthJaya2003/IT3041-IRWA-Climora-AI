@@ -45,7 +45,7 @@ class Settings(BaseSettings):
     # Retained only for backwards-compatible environment parsing. All AI
     # generation is required to use AWS Bedrock.
     gemini_api_key: Optional[str] = None
-    gemini_model_id: str = "gemini-3.6-flash"
+    gemini_model_id: str = "gemini-2.5-flash"
 
     # Weather APIs
     openweather_api_key: Optional[str] = None
@@ -69,6 +69,12 @@ class Settings(BaseSettings):
     # Security
     secret_key: str = "replace-with-a-random-production-secret"
     access_token_expire_minutes: int = 60
+    # Google Sign-In (optional — enables the frontend Google button + POST /auth/google).
+    # Get one at https://console.cloud.google.com/apis/credentials (OAuth client, Web).
+    google_client_id: Optional[str] = None
+    # Public origins used to build OAuth redirect URIs (SSO) and return URLs.
+    public_origin: str = "http://localhost:8000"
+    frontend_origin: str = "http://localhost:5173"
     # Token for protected (mutating) endpoints, sent as X-Admin-Token header.
     # When unset, those endpoints are open (local development only).
     admin_token: Optional[str] = None

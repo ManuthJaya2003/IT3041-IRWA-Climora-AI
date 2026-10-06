@@ -455,12 +455,12 @@ def foreign_message(lang: str, place: str) -> str:
     """'Sri Lanka only' notice for a place outside Sri Lanka."""
     if lang == "si":
         return (f"Climora AI දැනට ආවරණය කරන්නේ ශ්‍රී ලංකාව පමණි. '{place}' සඳහා දේශගුණ දත්ත මෙම පද්ධතියේ නොමැත. "
-                "කරුණාකර ශ්‍රී ලංකාව තුළ ස්ථානයක් ගැන අසන්න — උදාහරණ: 'කොළඹ කාලගුණය කුමක්ද?' හෝ 'මහනුවර ගංවතුර අවදානම කුමක්ද?'")
+                "කරුණාකර ශ්‍රී ලංකාව තුළ ස්ථානයක් ගැන අසන්න - උදාහරණ: 'කොළඹ කාලගුණය කුමක්ද?' හෝ 'මහනුවර ගංවතුර අවදානම කුමක්ද?'")
     if lang == "ta":
         return (f"Climora AI தற்போது இலங்கையை மட்டுமே உள்ளடக்குகிறது. '{place}' க்கான காலநிலைத் தரவு இந்த அமைப்பில் இல்லை. "
-                "இலங்கைக்குள் உள்ள ஓர் இடத்தைப் பற்றிக் கேளுங்கள் — எடுத்துக்காட்டு: 'கொழும்பில் வானிலை எப்படி?' அல்லது 'கண்டியில் வெள்ள அபாயம் என்ன?'")
+                "இலங்கைக்குள் உள்ள ஓர் இடத்தைப் பற்றிக் கேளுங்கள் - எடுத்துக்காட்டு: 'கொழும்பில் வானிலை எப்படி?' அல்லது 'கண்டியில் வெள்ள அபாயம் என்ன?'")
     return (f"Climora AI currently covers Sri Lanka only. Climate data for '{place}' is not available in this system. "
-            "Please ask about a location within Sri Lanka — for example: "
+            "Please ask about a location within Sri Lanka - for example: "
             "'What is the weather in Colombo?' or 'What is the flood risk in Kandy?'")
 
 
@@ -486,12 +486,12 @@ def localize_explanation(text: str, lang: str) -> Optional[str]:
     phrase = level_phrase(level, lang)
     hz = localize_factor(hazard, lang) if hazard else None
     if lang == "si":
-        s = f"තීව්‍රතාව {sev}/5, සම්භාවිතාව {prob}/5 (අවදානම් ලකුණු {score}/25) — සමස්ත තත්ත්වය: {phrase}."
+        s = f"තීව්‍රතාව {sev}/5, සම්භාවිතාව {prob}/5 (අවදානම් ලකුණු {score}/25) - සමස්ත තත්ත්වය: {phrase}."
         s += f" ප්‍රධාන හේතුව: {hz}." if hz else " මෙම තක්සේරුව ලබාගත් දේශගුණික සාක්ෂි මත පදනම් වේ."
         if adjusted:
             s += f" ලබාගත් සාක්ෂිවල භාෂාව සහ සන්දර්භය සලකා බැලීමෙන් පසු '{level_phrase(adjusted, lang)}' ලෙස සකස් කරන ලදී."
     else:
-        s = f"தீவிரம் {sev}/5, நிகழ்தகவு {prob}/5 (ஆபத்து மதிப்பெண் {score}/25) — ஒட்டுமொத்த நிலை: {phrase}."
+        s = f"தீவிரம் {sev}/5, நிகழ்தகவு {prob}/5 (ஆபத்து மதிப்பெண் {score}/25) - ஒட்டுமொத்த நிலை: {phrase}."
         s += f" முக்கிய காரணம்: {hz}." if hz else " இந்த மதிப்பீடு பெறப்பட்ட காலநிலைச் சான்றுகளை அடிப்படையாகக் கொண்டது."
         if adjusted:
             s += f" பெறப்பட்ட சான்றுகளின் மொழி மற்றும் சூழலைக் கருத்தில் கொண்டு '{level_phrase(adjusted, lang)}' ஆக சரிசெய்யப்பட்டது."
@@ -608,7 +608,7 @@ def build_summary(lang: str, location: str, live_docs: list, level: str, factors
         wind_lbl = "සුළං වේගය" if lang == "si" else "காற்றின் வேகம்" if lang == "ta" else "wind"
         wind = f", {wind_lbl} {r['wind']} m/s" if "wind" in r else ""
         head = {"en": "Current weather", "si": "වත්මන් කාලගුණය", "ta": "தற்போதைய வானிலை"}[lang]
-        parts.append(f"{place} — {head}: {cond_txt}{r['temp']}°C{hum}{wind}." if lang != "en"
+        parts.append(f"{place} - {head}: {cond_txt}{r['temp']}°C{hum}{wind}." if lang != "en"
                      else f"{head} in {place}: {cond_txt}{r['temp']}°C{hum}{wind}.")
 
     if "rain_mm" in r:

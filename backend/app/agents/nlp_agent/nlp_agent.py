@@ -45,148 +45,428 @@ logger = logging.getLogger(__name__)
 
 # All 25 Sri Lanka districts + 9 provinces + common sub-regions.
 # Ordered longest/most specific first so "nuwara eliya" matches before "eliya".
-SRI_LANKA_LOCATIONS: list[tuple[str, str]] = [
-    ("nuwara eliya",              "Nuwara Eliya, Sri Lanka"),
-    ("anuradhapura",              "Anuradhapura, Sri Lanka"),
-    ("polonnaruwa",               "Polonnaruwa, Sri Lanka"),
-    ("trincomalee",               "Trincomalee, Sri Lanka"),
-    ("hambantota",                "Hambantota, Sri Lanka"),
-    ("kilinochchi",               "Kilinochchi, Sri Lanka"),
-    ("mullaitivu",                "Mullaitivu, Sri Lanka"),
-    ("vavuniya",                  "Vavuniya, Sri Lanka"),
-    ("batticaloa",                "Batticaloa, Sri Lanka"),
-    ("monaragala",                "Monaragala, Sri Lanka"),
-    ("kurunegala",                "Kurunegala, Sri Lanka"),
-    ("ratnapura",                 "Ratnapura, Sri Lanka"),
-    ("kalpitiya",                 "Kalpitiya, Sri Lanka"),
-    ("kalutara",                  "Kalutara, Sri Lanka"),
-    ("gampaha",                   "Gampaha, Sri Lanka"),
-    ("matale",                    "Matale, Sri Lanka"),
-    ("badulla",                   "Badulla, Sri Lanka"),
-    ("kegalle",                   "Kegalle, Sri Lanka"),
-    ("ampara",                    "Ampara, Sri Lanka"),
-    ("puttalam",                  "Puttalam, Sri Lanka"),
-    ("matara",                    "Matara, Sri Lanka"),
-    ("mannar",                    "Mannar, Sri Lanka"),
-    ("kandy",                     "Kandy, Sri Lanka"),
-    ("galle",                     "Galle, Sri Lanka"),
-    ("jaffna",                    "Jaffna, Sri Lanka"),
-    ("colombo",                   "Colombo, Sri Lanka"),
-    # --- Spelling variants & popular towns -> their district (added for wider Sri Lanka coverage) ---
-    ("nuwaraeliya", "Nuwara Eliya, Sri Lanka"),
-    ("nuwara-eliya", "Nuwara Eliya, Sri Lanka"),
-    ("moneragala", "Monaragala, Sri Lanka"),
-    ("monaragla", "Monaragala, Sri Lanka"),
-    ("kegalla", "Kegalle, Sri Lanka"),
-    ("kegala", "Kegalle, Sri Lanka"),
-    ("anuradapura", "Anuradhapura, Sri Lanka"),
-    ("anuradhapuraya", "Anuradhapura, Sri Lanka"),
-    ("polonaruwa", "Polonnaruwa, Sri Lanka"),
-    ("pollonnaruwa", "Polonnaruwa, Sri Lanka"),
-    ("batticalo", "Batticaloa, Sri Lanka"),
-    ("mullativu", "Mullaitivu, Sri Lanka"),
-    ("mulativu", "Mullaitivu, Sri Lanka"),
-    ("mullaitheevu", "Mullaitivu, Sri Lanka"),
-    ("killinochchi", "Kilinochchi, Sri Lanka"),
-    ("kilinochi", "Kilinochchi, Sri Lanka"),
-    ("hambanthota", "Hambantota, Sri Lanka"),
-    ("kurunegela", "Kurunegala, Sri Lanka"),
-    ("kurunagala", "Kurunegala, Sri Lanka"),
-    ("puttlam", "Puttalam, Sri Lanka"),
-    ("vavunia", "Vavuniya, Sri Lanka"),
-    ("amparai", "Ampara, Sri Lanka"),
-    ("trinco", "Trincomalee, Sri Lanka"),
-    ("yarlpanam", "Jaffna, Sri Lanka"),
-    ("point pedro", "Jaffna, Sri Lanka"),
-    ("kaluthara", "Kalutara, Sri Lanka"),
-    ("negombo", "Gampaha, Sri Lanka"),
-    ("dambulla", "Matale, Sri Lanka"),
-    ("sigiriya", "Matale, Sri Lanka"),
-    ("peradeniya", "Kandy, Sri Lanka"),
-    ("hikkaduwa", "Galle, Sri Lanka"),
-    ("bentota", "Galle, Sri Lanka"),
-    # --- Sinhala / Tamil district names (please have a native speaker verify spellings) ---
-    ("කොළඹ", "Colombo, Sri Lanka"),
-    ("கொழும்பு", "Colombo, Sri Lanka"),
-    ("கொழும்ப", "Colombo, Sri Lanka"),  # stem: matches கொழும்பு and inflected கொழும்பில்
-    ("ගම්පහ", "Gampaha, Sri Lanka"),
-    ("கம்பஹா", "Gampaha, Sri Lanka"),
-    ("කළුතර", "Kalutara, Sri Lanka"),
-    ("களுத்துறை", "Kalutara, Sri Lanka"),
-    ("මහනුවර", "Kandy, Sri Lanka"),
-    ("கண்டி", "Kandy, Sri Lanka"),
-    ("මාතලේ", "Matale, Sri Lanka"),
-    ("மாத்தளை", "Matale, Sri Lanka"),
-    ("නුවරඑළිය", "Nuwara Eliya, Sri Lanka"),
-    ("நுவரெலியா", "Nuwara Eliya, Sri Lanka"),
-    ("ගාල්ල", "Galle, Sri Lanka"),
-    ("காலி", "Galle, Sri Lanka"),
-    ("මාතර", "Matara, Sri Lanka"),
-    ("மாத்தறை", "Matara, Sri Lanka"),
-    ("හම්බන්තොට", "Hambantota, Sri Lanka"),
-    ("அம்பாந்தோட்டை", "Hambantota, Sri Lanka"),
-    ("යාපනය", "Jaffna, Sri Lanka"),
-    ("யாழ்ப்பாணம்", "Jaffna, Sri Lanka"),
-    ("කිලිනොච්චි", "Kilinochchi, Sri Lanka"),
-    ("கிளிநொச்சி", "Kilinochchi, Sri Lanka"),
-    ("මන්නාරම", "Mannar, Sri Lanka"),
-    ("மன்னார்", "Mannar, Sri Lanka"),
-    ("වව්නියාව", "Vavuniya, Sri Lanka"),
-    ("வவுனியா", "Vavuniya, Sri Lanka"),
-    ("මුලතිව්", "Mullaitivu, Sri Lanka"),
-    ("முல்லைத்தீவு", "Mullaitivu, Sri Lanka"),
-    ("මඩකලපුව", "Batticaloa, Sri Lanka"),
-    ("மட்டக்களப்பு", "Batticaloa, Sri Lanka"),
-    ("අම්පාර", "Ampara, Sri Lanka"),
-    ("அம்பாறை", "Ampara, Sri Lanka"),
-    ("ත්‍රිකුණාමලය", "Trincomalee, Sri Lanka"),
-    ("திருகோணமலை", "Trincomalee, Sri Lanka"),
-    ("කුරුණෑගල", "Kurunegala, Sri Lanka"),
-    ("குருநாகல்", "Kurunegala, Sri Lanka"),
-    ("පුත්තලම", "Puttalam, Sri Lanka"),
-    ("புத்தளம்", "Puttalam, Sri Lanka"),
-    ("අනුරාධපුරය", "Anuradhapura, Sri Lanka"),
-    ("அனுராதபுரம்", "Anuradhapura, Sri Lanka"),
-    ("පොළොන්නරුව", "Polonnaruwa, Sri Lanka"),
-    ("பொலன்னறுவை", "Polonnaruwa, Sri Lanka"),
-    ("බදුල්ල", "Badulla, Sri Lanka"),
-    ("பதுளை", "Badulla, Sri Lanka"),
-    ("මොණරාගල", "Monaragala, Sri Lanka"),
-    ("மொனராகலை", "Monaragala, Sri Lanka"),
-    ("රත්නපුර", "Ratnapura, Sri Lanka"),
-    ("இரத்தினபுரி", "Ratnapura, Sri Lanka"),
-    ("කෑගල්ල", "Kegalle, Sri Lanka"),
-    ("கேகாலை", "Kegalle, Sri Lanka"),
-    # Provinces
-    ("western province",          "Western Province, Sri Lanka"),
-    ("central province",          "Central Province, Sri Lanka"),
-    ("southern province",         "Southern Province, Sri Lanka"),
-    ("northern province",         "Northern Province, Sri Lanka"),
-    ("eastern province",          "Eastern Province, Sri Lanka"),
-    ("north western province",    "North Western Province, Sri Lanka"),
-    ("north central province",    "North Central Province, Sri Lanka"),
-    ("uva province",              "Uva Province, Sri Lanka"),
-    ("sabaragamuwa",              "Sabaragamuwa Province, Sri Lanka"),
-    # Sub-regions / geographic features
-    ("dry zone",                  "Dry Zone, Sri Lanka"),
-    ("hill country",              "Central Highlands, Sri Lanka"),
-    ("knuckles",                  "Matale, Sri Lanka"),
-    ("horton plains",             "Nuwara Eliya, Sri Lanka"),
-    ("wilpattu",                  "Anuradhapura, Sri Lanka"),
-    ("yala",                      "Hambantota, Sri Lanka"),
-    ("sinharaja",                 "Sinharaja, Sri Lanka"),
-    ("mahaweli",                  "Mahaweli Basin, Sri Lanka"),
-    ("kelani",                    "Colombo, Sri Lanka"),
-    ("sri lanka",                 "Sri Lanka"),
-    # --- Generic country / zone names in Sinhala & Tamil (stems, so inflected
-    # forms like "ශ්‍රී ලංකාවේ" / "இலங்கையில்" still match by substring) ---
-    ("ශ්‍රී ලංකා",               "Sri Lanka"),
-    ("இலங்கை",                   "Sri Lanka"),
-    ("වියළි කලාප",               "Dry Zone, Sri Lanka"),
-    ("வறண்ட வலய",                "Dry Zone, Sri Lanka"),
-    ("මධ්‍යම කඳුකර",             "Central Highlands, Sri Lanka"),
-    ("மத்திய மலைநாடு",           "Central Highlands, Sri Lanka"),
+# ---------------------------------------------------------------------------
+# Sri Lanka gazetteer — kept as SEPARATE lists by category so districts,
+# cities/towns, provinces, regions and Sinhala/Tamil names can be maintained
+# independently. SRI_LANKA_LOCATIONS (combined, longest-first) is the single
+# list the matcher iterates, preserving previous matching behaviour.
+# ---------------------------------------------------------------------------
+
+# 25 administrative districts (canonical spellings).
+SRI_LANKA_DISTRICTS: list[tuple[str, str]] = [
+    ("nuwara eliya",            "Nuwara Eliya, Sri Lanka"),
+    ("anuradhapura",            "Anuradhapura, Sri Lanka"),
+    ("polonnaruwa",             "Polonnaruwa, Sri Lanka"),
+    ("trincomalee",             "Trincomalee, Sri Lanka"),
+    ("hambantota",              "Hambantota, Sri Lanka"),
+    ("kilinochchi",             "Kilinochchi, Sri Lanka"),
+    ("mullaitivu",              "Mullaitivu, Sri Lanka"),
+    ("vavuniya",                "Vavuniya, Sri Lanka"),
+    ("batticaloa",              "Batticaloa, Sri Lanka"),
+    ("monaragala",              "Monaragala, Sri Lanka"),
+    ("kurunegala",              "Kurunegala, Sri Lanka"),
+    ("ratnapura",               "Ratnapura, Sri Lanka"),
+    ("kalutara",                "Kalutara, Sri Lanka"),
+    ("gampaha",                 "Gampaha, Sri Lanka"),
+    ("matale",                  "Matale, Sri Lanka"),
+    ("badulla",                 "Badulla, Sri Lanka"),
+    ("kegalle",                 "Kegalle, Sri Lanka"),
+    ("ampara",                  "Ampara, Sri Lanka"),
+    ("puttalam",                "Puttalam, Sri Lanka"),
+    ("matara",                  "Matara, Sri Lanka"),
+    ("mannar",                  "Mannar, Sri Lanka"),
+    ("kandy",                   "Kandy, Sri Lanka"),
+    ("galle",                   "Galle, Sri Lanka"),
+    ("jaffna",                  "Jaffna, Sri Lanka"),
+    ("colombo",                 "Colombo, Sri Lanka"),
 ]
+
+# Alternate district spellings, abbreviations and transliterations.
+SRI_LANKA_DISTRICT_ALIASES: list[tuple[str, str]] = [
+    ("nuwaraeliya",             "Nuwara Eliya, Sri Lanka"),
+    ("nuwara-eliya",            "Nuwara Eliya, Sri Lanka"),
+    ("moneragala",              "Monaragala, Sri Lanka"),
+    ("monaragla",               "Monaragala, Sri Lanka"),
+    ("kegalla",                 "Kegalle, Sri Lanka"),
+    ("kegala",                  "Kegalle, Sri Lanka"),
+    ("anuradapura",             "Anuradhapura, Sri Lanka"),
+    ("anuradhapuraya",          "Anuradhapura, Sri Lanka"),
+    ("polonaruwa",              "Polonnaruwa, Sri Lanka"),
+    ("pollonnaruwa",            "Polonnaruwa, Sri Lanka"),
+    ("batticalo",               "Batticaloa, Sri Lanka"),
+    ("mullativu",               "Mullaitivu, Sri Lanka"),
+    ("mulativu",                "Mullaitivu, Sri Lanka"),
+    ("mullaitheevu",            "Mullaitivu, Sri Lanka"),
+    ("killinochchi",            "Kilinochchi, Sri Lanka"),
+    ("kilinochi",               "Kilinochchi, Sri Lanka"),
+    ("hambanthota",             "Hambantota, Sri Lanka"),
+    ("kurunegela",              "Kurunegala, Sri Lanka"),
+    ("kurunagala",              "Kurunegala, Sri Lanka"),
+    ("puttlam",                 "Puttalam, Sri Lanka"),
+    ("vavunia",                 "Vavuniya, Sri Lanka"),
+    ("amparai",                 "Ampara, Sri Lanka"),
+    ("trinco",                  "Trincomalee, Sri Lanka"),
+    ("kaluthara",               "Kalutara, Sri Lanka"),
+]
+
+# Cities, towns and DS divisions -> their district.
+SRI_LANKA_CITIES: list[tuple[str, str]] = [
+    ("ambalantota",             "Hambantota, Sri Lanka"),
+    ("vavuniya south",          "Vavuniya, Sri Lanka"),
+    ("kalpitiya",               "Kalpitiya, Sri Lanka"),
+    ("tangalle",                "Hambantota, Sri Lanka"),
+    ("moratuwa",                "Colombo, Sri Lanka"),
+    ("kotte",                   "Colombo, Sri Lanka"),
+    ("gampola",                 "Kandy, Sri Lanka"),
+    ("ella",                    "Badulla, Sri Lanka"),
+    ("mirissa",                 "Matara, Sri Lanka"),
+    ("chilaw",                  "Puttalam, Sri Lanka"),
+    ("kuliyapitiya",            "Kurunegala, Sri Lanka"),
+    ("embilipitiya",            "Ratnapura, Sri Lanka"),
+    ("yarlpanam",               "Jaffna, Sri Lanka"),
+    ("point pedro",             "Jaffna, Sri Lanka"),
+    ("negombo",                 "Gampaha, Sri Lanka"),
+    ("dambulla",                "Matale, Sri Lanka"),
+    ("sigiriya",                "Matale, Sri Lanka"),
+    ("peradeniya",              "Kandy, Sri Lanka"),
+    ("hikkaduwa",               "Galle, Sri Lanka"),
+    ("bentota",                 "Galle, Sri Lanka"),
+    ("sri jayawardenepura kotte", "Colombo, Sri Lanka"),
+    ("nugegoda",                "Colombo, Sri Lanka"),
+    ("maharagama",              "Colombo, Sri Lanka"),
+    ("dehiwala",                "Colombo, Sri Lanka"),
+    ("mount lavinia",           "Colombo, Sri Lanka"),
+    ("kesbewa",                 "Colombo, Sri Lanka"),
+    ("homagama",                "Colombo, Sri Lanka"),
+    ("piliyandala",             "Colombo, Sri Lanka"),
+    ("boralesgamuwa",           "Colombo, Sri Lanka"),
+    ("kolonnawa",               "Colombo, Sri Lanka"),
+    ("kaduwela",                "Colombo, Sri Lanka"),
+    ("avissawella",             "Colombo, Sri Lanka"),
+    ("padukka",                 "Colombo, Sri Lanka"),
+    ("wattala",                 "Gampaha, Sri Lanka"),
+    ("mirigama",                "Gampaha, Sri Lanka"),
+    ("minuwangoda",             "Gampaha, Sri Lanka"),
+    ("attanagalla",             "Gampaha, Sri Lanka"),
+    ("kelaniya",                "Gampaha, Sri Lanka"),
+    ("biyagama",                "Gampaha, Sri Lanka"),
+    ("kiribathgoda",            "Gampaha, Sri Lanka"),
+    ("katana",                  "Gampaha, Sri Lanka"),
+    ("divulapitiya",            "Gampaha, Sri Lanka"),
+    ("panadura",                "Kalutara, Sri Lanka"),
+    ("horana",                  "Kalutara, Sri Lanka"),
+    ("bandaragama",             "Kalutara, Sri Lanka"),
+    ("wadduwa",                 "Kalutara, Sri Lanka"),
+    ("beruwala",                "Kalutara, Sri Lanka"),
+    ("aluthgama",               "Kalutara, Sri Lanka"),
+    ("mathugama",               "Kalutara, Sri Lanka"),
+    ("agalawatta",              "Kalutara, Sri Lanka"),
+    ("bulathsinhala",           "Kalutara, Sri Lanka"),
+    ("ingiriya",                "Kalutara, Sri Lanka"),
+    ("nawalapitiya",            "Kandy, Sri Lanka"),
+    ("katugastota",             "Kandy, Sri Lanka"),
+    ("kundasale",               "Kandy, Sri Lanka"),
+    ("galaha",                  "Kandy, Sri Lanka"),
+    ("nugawela",                "Kandy, Sri Lanka"),
+    ("galagedara",              "Kandy, Sri Lanka"),
+    ("akurana",                 "Kandy, Sri Lanka"),
+    ("pujapitiya",              "Kandy, Sri Lanka"),
+    ("pathadumbara",            "Kandy, Sri Lanka"),
+    ("udadumbara",              "Kandy, Sri Lanka"),
+    ("minipe",                  "Kandy, Sri Lanka"),
+    ("doluwa",                  "Kandy, Sri Lanka"),
+    ("yatinuwara",              "Kandy, Sri Lanka"),
+    ("udunuwara",               "Kandy, Sri Lanka"),
+    ("galewela",                "Matale, Sri Lanka"),
+    ("ukuwela",                 "Matale, Sri Lanka"),
+    ("rattota",                 "Matale, Sri Lanka"),
+    ("pallepola",               "Matale, Sri Lanka"),
+    ("yatawatta",               "Matale, Sri Lanka"),
+    ("naula",                   "Matale, Sri Lanka"),
+    ("wilgamuwa",               "Matale, Sri Lanka"),
+    ("laggala",                 "Matale, Sri Lanka"),
+    ("hatton",                  "Nuwara Eliya, Sri Lanka"),
+    ("talawakelle",             "Nuwara Eliya, Sri Lanka"),
+    ("hanguranketha",           "Nuwara Eliya, Sri Lanka"),
+    ("walapane",                "Nuwara Eliya, Sri Lanka"),
+    ("kotmale",                 "Nuwara Eliya, Sri Lanka"),
+    ("maskeliya",               "Nuwara Eliya, Sri Lanka"),
+    ("nanu oya",                "Nuwara Eliya, Sri Lanka"),
+    ("ambalangoda",             "Galle, Sri Lanka"),
+    ("elpitiya",                "Galle, Sri Lanka"),
+    ("baddegama",               "Galle, Sri Lanka"),
+    ("karapitiya",              "Galle, Sri Lanka"),
+    ("habaraduwa",              "Galle, Sri Lanka"),
+    ("imaduwa",                 "Galle, Sri Lanka"),
+    ("weligama",                "Matara, Sri Lanka"),
+    ("akuressa",                "Matara, Sri Lanka"),
+    ("kamburupitiya",           "Matara, Sri Lanka"),
+    ("hakmana",                 "Matara, Sri Lanka"),
+    ("dikwella",                "Matara, Sri Lanka"),
+    ("devinuwara",              "Matara, Sri Lanka"),
+    ("malimbada",               "Matara, Sri Lanka"),
+    ("tissamaharama",           "Hambantota, Sri Lanka"),
+    ("beliatta",                "Hambantota, Sri Lanka"),
+    ("weeraketiya",             "Hambantota, Sri Lanka"),
+    ("katuwana",                "Hambantota, Sri Lanka"),
+    ("sooriyawewa",             "Hambantota, Sri Lanka"),
+    ("lunugamvehera",           "Hambantota, Sri Lanka"),
+    ("chavakachcheri",          "Jaffna, Sri Lanka"),
+    ("nallur",                  "Jaffna, Sri Lanka"),
+    ("kopay",                   "Jaffna, Sri Lanka"),
+    ("tellippalai",             "Jaffna, Sri Lanka"),
+    ("karainagar",              "Jaffna, Sri Lanka"),
+    ("velanai",                 "Jaffna, Sri Lanka"),
+    ("kayts",                   "Jaffna, Sri Lanka"),
+    ("paranthan",               "Kilinochchi, Sri Lanka"),
+    ("poonakari",               "Kilinochchi, Sri Lanka"),
+    ("kandavalai",              "Kilinochchi, Sri Lanka"),
+    ("karachchi",               "Kilinochchi, Sri Lanka"),
+    ("pallai",                  "Kilinochchi, Sri Lanka"),
+    ("nanattan",                "Mannar, Sri Lanka"),
+    ("musali",                  "Mannar, Sri Lanka"),
+    ("madhu",                   "Mannar, Sri Lanka"),
+    ("manthai",                 "Mannar, Sri Lanka"),
+    ("cheddikulam",             "Vavuniya, Sri Lanka"),
+    ("nedunkerny",              "Vavuniya, Sri Lanka"),
+    ("puthukudiyiruppu",        "Mullaitivu, Sri Lanka"),
+    ("oddusuddan",              "Mullaitivu, Sri Lanka"),
+    ("welioya",                 "Mullaitivu, Sri Lanka"),
+    ("thunukkai",               "Mullaitivu, Sri Lanka"),
+    ("kattankudy",              "Batticaloa, Sri Lanka"),
+    ("eravur",                  "Batticaloa, Sri Lanka"),
+    ("kaluwanchikudy",          "Batticaloa, Sri Lanka"),
+    ("valaichchenai",           "Batticaloa, Sri Lanka"),
+    ("oddamavadi",              "Batticaloa, Sri Lanka"),
+    ("kalkudah",                "Batticaloa, Sri Lanka"),
+    ("kalmunai",                "Ampara, Sri Lanka"),
+    ("akkaraipattu",            "Ampara, Sri Lanka"),
+    ("pottuvil",                "Ampara, Sri Lanka"),
+    ("sammanthurai",            "Ampara, Sri Lanka"),
+    ("mahaoya",                 "Ampara, Sri Lanka"),
+    ("uhana",                   "Ampara, Sri Lanka"),
+    ("kinniya",                 "Trincomalee, Sri Lanka"),
+    ("mutur",                   "Trincomalee, Sri Lanka"),
+    ("kantale",                 "Trincomalee, Sri Lanka"),
+    ("kuchchaveli",             "Trincomalee, Sri Lanka"),
+    ("seruvila",                "Trincomalee, Sri Lanka"),
+    ("narammala",               "Kurunegala, Sri Lanka"),
+    ("wariyapola",              "Kurunegala, Sri Lanka"),
+    ("pannala",                 "Kurunegala, Sri Lanka"),
+    ("polgahawela",             "Kurunegala, Sri Lanka"),
+    ("alawwa",                  "Kurunegala, Sri Lanka"),
+    ("mawathagama",             "Kurunegala, Sri Lanka"),
+    ("rideegama",               "Kurunegala, Sri Lanka"),
+    ("wennappuwa",              "Puttalam, Sri Lanka"),
+    ("nattandiya",              "Puttalam, Sri Lanka"),
+    ("anamaduwa",               "Puttalam, Sri Lanka"),
+    ("mundel",                  "Puttalam, Sri Lanka"),
+    ("pallama",                 "Puttalam, Sri Lanka"),
+    ("kekirawa",                "Anuradhapura, Sri Lanka"),
+    ("eppawala",                "Anuradhapura, Sri Lanka"),
+    ("mihintale",               "Anuradhapura, Sri Lanka"),
+    ("medawachchiya",           "Anuradhapura, Sri Lanka"),
+    ("horowpothana",            "Anuradhapura, Sri Lanka"),
+    ("galnewa",                 "Anuradhapura, Sri Lanka"),
+    ("tambuttegama",            "Anuradhapura, Sri Lanka"),
+    ("nochchiyagama",           "Anuradhapura, Sri Lanka"),
+    ("kaduruwela",              "Polonnaruwa, Sri Lanka"),
+    ("hingurakgoda",            "Polonnaruwa, Sri Lanka"),
+    ("medirigiriya",            "Polonnaruwa, Sri Lanka"),
+    ("elahera",                 "Polonnaruwa, Sri Lanka"),
+    ("dimbulagala",             "Polonnaruwa, Sri Lanka"),
+    ("lankapura",               "Polonnaruwa, Sri Lanka"),
+    ("bandarawela",             "Badulla, Sri Lanka"),
+    ("haputale",                "Badulla, Sri Lanka"),
+    ("welimada",                "Badulla, Sri Lanka"),
+    ("mahiyanganaya",           "Badulla, Sri Lanka"),
+    ("passara",                 "Badulla, Sri Lanka"),
+    ("lunugala",                "Badulla, Sri Lanka"),
+    ("wellawaya",               "Monaragala, Sri Lanka"),
+    ("bibile",                  "Monaragala, Sri Lanka"),
+    ("medagama",                "Monaragala, Sri Lanka"),
+    ("siyambalanduwa",          "Monaragala, Sri Lanka"),
+    ("buttala",                 "Monaragala, Sri Lanka"),
+    ("katharagama",             "Monaragala, Sri Lanka"),
+    ("balangoda",               "Ratnapura, Sri Lanka"),
+    ("eheliyagoda",             "Ratnapura, Sri Lanka"),
+    ("kuruwita",                "Ratnapura, Sri Lanka"),
+    ("pelmadulla",              "Ratnapura, Sri Lanka"),
+    ("nivithigala",             "Ratnapura, Sri Lanka"),
+    ("kahawatta",               "Ratnapura, Sri Lanka"),
+    ("godakawela",              "Ratnapura, Sri Lanka"),
+    ("mawanella",               "Kegalle, Sri Lanka"),
+    ("rambukkana",              "Kegalle, Sri Lanka"),
+    ("yatiyantota",             "Kegalle, Sri Lanka"),
+    ("dehiowita",               "Kegalle, Sri Lanka"),
+    ("warakapola",              "Kegalle, Sri Lanka"),
+    ("ruwanwella",              "Kegalle, Sri Lanka"),
+    ("galigamuwa",              "Kegalle, Sri Lanka"),
+    ("aranayaka",               "Kegalle, Sri Lanka"),
+    ("ratmalana",               "Colombo, Sri Lanka"),
+    ("kottawa",                 "Colombo, Sri Lanka"),
+    ("veyangoda",               "Gampaha, Sri Lanka"),
+    ("nittambuwa",              "Gampaha, Sri Lanka"),
+    ("weliweriya",              "Gampaha, Sri Lanka"),
+    ("pugoda",                  "Gampaha, Sri Lanka"),
+    ("kirindiwela",             "Gampaha, Sri Lanka"),
+    ("dodangoda",               "Kalutara, Sri Lanka"),
+    ("millaniya",               "Kalutara, Sri Lanka"),
+    ("palindanuwara",           "Kalutara, Sri Lanka"),
+    ("udapalatha",              "Kandy, Sri Lanka"),
+    ("thumpane",                "Kandy, Sri Lanka"),
+    ("harispattuwa",            "Kandy, Sri Lanka"),
+    ("medadumbara",             "Kandy, Sri Lanka"),
+    ("hatharaliyadda",          "Kandy, Sri Lanka"),
+    ("ambanganga",              "Matale, Sri Lanka"),
+    ("udapussellawa",           "Nuwara Eliya, Sri Lanka"),
+    ("nildandahinna",           "Nuwara Eliya, Sri Lanka"),
+    ("yakkalamulla",            "Galle, Sri Lanka"),
+    ("nagoda",                  "Galle, Sri Lanka"),
+    ("thawalama",               "Galle, Sri Lanka"),
+    ("neluwa",                  "Galle, Sri Lanka"),
+    ("hiniduma",                "Galle, Sri Lanka"),
+    ("pitabeddara",             "Matara, Sri Lanka"),
+    ("kotapola",                "Matara, Sri Lanka"),
+    ("pasgoda",                 "Matara, Sri Lanka"),
+    ("thihagoda",               "Matara, Sri Lanka"),
+    ("okewela",                 "Hambantota, Sri Lanka"),
+    ("angunakolapelessa",       "Hambantota, Sri Lanka"),
+    ("sandilipay",              "Jaffna, Sri Lanka"),
+    ("uduvil",                  "Jaffna, Sri Lanka"),
+    ("maruthankerny",           "Jaffna, Sri Lanka"),
+    ("karanthurai",             "Jaffna, Sri Lanka"),
+    ("pungudutivu",             "Jaffna, Sri Lanka"),
+    ("karaveddy",               "Jaffna, Sri Lanka"),
+    ("vaddukoddai",             "Jaffna, Sri Lanka"),
+    ("atpatti",                 "Mannar, Sri Lanka"),
+    ("vankalai",                "Mannar, Sri Lanka"),
+    ("manthai east",            "Mullaitivu, Sri Lanka"),
+    ("kiran",                   "Batticaloa, Sri Lanka"),
+    ("kalkudah",                "Batticaloa, Sri Lanka"),
+    ("chenkalady",              "Batticaloa, Sri Lanka"),
+    ("dehiattakandiya",         "Ampara, Sri Lanka"),
+    ("gomon",                   "Trincomalee, Sri Lanka"),
+    ("gomarankadawala",         "Trincomalee, Sri Lanka"),
+    ("morawewa",                "Trincomalee, Sri Lanka"),
+    ("giribawa",                "Kurunegala, Sri Lanka"),
+    ("mahawa",                  "Kurunegala, Sri Lanka"),
+    ("hiriyala",                "Kurunegala, Sri Lanka"),
+    ("arachchikattuwa",         "Puttalam, Sri Lanka"),
+    ("kahatagasdigiliya",       "Anuradhapura, Sri Lanka"),
+    ("mahavilachchiya",         "Anuradhapura, Sri Lanka"),
+    ("haliela",                 "Badulla, Sri Lanka"),
+    ("meegahakiula",            "Badulla, Sri Lanka"),
+    ("badalkumbura",            "Monaragala, Sri Lanka"),
+    ("weligepola",              "Ratnapura, Sri Lanka"),
+    ("ayagama",                 "Ratnapura, Sri Lanka"),
+    ("bulathkohupitiya",        "Kegalle, Sri Lanka"),
+    ("knuckles",                "Matale, Sri Lanka"),
+    ("horton plains",           "Nuwara Eliya, Sri Lanka"),
+    ("wilpattu",                "Anuradhapura, Sri Lanka"),
+    ("yala",                    "Hambantota, Sri Lanka"),
+    ("kelani",                  "Colombo, Sri Lanka"),
+]
+
+# Provinces.
+SRI_LANKA_PROVINCES: list[tuple[str, str]] = [
+    ("western province",        "Western Province, Sri Lanka"),
+    ("central province",        "Central Province, Sri Lanka"),
+    ("southern province",       "Southern Province, Sri Lanka"),
+    ("northern province",       "Northern Province, Sri Lanka"),
+    ("eastern province",        "Eastern Province, Sri Lanka"),
+    ("north western province",  "North Western Province, Sri Lanka"),
+    ("north central province",  "North Central Province, Sri Lanka"),
+    ("uva province",            "Uva Province, Sri Lanka"),
+    ("sabaragamuwa",            "Sabaragamuwa Province, Sri Lanka"),
+]
+
+# Geographic regions, landmarks and the country name.
+SRI_LANKA_REGIONS: list[tuple[str, str]] = [
+    ("dry zone",                "Dry Zone, Sri Lanka"),
+    ("hill country",            "Central Highlands, Sri Lanka"),
+    ("sinharaja",               "Sinharaja, Sri Lanka"),
+    ("mahaweli",                "Mahaweli Basin, Sri Lanka"),
+    ("sri lanka",               "Sri Lanka"),
+    ("ශ්‍රී ලංකා",              "Sri Lanka"),
+    ("இலங்கை",                  "Sri Lanka"),
+    ("වියළි කලාප",              "Dry Zone, Sri Lanka"),
+    ("வறண்ட வலய",               "Dry Zone, Sri Lanka"),
+    ("මධ්‍යම කඳුකර",            "Central Highlands, Sri Lanka"),
+    ("மத்திய மலைநாடு",          "Central Highlands, Sri Lanka"),
+]
+
+# Sinhala / Tamil district, province and zone names.
+SRI_LANKA_LOCAL_NAMES: list[tuple[str, str]] = [
+    ("කොළඹ",                    "Colombo, Sri Lanka"),
+    ("கொழும்பு",                "Colombo, Sri Lanka"),
+    ("கொழும்ப",                 "Colombo, Sri Lanka"),
+    ("ගම්පහ",                   "Gampaha, Sri Lanka"),
+    ("கம்பஹா",                  "Gampaha, Sri Lanka"),
+    ("කළුතර",                   "Kalutara, Sri Lanka"),
+    ("களுத்துறை",               "Kalutara, Sri Lanka"),
+    ("මහනුවර",                  "Kandy, Sri Lanka"),
+    ("கண்டி",                   "Kandy, Sri Lanka"),
+    ("මාතලේ",                   "Matale, Sri Lanka"),
+    ("மாத்தளை",                 "Matale, Sri Lanka"),
+    ("නුවරඑළිය",                "Nuwara Eliya, Sri Lanka"),
+    ("நுவரெலியா",               "Nuwara Eliya, Sri Lanka"),
+    ("ගාල්ල",                   "Galle, Sri Lanka"),
+    ("காலி",                    "Galle, Sri Lanka"),
+    ("මාතර",                    "Matara, Sri Lanka"),
+    ("மாத்தறை",                 "Matara, Sri Lanka"),
+    ("හම්බන්තොට",               "Hambantota, Sri Lanka"),
+    ("அம்பாந்தோட்டை",           "Hambantota, Sri Lanka"),
+    ("යාපනය",                   "Jaffna, Sri Lanka"),
+    ("யாழ்ப்பாணம்",             "Jaffna, Sri Lanka"),
+    ("කිලිනොච්චි",              "Kilinochchi, Sri Lanka"),
+    ("கிளிநொச்சி",              "Kilinochchi, Sri Lanka"),
+    ("මන්නාරම",                 "Mannar, Sri Lanka"),
+    ("மன்னார்",                 "Mannar, Sri Lanka"),
+    ("වව්නියාව",                "Vavuniya, Sri Lanka"),
+    ("வவுனியா",                 "Vavuniya, Sri Lanka"),
+    ("මුලතිව්",                 "Mullaitivu, Sri Lanka"),
+    ("முல்லைத்தீவு",            "Mullaitivu, Sri Lanka"),
+    ("මඩකලපුව",                 "Batticaloa, Sri Lanka"),
+    ("மட்டக்களப்பு",            "Batticaloa, Sri Lanka"),
+    ("අම්පාර",                  "Ampara, Sri Lanka"),
+    ("அம்பாறை",                 "Ampara, Sri Lanka"),
+    ("ත්‍රිකුණාමලය",            "Trincomalee, Sri Lanka"),
+    ("திருகோணமலை",              "Trincomalee, Sri Lanka"),
+    ("කුරුණෑගල",                "Kurunegala, Sri Lanka"),
+    ("குருநாகல்",               "Kurunegala, Sri Lanka"),
+    ("පුත්තලම",                 "Puttalam, Sri Lanka"),
+    ("புத்தளம்",                "Puttalam, Sri Lanka"),
+    ("අනුරාධපුරය",              "Anuradhapura, Sri Lanka"),
+    ("அனுராதபுரம்",             "Anuradhapura, Sri Lanka"),
+    ("පොළොන්නරුව",              "Polonnaruwa, Sri Lanka"),
+    ("பொலன்னறுவை",              "Polonnaruwa, Sri Lanka"),
+    ("බදුල්ල",                  "Badulla, Sri Lanka"),
+    ("பதுளை",                   "Badulla, Sri Lanka"),
+    ("මොණරාගල",                 "Monaragala, Sri Lanka"),
+    ("மொனராகலை",                "Monaragala, Sri Lanka"),
+    ("රත්නපුර",                 "Ratnapura, Sri Lanka"),
+    ("இரத்தினபுரி",             "Ratnapura, Sri Lanka"),
+    ("කෑගල්ල",                  "Kegalle, Sri Lanka"),
+    ("கேகாலை",                  "Kegalle, Sri Lanka"),
+]
+
+# Combined matcher list (longest-first so specific towns such as
+# "tangalle" match before any shorter district substring they contain).
+# The generic country entry goes last so specific regions ("dry zone")
+# win over "sri lanka" when both appear in one query.
+SRI_LANKA_LOCATIONS: list[tuple[str, str]] = (
+    SRI_LANKA_DISTRICTS
+    + SRI_LANKA_DISTRICT_ALIASES
+    + SRI_LANKA_CITIES
+    + SRI_LANKA_PROVINCES
+    + SRI_LANKA_REGIONS
+    + SRI_LANKA_LOCAL_NAMES
+)
+SRI_LANKA_LOCATIONS.sort(key=lambda _entry: len(_entry[0]), reverse=True)
+SRI_LANKA_LOCATIONS = [
+    _entry for _entry in SRI_LANKA_LOCATIONS if _entry[0] != "sri lanka"
+] + [("sri lanka", "Sri Lanka")]
 
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
 # Sinhala/Tamil triggers are appended right after this dict (see below).
@@ -268,12 +548,49 @@ NON_CLIMATE_TERMS: list[str] = [
     "train", "bus", "flight", "timetable", "schedule", "ticket",
     "president", "prime minister", "minister", "government",
     "election", "vote", "parliament", "political",
-    "recipe", "cook", "restaurant", "hotel", "tourist",
+    "recipe", "cook",
     "cricket", "football", "sport", "match", "score",
-    "school", "university", "exam", "admission",
+    "exam", "admission",
     "salary", "job", "vacancy", "hire",
     "population", "history of", "capital of",
 ]
+# NOTE: tourism words ("tourist", "hotel", "restaurant") and "school" /
+# "university" are deliberately NOT blocklisted: tourists, schools and
+# campuses are core audiences, and a climate term in the query (e.g.
+# "weather risks for my tourism business") makes the question in-scope.
+
+
+def contains_non_climate_term(text_lower: str) -> bool:
+    """Word-boundary blocklist match.
+
+    Plain substring matching caused false refusals ("bus" inside
+    "business", "match" inside "mismatched"). Single-word terms match on
+    word boundaries; multi-word phrases match as-is.
+    """
+    import re as _re
+
+    for term in NON_CLIMATE_TERMS:
+        if " " in term:
+            if term in text_lower:
+                return True
+        elif _re.search(r"\b" + _re.escape(term) + r"\b", text_lower):
+            return True
+    return False
+
+
+def keyword_hit(keyword: str, text_lower: str) -> bool:
+    """Boundary-aware keyword match for topics and intents.
+
+    Single ASCII words match on word boundaries so "hot" doesn't fire
+    inside "hotels" and "rain" doesn't fire inside "train". Phrases and
+    Sinhala/Tamil terms match as substrings (word boundaries are
+    unreliable for those scripts).
+    """
+    import re as _re
+
+    if keyword.isascii() and " " not in keyword:
+        return _re.search(r"\b" + _re.escape(keyword) + r"\b", text_lower) is not None
+    return keyword in text_lower
 
 # Any of these words confirms a query is climate-related.
 CLIMATE_TERMS: tuple[str, ...] = (
@@ -409,22 +726,30 @@ class NLPAgent(BaseAgentServer):
 
         query_lower = query.lower()
 
-        # 1. Off-topic guard — mirror the orchestrator's blocklist so a location
-        #    match alone (e.g. "Kandy train times") never produces climate results.
-        if any(term in query_lower for term in NON_CLIMATE_TERMS):
-            return {
-                "intent": "non_climate",
-                "entities": {},
-                "structured_query": {"original_query": query, "processed": True},
-                "expanded_terms": [],
-                "expanded_query": query,
-            }
-
-        # 2. Entity extraction (rules + optional spaCy)
+        # 2. Entity extraction (rules + optional spaCy) runs FIRST so the
+        #    off-topic guard below only fires when there is genuinely no
+        #    climate signal (e.g. "my study schedule" blocks, but "study
+        #    schedule during heavy rain" proceeds).
         entities = self._extract_entities_impl(query, location_field)
 
         # 3. Intent detection
         intent = self._classify_intent(query_lower)
+
+        # 1. Off-topic guard — blocklisted terms (e.g. "Kandy train times")
+        #    refuse only when the query carries no climate meaning.
+        if contains_non_climate_term(query_lower) and not entities.get(
+            "climate_topic"
+        ):
+            from app.agents.ir_agent.ir_agent import query_has_climate_term
+
+            if not query_has_climate_term(query):
+                return {
+                    "intent": "non_climate",
+                    "entities": {},
+                    "structured_query": {"original_query": query, "processed": True},
+                    "expanded_terms": [],
+                    "expanded_query": query,
+                }
 
         # 4. Query expansion (deterministic synonyms + optional LLM refinement)
         expansion = await self._expand_query_impl(query, entities)
@@ -499,7 +824,7 @@ class NLPAgent(BaseAgentServer):
         climate_topic = None
         hazard_type = None
         for topic, keywords in TOPIC_KEYWORDS.items():
-            if any(kw in text_lower for kw in keywords):
+            if any(keyword_hit(kw, text_lower) for kw in keywords):
                 climate_topic = topic
                 hazard_type = topic
                 break
@@ -661,7 +986,7 @@ class NLPAgent(BaseAgentServer):
     def _classify_intent(query_lower: str) -> str:
         """Keyword-based intent classification, evaluated in priority order."""
         for intent, keywords in INTENT_KEYWORDS:
-            if any(kw in query_lower for kw in keywords):
+            if any(keyword_hit(kw, query_lower) for kw in keywords):
                 return intent
         return "general_climate_query"
 
