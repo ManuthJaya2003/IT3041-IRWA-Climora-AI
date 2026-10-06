@@ -20,6 +20,11 @@ services:
       STRIPE_SECRET_KEY: ${STRIPE_SECRET_KEY-}
       STRIPE_WEBHOOK_SECRET: ${STRIPE_WEBHOOK_SECRET-}
       MCP_SERVER_HOST: 127.0.0.1
+      GOOGLE_CLIENT_ID: ${GOOGLE_CLIENT_ID-}
+      # SSO callback + post-login return go through the public origin
+      # (nginx proxies /api to this backend).
+      PUBLIC_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in the deployment environment}
+      FRONTEND_ORIGIN: ${PUBLIC_ORIGIN:?Set PUBLIC_ORIGIN in the deployment environment}
     expose:
       - "8000"
     depends_on:

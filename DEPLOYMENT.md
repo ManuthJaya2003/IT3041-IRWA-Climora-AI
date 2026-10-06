@@ -8,14 +8,37 @@ Four tiers, served by the backend as the single source of truth
 
 | Plan | Price (LKR) | Daily AI queries | Highlights |
 |------|-------------|------------------|------------|
-| Free | 0 | 100 | Weather + hazard risk, 3 languages, 1 location |
+| Guest trial | 0 | 2 | Try before registering |
+| Free | 0 | 100 (account) | Weather + hazard risk, 3 languages, 1 location |
 | Premium | 1,490/mo · 14,900/yr | 1,000 | Alerts, 5 locations, 90-day history, voice |
 | Business | 9,900/mo · 99,000/yr | 10,000 | 5 seats, API access, dashboards, reports |
-| Enterprise | Custom | Unlimited | SSO, dedicated/on-premise deploy, SLA |
+| Enterprise | Custom | Unlimited | Organizations, OIDC SSO, audit log, dedicated/on-premise deploy |
 
-Annual billing = 10× monthly (2 months free). Quotas are enforced per
-caller by `X-Plan` request header (`GET /api/v1/billing/usage` shows
-live usage). Plan switching in the demo UI applies instantly.
+Annual billing = 10× monthly (2 months free). Quotas are enforced
+server-side per account (`GET /api/v1/billing/usage` shows live usage);
+enterprise members inherit unlimited quota via their organization.
+
+### Enterprise SSO setup (owner)
+
+1. Create the organization: **Settings → Organization** (or Plans → Enterprise → Set up organization).
+   New orgs start on a **14-day trial** with full Enterprise quota.
+2. In your identity provider (Okta, Entra ID, Auth0, Google Workspace),
+   register an app with redirect URI
+   `<backend-origin>/api/v1/auth/sso/callback`.
+3. Paste the issuer URL + client ID (+ secret if required) into the
+   Organization panel. Members sign in via **Sign in → Enterprise SSO**
+   with the org slug; matching email domains are auto-provisioned.
+4. Before the trial ends, activate from the Organization panel (demo order
+   recorded server-side with a receipt; a real Stripe webhook calls
+   `org_service.activate_org` the same way). Expired trials fall back to
+   personal plans until activated.
+
+### Dedicated deploy
+
+`docker-compose.prod.yml` is already a single-tenant stack (private
+PostgreSQL network, only the frontend exposed). A dedicated enterprise
+deployment = one private stack per customer with its own `.env.prod`
+(SECRET_KEY, ADMIN_TOKEN, OIDC origins) behind their TLS reverse proxy.
 
 ## Option 1 — Local development
 

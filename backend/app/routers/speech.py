@@ -2,7 +2,7 @@
 Speech API endpoints — Text-to-Speech and voice query support.
 """
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 from fastapi.responses import FileResponse
 from pydantic import BaseModel, Field
 from typing import Optional
@@ -11,7 +11,7 @@ from app.services.tts_service import tts_service
 from app.services.language_service import detect_language
 from app.agents.orchestrator.shared import get_orchestrator
 from app.models.schemas import ChatRequest, UserType
-from app.routers.deps import QuotaLimit, RateLimit
+from app.routers.deps import QuotaLimit, RateLimit, refund_quota
 
 router = APIRouter()
 
@@ -64,7 +64,7 @@ async def text_to_speech(request: SpeakRequest):
 
 
 @router.post("/voice-query", dependencies=[RateLimit, QuotaLimit])
-async def voice_query(request: VoiceQueryRequest):
+async def voice_query(request: VoiceQueryRequest, http_request: Request):
     """
     Process a voice query: runs through the full pipeline and returns
     both the text response AND an audio file URL.
@@ -73,6 +73,8 @@ async def voice_query(request: VoiceQueryRequest):
     1. User speaks → Web Speech API transcribes → sends text here
     2. Backend processes through orchestrator pipeline
     3. Returns JSON response + audio URL for playback
+
+    A failed pipeline refunds the consumed quota unit.
     """
     # Process through normal pipeline
     chat_request = ChatRequest(
@@ -83,7 +85,13 @@ async def voice_query(request: VoiceQueryRequest):
         language=request.language,
     )
 
-    response = await get_orchestrator().process_user_query(chat_request)
+    try:
+        response = await get_orchestrator().process_user_query(chat_request)
+    except HTTPException:
+        raise
+    except Exception:
+        refund_quota(http_request)
+        raise HTTPException(status_code=500, detail="Error processing voice query. Please try again.")
 
     # Generate TTS audio for the summary
     audio_url = None

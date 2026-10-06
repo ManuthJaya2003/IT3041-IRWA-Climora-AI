@@ -1,6 +1,7 @@
-import { useState } from 'react'
-import { X, CheckCircle2, CreditCard, Loader2, ShieldCheck } from 'lucide-react'
+import { useEffect, useState } from 'react'
+import { X, CheckCircle2, CreditCard, Loader2, ShieldCheck, ExternalLink } from 'lucide-react'
 import { BillingCycle, Plan, makeReceipt, planAmount } from '../plans'
+import { apiErrorMessage, createCheckoutSession, getPaymentConfig } from '../api/climoraApi'
 
 export interface CheckoutResult {
   receipt: string
@@ -15,7 +16,7 @@ interface CheckoutModalProps {
   onClose: () => void
 }
 
-/** Demo checkout — clearly labeled mock payment for evaluation demos.
+/** Demo checkout - clearly labeled mock payment for evaluation demos.
  *  No card data leaves the browser; no charge is made. */
 export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }: CheckoutModalProps) {
   const [card, setCard] = useState('4111 1111 1111 1111')
@@ -25,11 +26,40 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
   const [error, setError] = useState<string | null>(null)
   const [phase, setPhase] = useState<'form' | 'processing' | 'done'>('form')
   const [receipt, setReceipt] = useState('')
+  const [stripeOn, setStripeOn] = useState<boolean | null>(null)
+  const [stripeBusy, setStripeBusy] = useState(false)
+
+  // Real payments when the backend has Stripe keys; demo card form otherwise.
+  useEffect(() => {
+    if (!open) return
+    setStripeOn(null)
+    getPaymentConfig()
+      .then(cfg => setStripeOn(cfg.stripe_enabled))
+      .catch(() => setStripeOn(false))
+  }, [open ])
 
   if (!open || !plan) return null
 
   const cycle: BillingCycle = annual ? 'annual' : 'monthly'
   const amount = planAmount(plan, annual) ?? 0
+
+  const handleStripePay = async () => {
+    setError(null)
+    setStripeBusy(true)
+    try {
+      const origin = window.location.origin
+      const { checkout_url } = await createCheckoutSession(
+        plan.id,
+        annual,
+        `${origin}/?checkout=success&session_id={CHECKOUT_SESSION_ID}`,
+        `${origin}/?checkout=cancelled`,
+      )
+      window.location.href = checkout_url
+    } catch (e) {
+      setError(apiErrorMessage(e, 'Could not start Stripe checkout.'))
+      setStripeBusy(false)
+    }
+  }
 
   const formatCard = (v: string) =>
     v.replace(/\D/g, '').slice(0, 16).replace(/(\d{4})(?=\d)/g, '$1 ')
@@ -45,7 +75,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
       return
     }
     if (!/^\d{3,4}$/.test(cvc.trim())) {
-      setError('CVC must be 3–4 digits.')
+      setError('CVC must be 3-4 digits.')
       return
     }
     if (!name.trim()) {
@@ -54,7 +84,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
     }
     setError(null)
     setPhase('processing')
-    // Simulated gateway latency — replace with a real provider call.
+    // Simulated gateway latency - replace with a real provider call.
     setTimeout(() => {
       setReceipt(makeReceipt())
       setPhase('done')
@@ -87,7 +117,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
               {plan.name} · {cycle} · Rs {amount.toLocaleString('en-LK')}
             </p>
             <p className="text-xs text-slate-400 mt-2 font-mono">Receipt {receipt}</p>
-            <p className="text-xs text-slate-400 mt-1">Demo checkout — no real charge was made.</p>
+            <p className="text-xs text-slate-400 mt-1">Demo checkout - no real charge was made.</p>
             <button
               onClick={handleDone}
               className="mt-5 w-full px-4 py-2.5 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors"
@@ -110,7 +140,7 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
             </div>
             <div className="flex items-center gap-2 text-xs text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-900/30 border border-amber-200 dark:border-amber-800 rounded-xl px-3 py-2 mb-4">
               <ShieldCheck className="w-4 h-4 shrink-0" />
-              Demo checkout — no real charge. Card never leaves this browser.
+              Demo checkout - no real charge. Card never leaves this browser.
             </div>
 
             <div className="flex items-center justify-between text-sm mb-4 pb-4 border-b border-slate-100 dark:border-slate-800">
@@ -121,6 +151,32 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
               <p className="text-lg font-bold text-slate-900 dark:text-white">Rs {amount.toLocaleString('en-LK')}</p>
             </div>
 
+            {stripeOn === true ? (
+              <>
+                <div className="flex items-center gap-2 text-xs text-climora-700 dark:text-climora-300 bg-climora-50 dark:bg-climora-900/30 border border-climora-200 dark:border-climora-800 rounded-xl px-3 py-2 mb-4">
+                  <ShieldCheck className="w-4 h-4 shrink-0" />
+                  Secure payment via Stripe. You will be redirected to complete the purchase.
+                </div>
+                {error && <p className="text-xs text-red-600 dark:text-red-400 mb-3">{error}</p>}
+                <button
+                  onClick={handleStripePay}
+                  disabled={stripeBusy}
+                  className="w-full flex items-center justify-center gap-2 px-4 py-2.5 text-sm font-medium bg-climora-600 text-white rounded-xl hover:bg-climora-700 transition-colors disabled:opacity-70"
+                >
+                  {stripeBusy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ExternalLink className="w-4 h-4" />
+                  )}
+                  {stripeBusy ? 'Redirecting…' : `Pay Rs ${amount.toLocaleString('en-LK')} with Stripe`}
+                </button>
+              </>
+            ) : stripeOn === null ? (
+              <p className="flex items-center justify-center gap-2 py-6 text-sm text-slate-400">
+                <Loader2 className="w-4 h-4 animate-spin" /> Checking payment options…
+              </p>
+            ) : (
+            <>
             <label className="block text-sm font-medium text-slate-700 dark:text-slate-200 mb-1.5" htmlFor="co-card">
               Card number
             </label>
@@ -170,6 +226,8 @@ export default function CheckoutModal({ open, plan, annual, onSuccess, onClose }
                 <>Pay Rs {amount.toLocaleString('en-LK')}</>
               )}
             </button>
+            </>
+            )}
           </>
         )}
       </div>

@@ -11,6 +11,7 @@ from collections import OrderedDict
 from fastapi import Depends, HTTPException, Request
 
 from app.config import settings
+from app.services import auth_service
 from app.services import plans_service
 from app.services import usage_service
 
@@ -88,8 +89,36 @@ AdminAuth = Depends(require_admin)
 RateLimit = Depends(rate_limit)
 
 
+def get_current_user_optional(request: Request) -> dict | None:
+    """Authenticated user when a valid Bearer token is present, else None.
+
+    Anonymous callers are allowed (Free tier, IP-based quota). Never raises.
+    """
+    auth = request.headers.get("Authorization", "")
+    if not auth.lower().startswith("bearer "):
+        return None
+    user_id = auth_service.decode_user_id(auth[7:].strip())
+    if not user_id:
+        return None
+    try:
+        return auth_service.get_user_by_id(user_id)
+    except Exception:
+        return None
+
+
+def get_current_user_required(request: Request) -> dict:
+    """Authenticated user or HTTP 401."""
+    user = get_current_user_optional(request)
+    if user is None:
+        raise HTTPException(status_code=401, detail="Sign in required.")
+    return user
+
+
 def client_key(request: Request) -> str:
-    """Stable per-caller key for quotas (IP address, proxy-aware)."""
+    """Stable per-caller key for quotas: user id when signed in, IP otherwise."""
+    user = get_current_user_optional(request)
+    if user is not None:
+        return f"user:{user['id']}"
     forwarded = request.headers.get("X-Forwarded-For")
     if forwarded:
         return forwarded.split(",")[0].strip()
@@ -97,12 +126,33 @@ def client_key(request: Request) -> str:
 
 
 def resolve_plan(request: Request) -> dict:
-    """Plan from the X-Plan header (unknown values fall back to Free)."""
-    return plans_service.get_plan(request.headers.get("X-Plan"))
+    """Server-side plan: authenticated user's plan wins.
+
+    Enterprise is inherited: membership in any enterprise org unlocks it.
+    ``X-Plan`` is only honoured for anonymous callers (and unknown values
+    fall back to Free), so a signed-in user can never spoof a higher tier.
+    """
+    user = get_current_user_optional(request)
+    if user is None:
+        return plans_service.get_plan(request.headers.get("X-Plan"))
+    try:
+        from app.services import org_service
+        if org_service.user_has_enterprise(user["id"]):
+            return plans_service.get_plan("enterprise")
+    except Exception:
+        pass
+    return plans_service.get_plan(user.get("plan_id"))
 
 
 async def enforce_quota(request: Request) -> None:
-    """Daily per-plan query quota. Exceeding callers get HTTP 429."""
+    """Daily query quota. Exceeding callers get HTTP 429.
+
+    Signed-out callers get a 2-query/day guest trial (per IP), not the full
+    Free plan — signing in unlocks 100 free queries/day on the account.
+
+    Consumed units are recorded on ``request.state`` so a failing pipeline
+    can refund them (failed requests must not burn quota).
+    """
     try:
         payload = await request.json()
     except ValueError:
@@ -110,10 +160,22 @@ async def enforce_quota(request: Request) -> None:
     query = payload.get("query", "") if isinstance(payload, dict) else ""
     if usage_service.is_free_greeting(query):
         return
+    key = client_key(request)
+    user = get_current_user_optional(request)
+    if user is None:
+        allowed, _remaining, limit = usage_service.check_and_consume_anonymous(key)
+        if not allowed:
+            raise HTTPException(
+                status_code=429,
+                detail=(
+                    f"Guest trial exhausted ({limit} queries/day). "
+                    "Sign in for 100 free queries/day."
+                ),
+            )
+        request.state.quota_consumed = (key, "guest")
+        return
     plan = resolve_plan(request)
-    allowed, _remaining, limit = usage_service.check_and_consume(
-        client_key(request), plan["id"]
-    )
+    allowed, _remaining, limit = usage_service.check_and_consume(key, plan["id"])
     if not allowed:
         raise HTTPException(
             status_code=429,
@@ -122,6 +184,20 @@ async def enforce_quota(request: Request) -> None:
                 f"({limit}/day). Upgrade your plan for higher limits."
             ),
         )
+    request.state.quota_consumed = (key, plan["id"])
+
+
+def refund_quota(request: Request) -> None:
+    """Give back the unit this request consumed (call when the pipeline fails)."""
+    consumed = getattr(request.state, "quota_consumed", None)
+    if not consumed:
+        return
+    request.state.quota_consumed = None
+    try:
+        client, plan_id = consumed
+        usage_service.refund(client, plan_id)
+    except Exception:
+        logger.exception("Failed to refund quota")
 
 
 QuotaLimit = Depends(enforce_quota)
