@@ -70,6 +70,18 @@ _COMMON = [
     "situation", "conditions", "about", "tell", "give", "show", "how",
     "should", "will", "area", "areas", "region", "district", "city",
     "sri", "lanka", "preparation", "prepare", "affect", "affected",
+    # Common English pronouns, verbs, and adjectives that must never be
+    # corrected (e.g. "them" -> "the", "then" -> "the", "they" -> "the")
+    "them", "they", "then", "their", "these", "those", "that", "than",
+    "with", "from", "have", "been", "when", "where", "which", "while",
+    "grow", "growing", "plant", "planting", "protect", "protecting",
+    "suitable", "suitable", "heavy", "light", "high", "low",
+    "need", "needs", "help", "want", "want", "keep", "kept",
+    "make", "made", "take", "taken", "also", "both", "each",
+    "very", "much", "more", "most", "some", "such", "many", "much",
+    "can", "could", "would", "might", "must", "does", "doing", "done",
+    "vegetables", "vegetable", "fruit", "fruits", "soil", "seeds", "seed",
+    "field", "fields", "garden", "farm", "farmer", "farmers",
 ]
 
 _VOCAB: set[str] = set()
