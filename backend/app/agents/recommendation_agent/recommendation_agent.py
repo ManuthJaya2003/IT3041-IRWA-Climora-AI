@@ -52,9 +52,10 @@ USER_TYPE_CONTEXT: dict[str, str] = {
     "individual": "personal safety, home protection, emergency kits, evacuation plans",
     "student": "understanding the risk, personal and school safety, community awareness",
     "farmer": "crop protection, irrigation timing, livestock safety, harvest decisions",
+    "fisher": "marine safety, sea conditions, wind and wave risks, safe fishing decisions",
     "business": "operations continuity, supply chain, employee safety, asset protection",
     "organization": "infrastructure, community planning, resource allocation, policy response",
-    "institution": "infrastructure, continuity planning, occupant safety, coordination with authorities",
+    "institution": "occupant safety, service continuity, facilities, and coordination with authorities",
     "traveller": "itinerary flexibility, transport and accommodation safety, travel advisories, emergency contacts",
 }
 
@@ -63,6 +64,11 @@ USER_TYPE_ACTIONS: dict[str, tuple[str, str, str]] = {
         "Protect your household, important documents, medicines, and emergency supplies",
         "Household preparation reduces disruption during severe weather.",
         "preparedness",
+    ),
+    "fisher": (
+        "Check marine forecasts for wind, waves, and currents before going to sea and avoid rough-sea days",
+        "Sea conditions can change quickly; official marine advisories keep fishing trips safe.",
+        "safety",
     ),
     "student": (
         "Keep a simple weather and hazard log and follow school safety instructions",
@@ -118,6 +124,10 @@ USER_TYPE_GUARDRAILS: dict[str, dict[str, tuple[str, ...]]] = {
             "supplier",
             "staff roster",
         ),
+    },
+    "fisher": {
+        "required_categories": ("safety", "awareness", "preparedness"),
+        "blocked_phrases": ("planting", "irrigation", "fertilizer", "supplier", "supply chain"),
     },
     "business": {
         "required_categories": ("continuity", "operations", "safety"),

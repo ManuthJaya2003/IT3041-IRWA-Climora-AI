@@ -248,6 +248,14 @@ class AnalysisAgent(BaseAgentServer):
         allowed_factors = HAZARD_TOPIC_FACTORS.get(topic)
         if allowed_factors:
             background_factors = [f for f in background_factors if f in allowed_factors]
+        if use_rain and self._live_rain_significant(live_docs):
+            # Live readings describe current conditions; background documents
+            # describe long-term patterns. A background factor that contradicts
+            # confident live rain (e.g. "drought" while 20mm at 100% is
+            # forecast) must not lead the assessment.
+            background_factors = [
+                f for f in background_factors if f not in ("drought", "wildfire")
+            ]
         for factor in background_factors:
             if factor not in risk_factors:
                 risk_factors.append(factor)
@@ -594,6 +602,34 @@ class AnalysisAgent(BaseAgentServer):
         return ""
 
     @staticmethod
+    def _live_rain_numbers(text: str) -> tuple[list[float], list[int]]:
+        """Extract (daily rain mm values, rain probability % values) from a live doc."""
+        mm_vals = [float(v) for v in re.findall(r"rain (\d+\.?\d*) mm", text)]
+        totals = re.search(r"precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]", text)
+        if totals:
+            mm_vals += [float(v) for v in re.findall(r"\d+\.?\d*", totals.group(1))]
+        probs = [int(v) for v in re.findall(r"chance of rain up to (\d{1,3})", text)]
+        for m in re.finditer(r"precipitation probabilit\w*\s*(?:are\s*)?\[([^\]]+)\]", text):
+            probs += [int(v) for v in re.findall(r"\d{1,3}", m.group(1)) if int(v) <= 100]
+        return mm_vals, probs
+
+    @staticmethod
+    def _live_rain_significant(live_docs: list) -> bool:
+        """True when live readings show certain, significant rain.
+
+        Catches cases like 20mm at 100% probability that drive real
+        waterlogging risk but sit below the severe (50mm) threshold.
+        """
+        for doc in live_docs:
+            text = (doc.get("content") or doc.get("snippet") or "").lower()
+            mm_vals, probs = AnalysisAgent._live_rain_numbers(text)
+            max_mm = max(mm_vals) if mm_vals else 0.0
+            max_prob = max(probs) if probs else 0
+            if max_mm >= 50 or (max_mm >= 15 and max_prob >= 80):
+                return True
+        return False
+
+    @staticmethod
     def _live_risk_factors(live_docs: list, include_rain: bool = True) -> list[str]:
         """
         Name hazards from live NUMERIC readings only, using real thresholds
@@ -614,11 +650,14 @@ class AnalysisAgent(BaseAgentServer):
                 add("poor air quality")
 
             if include_rain:
-                mm_vals = [float(v) for v in re.findall(r"rain (\d+\.?\d*) mm", text)]
-                totals = re.search(r"precipitation totals?\s+(?:are\s+)?\[([^\]]+)\]", text)
-                if totals:
-                    mm_vals += [float(v) for v in re.findall(r"\d+\.?\d*", totals.group(1))]
-                if mm_vals and max(mm_vals) >= 50:
+                mm_vals, probs = AnalysisAgent._live_rain_numbers(text)
+                max_mm = max(mm_vals) if mm_vals else 0.0
+                max_prob = max(probs) if probs else 0
+                if max_mm >= 50:
+                    add("heavy rainfall")
+                elif max_mm >= 15 and max_prob >= 80:
+                    # Certain, significant rain (e.g. ~20mm at 100%) drives
+                    # farm-scale waterlogging risk below the severe threshold.
                     add("heavy rainfall")
 
             discharge = re.search(r"river discharge[^:]*:\s*\[([^\]]+)\]", text)

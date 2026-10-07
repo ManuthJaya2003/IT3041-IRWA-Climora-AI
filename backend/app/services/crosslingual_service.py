@@ -12,7 +12,11 @@ user's language). A neural multilingual embedding model
 can replace the TF-IDF path later behind the same function.
 """
 
-from app.agents.nlp_agent.nlp_agent import SRI_LANKA_LOCATIONS, TOPIC_KEYWORDS
+from app.agents.nlp_agent.nlp_agent import (
+    SRI_LANKA_LOCATIONS,
+    SRI_LANKA_LOCATION_STEMS,
+    TOPIC_KEYWORDS,
+)
 
 # Longest-first so "nuwara eliya" wins over shorter fragments and full
 # native names win over their stems.
@@ -46,12 +50,23 @@ def to_english_query(text: str) -> str:
         return text
     lowered = text.lower()
     extra: list[str] = []
+    matched_location = False
 
     for keyword, canonical in _LOC_ORDERED:
         if keyword and keyword in lowered:
+            matched_location = True
             district = canonical.split(",")[0].strip()
             if district and district.lower() not in lowered:
                 extra.append(district)
+
+    if not matched_location:
+        # Inflected Tamil forms (e.g. யாழ்ப்பாணத்தில்) — see
+        # SRI_LANKA_LOCATION_STEMS in the NLP agent.
+        for stem, canonical in SRI_LANKA_LOCATION_STEMS:
+            if stem and stem in lowered:
+                district = canonical.split(",")[0].strip()
+                if district and district.lower() not in lowered:
+                    extra.append(district)
 
     for keyword, terms in _TOPIC_BRIDGE.items():
         if keyword in lowered:

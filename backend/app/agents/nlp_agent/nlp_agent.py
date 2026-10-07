@@ -468,6 +468,21 @@ SRI_LANKA_LOCATIONS = [
     _entry for _entry in SRI_LANKA_LOCATIONS if _entry[0] != "sri lanka"
 ] + [("sri lanka", "Sri Lanka")]
 
+# Inflection-tolerant stems for non-ASCII place names.
+# Tamil case suffixes replace a final "ம்" (e.g. யாழ்ப்பாணம் -> யாழ்ப்பாணத்தில்
+# "in Jaffna", அனுராதபுரம் -> அனுராதபுரத்தில்), so the base form is NOT a
+# substring of inflected text and the exact matcher above misses it.
+# Stems are checked only when no exact gazetteer entry matched, longest
+# first, so they can never shadow a more specific exact hit.
+SRI_LANKA_LOCATION_STEMS: list[tuple[str, str]] = []
+for _kw, _canon in SRI_LANKA_LOCATIONS:
+    if not _kw.isascii() and _kw.endswith("ம்") and len(_kw) > 3:
+        _stem = _kw[:-2]  # strip "ம்" (U+0BAE + U+0BCD pulli)
+        if len(_stem) >= 4 and all(_stem != _k for _k, _ in SRI_LANKA_LOCATIONS):
+            SRI_LANKA_LOCATION_STEMS.append((_stem, _canon))
+SRI_LANKA_LOCATION_STEMS.sort(key=lambda _entry: len(_entry[0]), reverse=True)
+del _kw, _canon, _stem
+
 # Climate topic -> keyword triggers. First match wins (dict preserves order).
 # Sinhala/Tamil triggers are appended right after this dict (see below).
 TOPIC_KEYWORDS: dict[str, list[str]] = {
@@ -488,7 +503,10 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
     "landslide":      ["landslide", "mudslide", "slope failure", "debris flow",
                        "hillside collapse"],
     "sea-level-rise": ["sea level", "coastal erosion", "shoreline erosion",
-                       "tidal flooding"],
+                       "tidal flooding", "sea", "ocean", "coast", "coastal",
+                       "beach", "wave", "waves", "tide", "tides", "marine",
+                       "fishing", "fisherman", "fishermen", "fisher", "fisheries",
+                       "boat", "sailing", "harbour", "harbor"],
     "rain":           ["rainfall", "monsoon", "precipitation", "downpour",
                        "heavy rain", "rain"],
     "air-quality":    ["air quality", "pollution", "pm2.5", "smog",
@@ -502,14 +520,16 @@ TOPIC_KEYWORDS: dict[str, list[str]] = {
     "agriculture":    ["crop failure", "crop damage", "harvest loss",
                        "farming climate", "climate agriculture", "drought crop",
                        "flood crop", "monsoon farming", "yield decline",
-                       "agriculture", "irrigation"],
-    "storm":          ["storm", "thunderstorm", "lightning", "gale"],
+                       "agriculture", "irrigation", "fishing", "fisherman",
+                       "fishermen", "fisheries", "catch"],
+    "storm":          ["storm", "thunderstorm", "lightning", "gale", "wind", "waves"],
 }
 
 # Intent -> keyword triggers. Evaluated in priority order (most specific first).
 INTENT_KEYWORDS: list[tuple[str, list[str]]] = [
     ("preparedness",  ["prepare", "should i", "what to do", "how to", "advice",
-                       "protect", "ready", "precaution", "safety", "mitigate"]),
+                       "protect", "ready", "precaution", "safety", "safe", "mitigate",
+                       "is it safe", "travel advisory", "evacuate", "warning"]),
     ("forecast",      ["forecast", "predict", "next week", "tomorrow", "upcoming",
                        "this week", "will it", "expected", "outlook"]),
     ("trend_analysis",["history", "trend", "past", "change over", "last year",
@@ -799,6 +819,13 @@ class NLPAgent(BaseAgentServer):
             if keyword in text_lower:
                 detected_location = canonical
                 break
+        if not detected_location:
+            # Inflected Tamil forms (e.g. யாழ்ப்பாணத்தில் "in Jaffna")
+            # drop the final "ம்", so fall back to stem matching.
+            for stem, canonical in SRI_LANKA_LOCATION_STEMS:
+                if stem in text_lower:
+                    detected_location = canonical
+                    break
 
         # --- Date (rule-based) ---
         dates: list[str] = [kw for kw in DATE_KEYWORDS if kw in text_lower]

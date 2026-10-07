@@ -47,7 +47,11 @@ def infer_user_type(query: str, configured_user_type: Optional[str]) -> str:
             "paddy", "tea", "coconut", "rubber", "වී", "ගොවි", "වගා",
             "நெல்", "விவசாயி", "பயிர்",
         ),
-        "institution": ("manage", "principal", "school management", "hospital", "university management", "facility", "institution", "කළමනාකරණය", "විදුහල්පති", "நிர்வகி", "மருத்துவமனை", "நிறுவனம்"),
+        "fisher": (
+            "fisherman", "fishermen", "fisher", "fishing", "fisheries",
+            "boat", "sea going", "go to sea",
+        ),
+        "institution": ("manage", "principal", "teacher", "teaching", "school management", "hospital", "university management", "facility", "institution", "කළමනාකරණය", "විදුහල්පති", "நிர்வகி", "மருத்துவமனை", "நிறுவனம்", "ගුරු", "ஆசிரியர்"),
         "student": ("student", "school", "university", "exam", "ශිෂ්‍ය", "පාසල", "மாணவர்", "பள்ளி"),
         "business": ("business", "shop", "company", "supplier", "stock", "වෙළඳ", "ව්‍යාපාර", "வணிகம்", "கடை"),
         "organization": ("organization", "community group", "ngo", "residents", "ප්‍රජා", "සංවිධානය", "சமூக அமைப்பு"),
@@ -334,7 +338,31 @@ class OrchestratorAgent:
                     "preparedness", "forecast", "risk_awareness", "trend_analysis",
                 )
                 has_location = bool(entities.get("location"))
-                if not has_climate_term and not (safety_intent and has_location):
+                # Weather-exposed activities are climate-dependent even without an
+                # explicit hazard word: going to sea / fishing / boating, or
+                # travelling tomorrow. These must be answered at country level,
+                # not refused (e.g. "I am a fisherman, is it safe to go to sea
+                # tomorrow?" or "I am a teacher, is it safe to travel tomorrow?").
+                import re as _re_gate
+                _q_gate = request.query.lower()
+                _exposed_terms = (
+                    "sea", "ocean", "coast", "beach", "wave", "tide", "marine",
+                    "fishing", "fisherman", "fishermen", "fisher", "boat",
+                    "sailing", "harbour", "harbor",
+                    "travel", "travelling", "traveling", "trip", "journey",
+                    "tomorrow",
+                )
+                has_exposed_activity = any(
+                    _re_gate.search(r"\b" + _re_gate.escape(_t) + r"\b", _q_gate)
+                    if " " not in _t else (_t in _q_gate)
+                    for _t in _exposed_terms
+                )
+                # Occupational weather dependence (fisherman) is in scope alone.
+                has_occupational_cue = any(
+                    _w in _q_gate for _w in ("fisherman", "fishermen", "fisher", "fishing")
+                )
+                _general_advisory = safety_intent and (has_location or has_exposed_activity or has_occupational_cue)
+                if not has_climate_term and not _general_advisory:
                     return ChatResponse(
                         session_id=session_id,
                         query=request.query,
@@ -348,12 +376,17 @@ class OrchestratorAgent:
                         agents_used=agents_used,
                     )
 
-            # --- Step 2d: Sri Lanka location clarification ---
+            # --- Step 2d: Sri Lanka location handling ---
             #
             # Logic:
             #   1. Query mentions a Sri Lanka location  → proceed normally
-            #   2. Query has no location at all         → ask user to specify
-            #      (climate queries need a location to retrieve meaningful data)
+            #   2. Query has no location at all         → answer at country level
+            #      ("Sri Lanka") with general safety guidance, and invite the
+            #      user to specify a district for more precise advice.
+            #      Rationale (RA-06): general advisory questions such as
+            #      "As a mother, is it safe to travel during the flood warning?"
+            #      must receive identical, gender-neutral safety guidance even
+            #      without a district — never a location-clarification refusal.
             # Note: Foreign location check is already done in Step 2b above.
             detected_location = entities.get("location", "") or ""
             query_lower_geo = request.query.lower()
@@ -372,24 +405,33 @@ class OrchestratorAgent:
                             "මධ්‍යම කඳුකර", "மத்திய மலைநாடு")
             )
 
+            country_fallback = False
             if not has_sri_lanka_location:
-                # Climate query with no location — ask the user to specify.
-                # Store the session entry so the next message (a location reply)
-                # can look back and reconstruct the intent.
-                ask_response = ChatResponse(
-                    session_id=session_id,
-                    query=request.query,
-                    summary=i18n.localize_static(
-                        "Please specify a location in Sri Lanka for your query. For example: 'What is the weather in Colombo?', 'Is there a flood risk in Kandy?', or 'What is the drought situation in Jaffna?'",
-                        detected_language,
-                    ),
-                    language=detected_language,
-                    confidence_score=0.0,
-                    processing_time_ms=(time.time() - start_time) * 1000,
-                    agents_used=agents_used,
+                # No district mentioned — default to country-level evidence
+                # so general questions are always answered. The summary layer
+                # adds a note inviting a district for more precise guidance.
+                entities = {**entities, "location": "Sri Lanka"}
+                structured_query = {
+                    **structured_query,
+                    "location": "Sri Lanka",
+                    "country_fallback": True,
+                }
+                # Keep nlp_result in sync so response assembly uses Sri Lanka.
+                try:
+                    nlp_result = {
+                        **nlp_result,
+                        "entities": {
+                            **(nlp_result.get("entities", {}) or {}),
+                            "location": "Sri Lanka",
+                        },
+                    }
+                except Exception:
+                    pass
+                country_fallback = True
+                logger.info(
+                    "No location detected; defaulting to country-level 'Sri Lanka' for query %r",
+                    request.query,
                 )
-                self._store_session(session_id, request.query, ask_response)
-                return ask_response
 
             # --- Step 2e: Default topic for topic-less but in-scope queries ---
             # Safety questions ("is it safe to go sightseeing?") and role
@@ -399,9 +441,19 @@ class OrchestratorAgent:
             # (rain/flood/drought-compatible), everyone else gets general
             # weather (temperature), so retrieval always has a topic filter.
             if not entities.get("climate_topic") and not entities.get("hazard_type"):
-                _default_topic = (
-                    "agriculture" if effective_user_type == "farmer" else "temperature"
+                _ql = request.query.lower()
+                _marine_cue = any(
+                    _w in _ql for _w in (
+                        "sea", "ocean", "coast", "beach", "wave", "tide",
+                        "marine", "fishing", "fisherman", "fishermen", "boat",
+                    )
                 )
+                if _marine_cue:
+                    _default_topic = "sea-level-rise"
+                else:
+                    _default_topic = (
+                        "agriculture" if effective_user_type == "farmer" else "temperature"
+                    )
                 entities = {**entities,
                             "climate_topic": _default_topic,
                             "hazard_type": _default_topic}
@@ -446,8 +498,16 @@ class OrchestratorAgent:
                 )
 
             # --- Step 4: Climate Analysis ---
+            # Gender-neutral pipeline (RA-06): downstream LLMs see the neutralized
+            # query so "as a mother" vs "as a father" produce identical guidance.
+            # The original query is preserved in request.query / response.query.
+            try:
+                from app.agents.ir_agent.ir_agent import neutralize_retrieval_query as _neut_q
+                neutral_pipeline_query = _neut_q(request.query)
+            except Exception:
+                neutral_pipeline_query = request.query
             analysis_result = await self._invoke_analysis_agent(
-                query=request.query,
+                query=neutral_pipeline_query,
                 intent=intent,
                 entities=entities,
                 evidence=retrieved_evidence,
@@ -467,8 +527,8 @@ class OrchestratorAgent:
                 self._invoke_recommendation_agent(
                     analysis=analysis_result,
                     user_type=effective_user_type,
-                    location=request.location,
-                    query=request.query,
+                    location=entities.get("location") or request.location,
+                    query=neutral_pipeline_query,
                 )
             )
             verification_result, recommendation_result = await asyncio.gather(
@@ -690,8 +750,13 @@ class OrchestratorAgent:
         ]
 
         # Build summary using LLM to synthesize all agent outputs
+        try:
+            from app.agents.ir_agent.ir_agent import neutralize_retrieval_query as _neut_s
+            _summary_query = _neut_s(request.query)
+        except Exception:
+            _summary_query = request.query
         summary = await self._generate_summary(
-            query=request.query,
+            query=_summary_query,
             analysis=analysis_result,
             verification=verification_result,
             language=language,
@@ -737,6 +802,19 @@ class OrchestratorAgent:
 
         # Overall confidence
         confidence = verification_result.get("confidence", 0.5)
+
+        # Country-level fallback note: when no district was given, invite a
+        # district for more precise guidance without refusing the general answer.
+        # This keeps RA-06 style queries ("is it safe to travel during flood
+        # warning?") answered while guiding toward localisation.
+        try:
+            _fallback_used = (entities.get("location") or "").strip().lower() == "sri lanka"
+        except Exception:
+            _fallback_used = False
+        if _fallback_used and summary:
+            _note_en = " For more precise advice, specify a district (e.g. 'Is there a flood risk in Kandy?')."
+            if _note_en.strip() not in summary:
+                summary = f"{summary.rstrip()}{_note_en}"
 
         # --- Language handling -------------------------------------------------
         from app.services import i18n_service as i18n
@@ -816,6 +894,8 @@ class OrchestratorAgent:
             "business": "business continuity, staff safety, assets, logistics, and supply chains",
             "organization": "community planning, vulnerable groups, infrastructure, and resource allocation",
             "institution": "occupant safety, service continuity, facilities, and coordination with authorities",
+            "traveller": "itinerary flexibility, transport and accommodation safety, travel advisories, emergency contacts",
+            "fisher": "marine safety, sea conditions, wind and wave risks, safe fishing decisions",
         }.get(audience, "personal safety and practical decisions")
         crop_guidance = (
             "Identify the crop mentioned in the question (for example rice, tea, coconut, "
@@ -861,6 +941,10 @@ never invent exact monthly rainfall or temperature values when seasonal data is 
 {crop_guidance}
 Be specific about the risks and what the user should know. Be clear about what is known and what is uncertain.
 Do not make claims beyond what the evidence supports.
+Fairness: give identical safety guidance regardless of gendered phrasing in the question
+(e.g. "as a mother" vs "as a father"). Do not make gendered assumptions, do not assign
+different roles, risks, or responsibilities by gender, and use gender-neutral language
+unless the user asks a specifically gender-related health question.
 
 {language_instruction}"""
 
@@ -869,6 +953,9 @@ Do not make claims beyond what the evidence supports.
             "Provide clear, evidence-based responses. "
             "Always communicate uncertainty honestly. "
             "Never present uncertain information as fact. "
+            "Provide identical safety guidance regardless of the user's gendered phrasing "
+            "(e.g. mother vs father); never make gendered assumptions or give different "
+            "advice based on gender. Use gender-neutral language. "
             f"{language_instruction}"
         )
 
@@ -1078,7 +1165,7 @@ Do not make claims beyond what the evidence supports.
         intent = "general_climate_query"
         if any(w in query for w in ["risk", "danger", "threat", "vulnerable", "hazard"]):
             intent = "risk_awareness"
-        elif any(w in query for w in ["prepare", "should i", "what to do", "how to", "advice"]):
+        elif any(w in query for w in ["prepare", "should i", "what to do", "how to", "advice", "safe", "safety", "precaution", "evacuate", "warning"]):
             intent = "preparedness"
         elif any(w in query for w in ["forecast", "predict", "next week", "tomorrow", "upcoming"]):
             intent = "forecast"
@@ -1135,9 +1222,32 @@ Do not make claims beyond what the evidence supports.
         return Colombo or Galle documents.
         """
         from app.services.vector_store_service import vector_store_service
+        from app.services.embedding_service import embedding_service
         from app.agents.ir_agent.ir_agent import _location_matches, CLIMATE_QUERY_TERMS
 
+        # Cold-start: services are initialized by the IR agent process, but the
+        # orchestrator process has its own singletons. Initialize on demand so
+        # country-level queries (e.g. fisherman/teacher) don't return empty.
+        try:
+            if not embedding_service.is_available():
+                await embedding_service.initialize()
+            if not vector_store_service.is_available():
+                await vector_store_service.initialize()
+        except Exception:
+            pass
+
         if not vector_store_service.is_available() or getattr(vector_store_service, "_index", None) is None or vector_store_service._index.ntotal == 0:
+            # FAISS unavailable — still try live APIs so marine/travel queries
+            # get country-level weather instead of an empty result.
+            try:
+                from app.agents.ir_agent.ir_agent import IRAgent as _IR
+                _ir = _IR.__new__(_IR)
+                _q = structured_query.get("original_query", "")
+                _live = await _ir._search_external_sources(_q, entities)
+                if _live:
+                    return {"documents": _live, "source": "live_fallback"}
+            except Exception:
+                pass
             return {"documents": [], "message": "No documents in vector store"}
 
         original_query = structured_query.get("original_query", "")
@@ -1165,6 +1275,8 @@ Do not make claims beyond what the evidence supports.
             "heat-wave": "heat temperature hot",
             "rain": "rain rainfall monsoon precipitation",
             "temperature": "temperature weather rainfall",
+            "sea-level-rise": "sea ocean coast coastal wave tide marine fishing boat storm wind",
+            "storm": "storm wind wave sea coastal",
         }
         if location or topic:
             search_query = (
@@ -1172,7 +1284,11 @@ Do not make claims beyond what the evidence supports.
                 "Sri Lanka climate weather"
             ).strip()
         else:
-            search_query = original_query
+            try:
+                from app.agents.ir_agent.ir_agent import neutralize_retrieval_query as _neut
+                search_query = _neut(original_query)
+            except Exception:
+                search_query = original_query
 
         # Over-fetch to compensate for post-filter location filtering
         results = await vector_store_service.query_similar(
@@ -1180,10 +1296,33 @@ Do not make claims beyond what the evidence supports.
             top_k=40,
         )
 
-        # Format and apply location filter
+        # Format and apply location + topic filters (same policy as IR agent:
+        # location match AND topic-compatible first, then backfill).
+        _compat = {
+            "flood": {"flood", "rain", "cyclone", "sea-level-rise", "coastal-protection", "water-resources", "climate-health", "climate-policy"},
+            "rain": {"rain", "flood", "cyclone", "agriculture", "water-resources", "climate-policy"},
+            "drought": {"drought", "water-scarcity", "agriculture", "water-resources", "climate-policy"},
+            "heat-wave": {"heat-wave", "agriculture", "climate-health", "climate-policy"},
+            "cyclone": {"cyclone", "flood", "rain", "sea-level-rise", "coastal-protection", "climate-policy"},
+            "landslide": {"landslide", "flood", "rain", "erosion", "climate-policy"},
+            "sea-level-rise": {"sea-level-rise", "coastal-protection", "cyclone", "flood", "fisheries", "ocean-warming", "climate-policy", "water-resources"},
+            "temperature": {"temperature", "heat-wave", "rain", "flood", "drought", "cyclone", "thunderstorm", "agriculture", "water-scarcity", "water-resources", "climate-health", "climate-policy", "sea-level-rise", "coastal-protection", "fisheries", "ocean-warming"},
+            "storm": {"cyclone", "flood", "rain", "sea-level-rise", "climate-policy", "coastal-protection"},
+            "agriculture": {"agriculture", "drought", "flood", "rain", "water-resources", "climate-policy"},
+        }
+        _allowed = _compat.get(topic)
+        if _allowed is not None:
+            _allowed = set(_allowed) | {topic}
         documents = []
         seen_content: set[str] = set()
+        def _loc_ok(_d) -> bool:
+            if location and _d.get("location"):
+                return _location_matches(location, str(_d.get("location")))
+            return True
+        # Pass 1: location + topic-compatible
         for result in results:
+            if len(documents) >= 5:
+                break
             metadata = result.get("metadata", {})
             doc = {
                 "source_name": result.get("source_name", metadata.get("source", "Unknown")),
@@ -1195,21 +1334,60 @@ Do not make claims beyond what the evidence supports.
                 "location": metadata.get("location", ""),
                 "date": metadata.get("date", ""),
             }
-            # Skip test documents
             if doc["source_name"].strip().lower() == "test":
                 continue
-            # Apply fuzzy location filter — same logic as IR agent
-            if location and doc["location"]:
-                if not _location_matches(location, str(doc["location"])):
-                    continue
-            # Deduplicate by content
+            if not _loc_ok(doc):
+                continue
+            if _allowed is not None and str(doc.get("topic", "")).lower() not in _allowed:
+                continue
             content_key = doc["content"][:120].strip()
             if content_key in seen_content:
                 continue
             seen_content.add(content_key)
             documents.append(doc)
-            if len(documents) >= 5:
-                break
+        # Pass 2: location match, any topic (backfill so country queries never empty)
+        if len(documents) < 3:
+            for result in results:
+                if len(documents) >= 5:
+                    break
+                metadata = result.get("metadata", {})
+                doc = {
+                    "source_name": result.get("source_name", metadata.get("source", "Unknown")),
+                    "url": result.get("url"),
+                    "content": result.get("content", ""),
+                    "snippet": result.get("snippet", result.get("content", "")[:300]),
+                    "reliability_score": min(result.get("score", 0.5), 1.0),
+                    "topic": metadata.get("topic", ""),
+                    "location": metadata.get("location", ""),
+                    "date": metadata.get("date", ""),
+                }
+                if doc["source_name"].strip().lower() == "test":
+                    continue
+                if not _loc_ok(doc):
+                    continue
+                content_key = doc["content"][:120].strip()
+                if content_key in seen_content:
+                    continue
+                seen_content.add(content_key)
+                documents.append(doc)
+
+        # Always try live country-level weather/marine APIs and prepend them, so
+        # fisherman/teacher queries get current conditions even when FAISS is weak.
+        try:
+            from app.agents.ir_agent.ir_agent import IRAgent as _IR2
+            _ir2 = _IR2.__new__(_IR2)
+            _live2 = await _ir2._search_external_sources(original_query, entities)
+            if _live2:
+                for _ld in _live2:
+                    _ld["evidence_type"] = "live"
+                # Live first (current conditions), then knowledge-base.
+                return {
+                    "documents": list(_live2) + documents,
+                    "source": "faiss_live_fallback",
+                    "query_used": search_query,
+                }
+        except Exception:
+            pass
 
         return {
             "documents": documents,

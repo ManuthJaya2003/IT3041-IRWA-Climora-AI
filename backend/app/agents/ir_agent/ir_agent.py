@@ -58,9 +58,12 @@ DRY_ZONE_LATITUDE = 8.3114
 DRY_ZONE_LONGITUDE = 80.4037
 CLIMATE_QUERY_TERMS = (
     "climate", "weather", "flood", "drought", "rain", "rainfall", "monsoon",
-    "storm", "cyclone", "heat", "temperature", "humidity", "wind", "agriculture",
+    "storm", "cyclone", "heat", "temperature", "humidity", "wind", "wave", "waves",
+    "tide", "sea", "ocean", "coast", "coastal", "marine", "beach",
+    "fishing", "fisherman", "fishermen", "fisher", "fisheries", "boat",
+    "agriculture",
     "environment", "pollution", "landslide", "water", "irrigation", "sea level",
-    "forecast", "disaster", "preparedness", "risk",
+    "forecast", "disaster", "preparedness", "risk", "safe travel", "travel safety",
     # Sinhala
     "කාලගුණ", "දේශගුණ", "උෂ්ණත්ව", "වැස්ස", "වර්ෂා", "මෝසම්", "ගංවතුර", "නියඟ", "නියග", "නියං",
     "නායයෑ", "කුණාටු", "සුළි සුළං", "සුළඟ", "සුළං", "රස්නය", "ආපදා", "අවදානම",
@@ -89,6 +92,37 @@ def query_has_climate_term(query: str) -> bool:
         elif term in q:
             return True
     return False
+
+
+def neutralize_retrieval_query(query: str) -> str:
+    """Strip gendered role phrasing for retrieval so RA-06 style pairs match identically.
+
+    "As a mother, is it safe to travel..." vs "As a father, ..." must retrieve
+    the same evidence. Gendered words carry no climate signal, so they are
+    removed (word-boundary) from the search text only — the original query is
+    still shown to the user and to the answer LLM (which is instructed to be
+    gender-neutral).
+    """
+    import re as _re
+    if not query:
+        return query
+    q = query
+    # Remove leading "as a mother/father/..." framing first.
+    q = _re.sub(
+        r"^\s*as\s+a\s+(mother|father|mom|dad|mum|mama|papa|parent|man|woman|boy|girl)\s*,?\s*",
+        "",
+        q,
+        flags=_re.IGNORECASE,
+    )
+    # Remove any remaining standalone gendered role tokens.
+    q = _re.sub(
+        r"\b(mother|father|mom|dad|mum|mama|papa|parent|parents|man|woman|boy|girl|male|female)\b",
+        "",
+        q,
+        flags=_re.IGNORECASE,
+    )
+    q = _re.sub(r"\s{2,}", " ", q).strip(" ,-")
+    return q or query
 
 # Approximate location aliases used for fuzzy matching during FAISS result filtering.
 # Maps canonical names / provinces to their constituent place tokens.
@@ -338,6 +372,9 @@ class IRAgent(BaseAgentServer):
             search_query = expanded_query
         else:
             search_query = " ".join([p for p in search_parts if p]).strip()
+        # Gender-neutral retrieval (RA-06): mother/father phrasing must not
+        # change the evidence set.
+        search_query = neutralize_retrieval_query(search_query)
 
         # Budget split: reserve half the slots for live API data, half for FAISS.
         # This ensures current readings are always represented alongside indexed docs.
@@ -806,7 +843,7 @@ class IRAgent(BaseAgentServer):
             if air_quality_result:
                 results.append(air_quality_result)
 
-        if any(term in query.lower() for term in ("coastal", "coast", "wave", "sea level", "storm surge")):
+        if any(term in query.lower() for term in ("coastal", "coast", "wave", "waves", "sea", "ocean", "tide", "marine", "beach", "sea level", "storm surge", "fishing", "fisherman", "fishermen", "boat", "sailing")):
             marine_result = await self._query_open_meteo_marine(
                 latitude, longitude, resolved_name
             )
