@@ -115,6 +115,49 @@ This deployment improves process and network isolation, but it does not replace
 the still-pending authenticated user accounts and server-side subscription
 entitlements.
 
+## Screenshots
+
+### Application
+
+![Climora AI home screen with the live Agent Mesh panel and trilingual example queries](Images/interface.png)
+
+![Completed query showing an evidence-grounded answer, a risk assessment, and all seven agent interactions logged as successful](Images/interface%20after%20running%20query.png)
+
+![Settings screen covering answer language, default location, saved locations, appearance, notifications, data and privacy, subscription and organization](Images/settings.png)
+
+![Plans and pricing modal showing the Free, Premium (Rs 1,490), Business (Rs 9,900) and Enterprise (custom) tiers](Images/packages.png)
+
+### Trilingual answers
+
+The input language is auto-detected from the script and the answer is returned
+in the same language.
+
+**English**
+
+![English answer example - Kandy flood risk summary](Images/english%201.png)
+
+![English answer example](Images/english%202.png)
+
+![English answer example](Images/english%203.png)
+
+![English answer example](Images/english%204.png)
+
+**Sinhala**
+
+![Sinhala answer example](Images/sinhala%201.png)
+
+![Sinhala answer example](Images/sinhala%202.png)
+
+![Sinhala answer example](Images/sinhala%203.png)
+
+**Tamil**
+
+![Tamil answer example](Images/tamil%201.png)
+
+![Tamil answer example](Images/tamil%202.png)
+
+![Tamil answer example](Images/tamil%203.png)
+
 ## Tech stack
 
 | Layer | Technology |
